@@ -1,4 +1,6 @@
 /* ============================================================ game rules */
+// overall difficulty: enemy and boss health, enemy shot speed
+const DIFF = 1.2;
 const MAX_HP = 5, MAX_BOMBS = 5, MAX_POWER = 4, LEVEL_LEN = 100, MAX_CHARM = 6;
 const DEBUG = { god: false, substeps: 1, bot: null };
 const MODE = {
@@ -27,7 +29,7 @@ const LEVEL_INFO = {
 const BOSS = {
   granny:  { name: 'Бабка на самокате', label: 'БАБКА НА САМОКАТЕ', hp: 420, restX: 190, y: [150, 135], head: [-14, -92] },
   pike:    { name: 'Злая рыба', label: 'ЗЛАЯ РЫБА', hp: 420, restX: 200, y: [125, 115], head: [-100, -50] },
-  car:     { name: 'Бешеная Mitsubishi', label: 'БЕШЕНАЯ MITSUBISHI', hp: 520, restX: 175, y: [180, 180], head: [-120, -50] },
+  car:     { name: 'Бешеная Mitsubishi', label: 'БЕШЕНАЯ MITSUBISHI', hp: 520, restX: 160, y: [150, 150], head: [-120, -50], scale: 0.8 },
   catfish: { name: 'Сом', label: 'СОМ', hp: 540, restX: 235, y: [130, 120], head: [-150, -40] },
 };
 const SHOTS = { 1: [[0, 0]], 2: [[0, -7], [0, 7]], 3: [[0, 0], [-0.12, -4], [0.12, 4]], 4: [[0, -7], [0, 7], [-0.17, -4], [0.17, 4]] };
@@ -36,8 +38,8 @@ const BOSS_HIT = {
   car: [[-110, 0, 46], [10, -10, 62], [118, 4, 40]], catfish: [[-112, 4, 54], [10, 0, 60], [118, 0, 40]],
 };
 // boss art space -> world (the art is drawn upright on screen even when the world is turned)
-function bp(b, ax, ay) { return G.vert ? { x: b.x - ay, y: b.y + b.oy + ax } : { x: b.x + ax, y: b.y + b.oy + ay }; }
-function bossCircles(b) { return BOSS_HIT[b.kind].map(([hx, hy, r]) => { const q = bp(b, hx, hy); return [q.x, q.y, r]; }); }
+function bp(b, ax, ay) { const s = BOSS[b.kind].scale || 1; ax *= s; ay *= s; return G.vert ? { x: b.x - ay, y: b.y + b.oy + ax } : { x: b.x + ax, y: b.y + b.oy + ay }; }
+function bossCircles(b) { return BOSS_HIT[b.kind].map(([hx, hy, r]) => { const q = bp(b, hx, hy); return [q.x, q.y, r * (BOSS[b.kind].scale || 1)]; }); }
 const toScreen = (x, y) => (G && G.vert ? { x: y, y: SH - x } : { x, y });
 
 let G = null;
@@ -59,9 +61,10 @@ function newGame(mode, level) {
 
 /* ---------- helpers */
 const later = (dt, fn) => G.timers.push({ t: dt, fn });
-const heroHit = () => (G.mode === 'duck' ? { x: G.player.x, y: G.player.y - 4, r: 12 } : { x: G.player.x + 26, y: G.player.y, r: 12 });
+const heroHit = () => (G.mode === 'duck' ? { x: G.player.x, y: G.player.y - 3, r: 10 } : { x: G.player.x + 26, y: G.player.y, r: 12 });
 const aimAt = (x, y) => { const h = heroHit(); return Math.atan2(h.y - y, h.x - x); };
 function ebullet(x, y, ang, speed, o) {
+  speed *= DIFF;
   G.eb.push(Object.assign({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 6, type: 'orb', col: '#ff2d55', age: 0, rot: rand(0, TAU), spin: 0 }, o));
 }
 function spread(x, y, n, step, speed, o, base) {
@@ -81,6 +84,7 @@ function enemy(kind, x, y, o) {
   if (kind === 'grunt' && (G.t > 45 || G.level === 2) && Math.random() < 0.35) e.shoots = true;
   if (G.mode === 'fish' && kind === 'zig') { e.hp = 4; e.r = 20; e.speed = 150; e.score = 150; }
   if (G.mode === 'fish' && kind === 'lance') { e.hp = 3; e.r = 16; }
+  if (!e.invuln) e.hp = Math.round(e.hp * DIFF * 10) / 10;
   e.maxHp = e.hp; e.baseY = y;
   G.enemies.push(e);
   return e;
@@ -420,7 +424,7 @@ function killPlayer() {
 /* ---------- player */
 function fire() {
   const p = G.player, M = G.M;
-  const mx = p.x + (G.mode === 'duck' ? 44 : 80), my = p.y + (G.mode === 'duck' ? 6 : 8);
+  const mx = p.x + (G.mode === 'duck' ? 35 : 80), my = p.y + (G.mode === 'duck' ? 5 : 8);
   const sp = G.mode === 'duck' ? 1 : 1.6;
   for (const [a, oy] of SHOTS[G.power]) G.pb.push({ x: mx, y: my + oy * sp, vx: Math.cos(a) * M.bSpeed, vy: Math.sin(a) * M.bSpeed, ang: a, r: M.br, dmg: M.dmg, age: 0, wob: rand(0, 6) });
   if (G.charm > 0 && G.charmT <= 0) {
@@ -741,7 +745,7 @@ function spawnBoss() {
   G.phase = 'boss'; G.phaseT = 0;
   const kind = G.LI.boss;
   G.cameo = null;
-  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: BOSS[kind].hp, maxHp: BOSS[kind].hp, nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
+  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF), maxHp: Math.round(BOSS[kind].hp * DIFF), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
   b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain }[kind](b);
   b.brain.next();
   G.boss = b;

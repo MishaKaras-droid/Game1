@@ -55,7 +55,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 /* ---------- menu ---------- */
 #menu { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr 1fr; z-index: 5; }
 .half {
-  --title-gap: clamp(22px, 6.5vh, 70px);
+  --title-gap: clamp(30px, 9.5vh, 104px);
   position: relative;
   display: flex;
   align-items: center;
@@ -215,18 +215,21 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 
 @media (orientation: portrait) {
   .half { --title-gap: clamp(26px, 7.5vw, 64px); flex-direction: column; text-align: center; gap: clamp(4px, 1.2vh, 12px); }
-  .half.sky { padding-block: clamp(44px, 7vh, 64px) calc(var(--title-gap) * 0.9); }
-  .half.sea { padding-block: calc(var(--title-gap) * 0.9) 14px; }
+  .half.sky { padding-block: clamp(36px, 5vh, 56px) calc(var(--title-gap) * 1.7); }
+  .half.sea { padding-block: calc(var(--title-gap) * 1.4) 14px; }
   .who { justify-items: center; max-width: min(92vw, 40ch); }
   .chips { justify-self: center; justify-content: center; }
   .chip { font-size: clamp(12px, 3.8vw, 18px); }
-  .hero.duck { width: min(58vw, 30vh, 330px); }
-  .hero.fish { width: min(76vw, 40vh, 400px); }
+  .hero.duck { width: min(52vw, 24vh, 320px); }
+  .hero.fish { width: min(68vw, 31vh, 380px); }
   .title { font-size: clamp(28px, 12.5vw, 96px); }
   .who .name { font-size: clamp(22px, 7.4vw, 46px); }
   .who .desc { font-size: clamp(12px, 3.7vw, 18px); }
   .who .rec { font-size: clamp(11px, 3.2vw, 15px); }
   .controls-hint { display: none; }
+}
+@media (orientation: portrait) and (max-height: 760px) {
+  .who .rec { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .waterline svg, #rotate .phone { animation: none; }

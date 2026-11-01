@@ -10,7 +10,7 @@ import pathlib
 
 from PIL import Image
 
-K = pathlib.Path("/home/user/kryabul")
+K = pathlib.Path(__file__).resolve().parent.parent
 IMAGES = {  # key in ASSETS.img -> file
     "duck": "duck_ilona.png",
     "carpBody": "carp_body.png",

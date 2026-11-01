@@ -117,7 +117,7 @@ function drawPlayer(c, t) {
   if (p.inv > 0 && p.alive && Math.floor(p.inv * 14) % 2 === 0) c.globalAlpha = 0.35;
   c.translate(p.x, p.y); upright(c);
   if (!p.alive) c.rotate(p.rot);
-  if (G.mode === 'duck') drawDuckHero(c, 0, 0, t, { h: 96, tilt: p.tilt, flapSpeed: G.phase === 'turn' ? 24 : 15 });
+  if (G.mode === 'duck') drawDuckHero(c, 0, 0, t, { h: 77, tilt: p.tilt, flapSpeed: G.phase === 'turn' ? 24 : 15 });
   else drawCarpHero(c, 0, 0, t, { w: 150, tilt: p.tilt * 0.7 });
   c.restore();
 }
@@ -153,7 +153,7 @@ function speechAt(c, text, ax, ay, tLeft, total, side) {
   c.restore();
 }
 function drawSpeech(c, b) {
-  const s = toScreen(b.x, b.y + b.oy), hd = BOSS[b.kind].head;
+  const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
 const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish };
@@ -171,6 +171,7 @@ function drawBossEntity(c, b, t) {
     else c.scale(1, Math.cos(b.rot));
   }
   const fn = BOSS_ART[b.kind];
+  if (BOSS[b.kind].scale) c.scale(BOSS[b.kind].scale, BOSS[b.kind].scale);
   c.save(); fn(c, b, t); c.restore();
   if (b.flash > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.2; fn(c, b, t); c.restore(); }
   c.restore();
