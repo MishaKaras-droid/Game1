@@ -1,0 +1,240 @@
+/* ============================================================ screens, buttons, main loop */
+const SCREENS = ['menu', 'pause', 'over', 'win', 'rotate'];
+let pending = null, rotateSkipped = false, lastCheckpoint = null, wakeLock = null;
+
+function show(id) {
+  for (const s of SCREENS) $(s).hidden = s !== id;
+  $('hud').hidden = !(state === 'play' || state === 'paused');
+}
+function best(mode) { return store.get('best.' + mode, 0) || 0; }
+function saveBest(mode, score) { const b = Math.max(best(mode), Math.floor(score)); store.set('best.' + mode, b); return b; }
+function refreshRecords() {
+  $('recDuck').textContent = best('duck') ? 'Рекорд: ' + fmt(best('duck')) : 'Рекорда пока нет';
+  $('recFish').textContent = best('fish') ? 'Рекорд: ' + fmt(best('fish')) : 'Рекорда пока нет';
+}
+function updateBombBtn() {
+  if (!G) return;
+  $('bombCount').textContent = String(G.bombs);
+  $('btnBomb').classList.toggle('empty', G.bombs <= 0);
+}
+const ICON_ON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function updateSoundUi() {
+  const m = Sound.isMuted();
+  $('btnSound').innerHTML = m ? ICON_OFF : ICON_ON;
+  $('btnSound').setAttribute('aria-label', m ? 'Включить звук' : 'Выключить звук');
+  $('btnSound2').textContent = m ? 'Звук: выкл' : 'Звук: вкл';
+}
+function toggleMute() { Sound.init(); Sound.setMuted(!Sound.isMuted()); updateSoundUi(); }
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+    else if (!on && wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
+  } catch (e) { wakeLock = null; }
+}
+
+function goMenu() {
+  state = 'menu'; G = null;
+  Sound.music(null); Sound.resume(); keepAwake(false);
+  refreshRecords(); updateSoundUi();
+  show('menu');
+  sizeHeroes();
+}
+function tryStart(mode, fromBoss, level) {
+  Sound.init(); sfx('click');
+  pending = { mode, fromBoss: !!fromBoss, level: level || 1 };
+  if (isTouch && view.portrait && !rotateSkipped) { state = 'rotate'; show('rotate'); return; }
+  startGame(mode, fromBoss, level);
+}
+function startGame(mode, fromBoss, level) {
+  Sound.init();
+  G = newGame(mode, level || 1);
+  if (fromBoss && lastCheckpoint && lastCheckpoint.mode === mode && lastCheckpoint.level === G.level) {
+    G.score = lastCheckpoint.score; G.power = lastCheckpoint.power;
+    G.t = G.len; G.ev = G.L.length;
+    if (G.mode === 'duck' && G.level === 2) { G.vert = true; setWorld(); G.player.y = H / 2; }
+  } else {
+    banner('УРОВЕНЬ ' + G.level, G.LI.name, 2.8);
+    if (G.level === 2) G.power = 2;
+  }
+  state = 'play';
+  input.dx = input.dy = 0;
+  show(null);
+  updateBombBtn();
+  Sound.music(G.LI.song);
+  keepAwake(true);
+  lastT = performance.now();
+}
+function pauseGame() {
+  if (state !== 'play') return;
+  state = 'paused';
+  $('pauseHint').textContent = isTouch ? 'Нажми «Продолжить», когда будешь готов.' : 'Esc или P — продолжить.';
+  updateSoundUi(); show('pause');
+  Sound.suspend(); keepAwake(false);
+  render();
+}
+function resumeGame() {
+  if (state !== 'paused') return;
+  state = 'play'; show(null);
+  Sound.resume(); keepAwake(true);
+  lastT = performance.now();
+}
+function onGameOver() {
+  if (!G || G.ended) return;
+  G.ended = true; state = 'over';
+  sfx('lose'); keepAwake(false); Sound.music(null);
+  const b = saveBest(G.mode, G.score);
+  $('overText').textContent = G.mode === 'duck' ? 'Утка Илона устала. Глоток кофе — и снова в небо!' : 'Карась Миша уплыл перекусить. Ещё попытка?';
+  $('overScore').textContent = fmt(G.score);
+  $('overBest').textContent = 'Рекорд: ' + fmt(b);
+  lastCheckpoint = G.checkpoint ? Object.assign({ mode: G.mode, level: G.level }, G.checkpoint) : null;
+  $('btnBossAgain').hidden = !lastCheckpoint;
+  $('btnAgain').className = lastCheckpoint ? 'btn alt' : 'btn';
+  show('over');
+}
+function onWin() {
+  if (!G || G.ended) return;
+  G.ended = true; state = 'win';
+  const bonus = G.hp * 1000;
+  G.score += bonus;
+  sfx('win'); keepAwake(false);
+  const b = saveBest(G.mode, G.score);
+  const stars = G.hp >= 4 ? 3 : G.hp >= 2 ? 2 : 1;
+  $('winText').textContent = {
+    granny: 'Бабка на самокате улетела восвояси. Небо над городом снова спокойное!',
+    pike: 'Злая рыба уплыла пузом кверху. Море снова тёплое и тихое!',
+    car: '«Я твою выхлопную трубу шатала!» — сказала утка Илона. Бешеная Mitsubishi заглохла навсегда.',
+    catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
+  }[G.LI.boss];
+  $('winLevel').textContent = G.level === 1 ? 'Уровень 1 пройден. Впереди уровень 2!' : 'Уровень 2 пройден. Продолжение следует…';
+  $('btnNext').hidden = G.level !== 1;
+  $('btnWinAgain').className = G.level === 1 ? 'btn alt' : 'btn';
+  $('winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+  $('winScore').textContent = fmt(G.score);
+  $('winBest').textContent = 'Бонус за сердечки +' + fmt(bonus) + ' · Рекорд: ' + fmt(b);
+  show('win');
+}
+
+/* ---------- buttons */
+for (const b of document.querySelectorAll('[data-level]')) b.addEventListener('click', () => tryStart(b.dataset.mode, false, +b.dataset.level));
+for (const cv of document.querySelectorAll('canvas.hero')) cv.addEventListener('click', () => tryStart(cv.dataset.mode, false, 1));
+$('btnSound').addEventListener('click', toggleMute);
+$('btnSound2').addEventListener('click', toggleMute);
+$('btnResume').addEventListener('click', resumeGame);
+$('btnRestart').addEventListener('click', () => { const m = G ? G.mode : 'duck', l = G ? G.level : 1; Sound.resume(); startGame(m, false, l); });
+for (const id of ['btnMenu1', 'btnMenu2', 'btnMenu3']) $(id).addEventListener('click', () => { sfx('click'); goMenu(); });
+$('btnAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
+$('btnWinAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
+$('btnNext').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, 2); });
+$('btnBossAgain').addEventListener('click', () => { if (lastCheckpoint) tryStart(lastCheckpoint.mode, true, lastCheckpoint.level); });
+$('btnRotateSkip').addEventListener('click', () => { rotateSkipped = true; if (pending) startGame(pending.mode, pending.fromBoss, pending.level); });
+$('btnPause').addEventListener('click', (e) => { e.currentTarget.blur(); pauseGame(); });
+$('btnBomb').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); useBomb(); });
+$('btnBomb').addEventListener('click', (e) => { if (e.detail === 0) useBomb(); e.currentTarget.blur(); });
+if (isTouch) $('bombKey').hidden = true;
+$('controlsHint').textContent = isTouch
+  ? 'Веди пальцем по экрану — герой повторит движение. Стреляет сам. Кнопка со звездой — суперудар.'
+  : 'Стрелки / WASD или тяни мышью · стреляет сам · Пробел — суперудар · P — пауза';
+const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+if (!fsOk) $('btnFull').hidden = true;
+$('btnFull').addEventListener('click', () => {
+  const el = document.documentElement;
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    const r = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen && el.webkitRequestFullscreen();
+    if (r && r.then) r.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not supported */ } }).catch(() => {});
+  } catch (e) { /* fullscreen refused */ }
+});
+
+hooks.key = (code, e, onButton) => {
+  if (state === 'play') {
+    if (code === 'Space' || code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
+    else if (code === 'Escape' || code === 'KeyP') pauseGame();
+    else if (code === 'KeyM') toggleMute();
+  } else if (state === 'paused') {
+    if (code === 'Escape' || code === 'KeyP') resumeGame();
+    else if (code === 'KeyM') toggleMute();
+  } else if (state === 'menu' && !onButton) {
+    if (code === 'Digit1') tryStart('duck');
+    else if (code === 'Digit2') tryStart('fish');
+  }
+};
+hooks.blur = () => { if (state === 'play') pauseGame(); };
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (state === 'play') pauseGame(); Sound.suspend(); }
+  else if (state !== 'paused') Sound.resume();
+});
+
+/* ---------- animated heroes on the menu */
+const heroes = [{ el: $('heroDuck'), kind: 'duck', w: 0, h: 0 }, { el: $('heroFish'), kind: 'fish', w: 0, h: 0 }];
+function sizeHeroes() {
+  const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+  for (const hr of heroes) {
+    const r = hr.el.getBoundingClientRect();
+    hr.w = Math.round(r.width * dpr); hr.h = Math.round(r.height * dpr);
+    if (hr.w > 0 && hr.el.width !== hr.w) hr.el.width = hr.w;
+    if (hr.h > 0 && hr.el.height !== hr.h) hr.el.height = hr.h;
+  }
+}
+function drawHeroes(t) {
+  for (const hr of heroes) {
+    if (!hr.w || !hr.h) continue;
+    const c = hr.el.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, hr.w, hr.h);
+    if (hr.kind === 'duck') drawDuckHero(c, hr.w / 2, hr.h * 0.52 + Math.sin(t * 2.2) * hr.h * 0.03, t, { h: hr.h * 0.8, flapSpeed: 9, tilt: Math.sin(t * 1.3) * 0.05 });
+    else { const w = hr.w * 0.86; drawCarpHero(c, hr.w * 0.47, hr.h * 0.56 + Math.sin(t * 1.8) * hr.h * 0.04, t, { w, amp: w * 0.035, swim: 6 }); }
+  }
+}
+onResize.push(() => {
+  if (state === 'menu') sizeHeroes();
+  if (state === 'rotate' && !view.portrait && pending) startGame(pending.mode, pending.fromBoss, pending.level);
+  if (G && state !== 'play') render();
+});
+
+/* ---------- main loop */
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
+  lastT = now;
+  try {
+    if (state === 'play') { for (let i = 0; i < DEBUG.substeps && state === 'play'; i++) update(dt); render(); }
+    else if (state === 'menu') drawHeroes(now / 1000);
+  } catch (err) {
+    console.error(err);
+  }
+  requestAnimationFrame(loop);
+}
+
+function fontsReady() {
+  try {
+    if (!document.fonts) return Promise.resolve();
+    const loads = ['26px "Dela Gothic One"', '900 16px "Nunito"', '800 16px "Nunito"', '21px "Pangolin"'].map((f) => document.fonts.load(f, 'АБВ').catch(() => {}));
+    return Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 2500))]);
+  } catch (e) { return Promise.resolve(); }
+}
+function boot() {
+  resize();
+  window.addEventListener('resize', resize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+  Promise.race([Promise.all([loadImages(), fontsReady()]), new Promise((r) => setTimeout(r, 5000))]).then(() => {
+    $('loading').hidden = true;
+    goMenu();
+    requestAnimationFrame((t) => { lastT = t; loop(t); });
+  });
+}
+
+// test hooks (used by automated checks only)
+window.__kb = {
+  get G() { return G; }, get state() { return state; },
+  start: (m, fromBoss, level) => startGame(m, fromBoss, level),
+  tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
+  god: (v) => { DEBUG.god = v !== false; },
+  debug: DEBUG,
+  skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; startWarning(); G.phaseT = 2.9; } },
+  render: () => render(),
+};
+const hot = window.claude && window.claude.hot;
+try { if (hot && hot.snapshot) hot.snapshot(() => ({ muted: Sound.isMuted() })); } catch (e) { /* optional */ }
+if (hot && hot.ready) hot.ready(() => boot()); else boot();

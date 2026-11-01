@@ -1,0 +1,353 @@
+<title>Кря и Буль</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="theme-color" content="#0b2f57">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Nunito:wght@700;800;900&family=Pangolin&display=swap">
+<style>
+/* Layout: one full-bleed game stage. The menu is split by a waterline:
+   sky above (duck Ilona), sea below (carp Misha), title sits on the water. */
+:root {
+  --ink: #221d2e;
+  --paper: #fff6e5;
+  --duck: #ffd43b;
+  --beak: #ff7a1a;
+  --sky-hi: #4fa8f5;
+  --sky-lo: #cdeeff;
+  --sea-hi: #23aabd;
+  --sea-lo: #0b2f57;
+  --handle: #7e4fa0;
+  --heart: #ff3d5a;
+  --font-display: "Dela Gothic One", "Arial Black", Impact, "Segoe UI", sans-serif;
+  --font-ui: "Nunito", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-hand: "Pangolin", "Comic Sans MS", "Segoe Print", cursive;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--sea-lo);
+  color: var(--paper);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
+
+#stage {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  right: env(safe-area-inset-right, 0px);
+  bottom: env(safe-area-inset-bottom, 0px);
+  left: env(safe-area-inset-left, 0px);
+  overflow: hidden;
+  touch-action: none;
+}
+#game { position: absolute; left: 0; top: 0; display: block; background: #0b2f57; }
+
+/* ---------- menu ---------- */
+#menu { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr 1fr; z-index: 5; }
+.half {
+  --title-gap: clamp(22px, 6.5vh, 70px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 3vw, 44px);
+  border: 0;
+  margin: 0;
+  padding-inline: max(16px, 3vw);
+  overflow: hidden;
+  text-align: left;
+  min-width: 0;
+}
+.half.sky {
+  padding-block: 8px var(--title-gap);
+  background:
+    radial-gradient(circle at 82% 30%, rgba(255, 247, 194, .95) 0 4%, rgba(255, 247, 194, 0) 16%),
+    linear-gradient(var(--sky-hi), var(--sky-lo));
+  color: var(--ink);
+}
+.half.sea {
+  padding-block: var(--title-gap) 26px;
+  background:
+    repeating-linear-gradient(100deg, rgba(255, 255, 255, .06) 0 40px, rgba(255, 255, 255, 0) 40px 120px),
+    linear-gradient(var(--sea-hi), var(--sea-lo));
+  color: var(--paper);
+}
+.half .glow { position: absolute; inset: 0; background: rgba(255, 255, 255, 0); transition: background .2s; pointer-events: none; }
+.half:hover .glow, .half:focus-visible .glow { background: rgba(255, 255, 255, .12); }
+.half:focus-visible { outline-offset: -6px; }
+.hero { display: block; flex: none; height: auto; }
+.hero.duck { width: min(48vh, 420px, 40vw); aspect-ratio: 1.5 / 1; }
+.hero.fish { width: min(52vh, 460px, 42vw); aspect-ratio: 2.15 / 1; }
+.who { display: grid; gap: clamp(2px, .8vh, 8px); min-width: 0; }
+.who .name { font-family: var(--font-display); font-size: clamp(19px, 5.6vh, 52px); line-height: 1.05; letter-spacing: .01em; text-wrap: balance; }
+.who .desc { font-weight: 800; font-size: clamp(11px, 2.5vh, 19px); line-height: 1.25; opacity: .9; max-width: 30ch; }
+.who .rec { font-weight: 800; font-size: clamp(10px, 2.1vh, 15px); opacity: .75; font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-self: start; }
+.hero { cursor: pointer; }
+.chip {
+  cursor: pointer;
+  margin-top: clamp(2px, .8vh, 8px);
+  padding: clamp(4px, 1vh, 9px) clamp(12px, 2vh, 20px);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: clamp(12px, 2.4vh, 18px);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 0 var(--ink);
+  transition: transform .12s;
+}
+.sky .chip { background: var(--duck); color: var(--ink); }
+.sea .chip { background: #7ee7f2; color: var(--ink); }
+.chip:hover, .chip:focus-visible { transform: translateY(-2px) rotate(-2deg); }
+.chip:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.chip + .chip { opacity: .97; }
+
+.waterline {
+  position: absolute; left: 0; right: 0; top: 50%; height: 26px; margin-top: -14px;
+  pointer-events: none; z-index: 1; overflow: hidden;
+}
+.waterline svg { width: 200%; height: 100%; display: block; animation: drift 9s linear infinite; }
+@keyframes drift { to { transform: translateX(-50%); } }
+.title {
+  position: absolute; left: 50%; top: 50%; z-index: 2; margin: 0;
+  transform: translate(-50%, -54%) rotate(-3deg);
+  font-family: var(--font-display); font-weight: 400;
+  font-size: clamp(30px, 10vh, 112px); line-height: 1; white-space: nowrap;
+  color: var(--duck);
+  -webkit-text-stroke: clamp(4px, .9vh, 9px) var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 clamp(4px, .9vh, 9px) 0 var(--ink);
+  pointer-events: none;
+}
+.title .amp { color: #7ee7f2; font-size: .62em; vertical-align: .18em; margin: 0 .08em; }
+.menu-tools { position: absolute; top: 10px; right: 12px; display: flex; gap: 8px; z-index: 3; }
+.round {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  border: 3px solid var(--ink); background: var(--paper); color: var(--ink); padding: 0;
+  box-shadow: 0 3px 0 var(--ink);
+}
+.round svg { width: 22px; height: 22px; }
+.round:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.controls-hint {
+  position: absolute; left: 0; right: 0; bottom: 6px; z-index: 2; text-align: center;
+  font-size: clamp(10px, 1.9vh, 14px); font-weight: 800; color: var(--paper); opacity: .78;
+  padding-inline: 16px; pointer-events: none;
+}
+
+/* ---------- in-game controls ---------- */
+#hud { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+#hud button { pointer-events: auto; }
+#btnPause {
+  position: absolute; top: 10px; right: 12px; width: 46px; height: 46px; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, .85); background: rgba(34, 29, 46, .45); color: #fff;
+  display: grid; place-items: center; padding: 0;
+}
+#btnPause svg { width: 20px; height: 20px; }
+#btnBomb {
+  position: absolute; right: 18px; bottom: 18px; width: 78px; height: 78px; border-radius: 50%;
+  border: 4px solid var(--ink); background: radial-gradient(circle at 35% 30%, #ffd27a, var(--beak) 60%, #d9480f);
+  color: var(--ink); box-shadow: 0 5px 0 var(--ink); padding: 0;
+  display: grid; place-items: center; font-family: var(--font-display); font-size: 13px; line-height: 1;
+}
+#btnBomb svg { width: 34px; height: 34px; margin-top: -4px; }
+#btnBomb .cnt {
+  position: absolute; top: -6px; right: -6px; min-width: 26px; height: 26px; border-radius: 13px;
+  background: var(--paper); border: 3px solid var(--ink); display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 13px; padding: 0 4px; box-sizing: border-box;
+}
+#btnBomb .key { position: absolute; bottom: 9px; font: 900 10px var(--font-ui); letter-spacing: .05em; opacity: .8; }
+#btnBomb:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+#btnBomb.empty { filter: grayscale(1) brightness(.85); opacity: .65; }
+
+/* ---------- overlays ---------- */
+.overlay {
+  position: absolute; inset: 0; z-index: 10; display: grid; place-items: center;
+  background: rgba(14, 12, 28, .55); padding: 16px; box-sizing: border-box; overflow: auto;
+}
+.panel {
+  width: min(460px, 100%); box-sizing: border-box; text-align: center;
+  background: var(--paper); color: var(--ink);
+  border: 4px solid var(--ink); border-radius: 22px 18px 24px 16px;
+  box-shadow: 8px 8px 0 var(--ink);
+  padding: clamp(14px, 3.5vh, 28px) clamp(16px, 4vw, 30px);
+  transform: rotate(-1deg);
+  display: grid; gap: clamp(6px, 1.6vh, 14px);
+}
+.panel h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(28px, 8vh, 54px); line-height: 1; text-wrap: balance; }
+.panel p { margin: 0; font-weight: 800; font-size: clamp(13px, 2.6vh, 18px); line-height: 1.3; text-wrap: balance; }
+.panel .big { font-family: var(--font-display); font-size: clamp(26px, 7vh, 44px); font-variant-numeric: tabular-nums; }
+.panel .small { font-size: clamp(11px, 2.1vh, 14px); opacity: .7; }
+.btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
+.btn {
+  border: 3px solid var(--ink); border-radius: 14px; padding: clamp(8px, 1.6vh, 12px) 18px;
+  background: var(--duck); color: var(--ink); font-weight: 900; font-size: clamp(14px, 2.6vh, 18px);
+  box-shadow: 0 5px 0 var(--ink); transition: transform .1s;
+}
+.btn.alt { background: #fff; }
+.btn.sea { background: #7ee7f2; }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.stars { font-family: "Segoe UI Symbol", "Apple Symbols", "DejaVu Sans", sans-serif; font-size: clamp(26px, 6vh, 40px); line-height: 1; letter-spacing: .12em; color: var(--beak); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+
+#rotate .phone {
+  width: 54px; height: 90px; border: 5px solid var(--paper); border-radius: 12px; margin: 6px auto 4px;
+  position: relative; animation: turn 2.2s ease-in-out infinite;
+}
+#rotate .phone::after { content: ""; position: absolute; left: 50%; bottom: 6px; width: 10px; height: 4px; margin-left: -5px; border-radius: 2px; background: var(--paper); }
+@keyframes turn { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
+#rotate .panel { background: var(--ink); color: var(--paper); border-color: var(--paper); box-shadow: 8px 8px 0 rgba(0, 0, 0, .4); }
+
+#loading {
+  position: absolute; inset: 0; display: grid; place-items: center; z-index: 20;
+  background: var(--sea-lo); font-family: var(--font-display); font-size: 28px; color: var(--duck);
+}
+
+@media (orientation: portrait) {
+  .half { --title-gap: clamp(26px, 7.5vw, 64px); flex-direction: column; text-align: center; gap: clamp(4px, 1.2vh, 12px); }
+  .half.sky { padding-block: clamp(44px, 7vh, 64px) calc(var(--title-gap) * 0.9); }
+  .half.sea { padding-block: calc(var(--title-gap) * 0.9) 14px; }
+  .who { justify-items: center; max-width: min(92vw, 40ch); }
+  .chips { justify-self: center; justify-content: center; }
+  .chip { font-size: clamp(12px, 3.8vw, 18px); }
+  .hero.duck { width: min(58vw, 30vh, 330px); }
+  .hero.fish { width: min(76vw, 40vh, 400px); }
+  .title { font-size: clamp(28px, 12.5vw, 96px); }
+  .who .name { font-size: clamp(22px, 7.4vw, 46px); }
+  .who .desc { font-size: clamp(12px, 3.7vw, 18px); }
+  .who .rec { font-size: clamp(11px, 3.2vw, 15px); }
+  .controls-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .waterline svg, #rotate .phone { animation: none; }
+  .half:hover .chip { transform: none; }
+}
+@media (max-height: 420px) {
+  .menu-tools { top: 6px; right: 8px; }
+  .round { width: 38px; height: 38px; }
+  #btnBomb { width: 66px; height: 66px; right: 14px; bottom: 12px; }
+  #btnBomb svg { width: 28px; height: 28px; }
+  #btnPause { width: 40px; height: 40px; top: 6px; right: 8px; }
+}
+</style>
+
+<div id="stage">
+  <canvas id="game" aria-label="Игровое поле"></canvas>
+
+  <div id="hud" hidden>
+    <button id="btnPause" type="button" aria-label="Пауза">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="2" width="5" height="16" rx="1.5" fill="currentColor"/><rect x="12" y="2" width="5" height="16" rx="1.5" fill="currentColor"/></svg>
+    </button>
+    <button id="btnBomb" type="button" aria-label="Суперудар">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3l4.9 10.6 11.6 1.3-8.6 7.9 2.4 11.4L20 28.4 9.7 34.2l2.4-11.4-8.6-7.9 11.6-1.3z" fill="#fff6e5" stroke="#221d2e" stroke-width="3" stroke-linejoin="round"/></svg>
+      <span class="cnt" id="bombCount">2</span>
+      <span class="key" id="bombKey">ПРОБЕЛ</span>
+    </button>
+  </div>
+
+  <section id="menu" aria-label="Выбор героя">
+    <div class="half sky" id="pickDuck">
+      <span class="glow"></span>
+      <canvas class="hero duck" id="heroDuck" aria-hidden="true" data-mode="duck"></canvas>
+      <div class="who">
+        <span class="name">Утка Илона</span>
+        <span class="desc">Летит над городом и метает ножички. Силы восстанавливает кофе с собой.</span>
+        <span class="rec" id="recDuck">Рекорд: —</span>
+        <span class="chips">
+          <button class="chip" type="button" data-mode="duck" data-level="1">Уровень 1 ▸</button>
+          <button class="chip" type="button" data-mode="duck" data-level="2">Уровень 2 ▸</button>
+        </span>
+      </div>
+    </div>
+    <div class="half sea" id="pickFish">
+      <span class="glow"></span>
+      <canvas class="hero fish" id="heroFish" aria-hidden="true" data-mode="fish"></canvas>
+      <div class="who">
+        <span class="name">Карась Миша</span>
+        <span class="desc">Плывёт под водой и стреляет пузырями. Силы восстанавливают бургеры.</span>
+        <span class="rec" id="recFish">Рекорд: —</span>
+        <span class="chips">
+          <button class="chip" type="button" data-mode="fish" data-level="1">Уровень 1 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="2">Уровень 2 ▸</button>
+        </span>
+      </div>
+    </div>
+    <div class="waterline" aria-hidden="true">
+      <svg viewBox="0 0 1200 26" preserveAspectRatio="none"><path d="M0 13 Q37.5 0 75 13 T150 13 T225 13 T300 13 T375 13 T450 13 T525 13 T600 13 T675 13 T750 13 T825 13 T900 13 T975 13 T1050 13 T1125 13 T1200 13 V26 H0Z" fill="#23aabd"/><path d="M0 13 Q37.5 0 75 13 T150 13 T225 13 T300 13 T375 13 T450 13 T525 13 T600 13 T675 13 T750 13 T825 13 T900 13 T975 13 T1050 13 T1125 13 T1200 13" fill="none" stroke="#fff6e5" stroke-width="3"/></svg>
+    </div>
+    <h1 class="title">КРЯ<span class="amp">&amp;</span>БУЛЬ</h1>
+    <div class="menu-tools">
+      <button class="round" id="btnSound" type="button" aria-label="Звук"></button>
+      <button class="round" id="btnFull" type="button" aria-label="На весь экран">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>
+      </button>
+    </div>
+    <p class="controls-hint" id="controlsHint"></p>
+  </section>
+
+  <section id="pause" class="overlay" hidden>
+    <div class="panel" role="dialog" aria-labelledby="pauseTitle">
+      <h2 id="pauseTitle">Пауза</h2>
+      <p class="small" id="pauseHint"></p>
+      <div class="btns">
+        <button class="btn" id="btnResume" type="button">Продолжить</button>
+        <button class="btn alt" id="btnSound2" type="button">Звук: вкл</button>
+        <button class="btn alt" id="btnRestart" type="button">Заново</button>
+        <button class="btn alt" id="btnMenu1" type="button">В меню</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="over" class="overlay" hidden>
+    <div class="panel" role="dialog" aria-labelledby="overTitle">
+      <h2 id="overTitle">Ой!</h2>
+      <p id="overText"></p>
+      <div class="big" id="overScore">0</div>
+      <p class="small" id="overBest"></p>
+      <div class="btns">
+        <button class="btn" id="btnBossAgain" type="button">Снова к боссу</button>
+        <button class="btn" id="btnAgain" type="button">Ещё раз</button>
+        <button class="btn alt" id="btnMenu2" type="button">В меню</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="win" class="overlay" hidden>
+    <div class="panel" role="dialog" aria-labelledby="winTitle">
+      <h2 id="winTitle">Победа!</h2>
+      <p id="winText"></p>
+      <div class="stars" id="winStars"></div>
+      <div class="big" id="winScore">0</div>
+      <p class="small" id="winBest"></p>
+      <p class="small" id="winLevel">Уровень 1 пройден.</p>
+      <div class="btns">
+        <button class="btn" id="btnNext" type="button">Уровень 2 ▸</button>
+        <button class="btn alt" id="btnWinAgain" type="button">Сыграть ещё</button>
+        <button class="btn alt" id="btnMenu3" type="button">В меню</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="rotate" class="overlay" hidden>
+    <div class="panel">
+      <div class="phone" aria-hidden="true"></div>
+      <h2 style="font-size: clamp(22px, 4.5vh, 34px)">Поверни телефон</h2>
+      <p>Игра горизонтальная: так видно больше неба и моря.</p>
+      <div class="btns"><button class="btn" id="btnRotateSkip" type="button">Играть так</button></div>
+    </div>
+  </section>
+
+  <div id="loading">Загрузка…</div>
+</div>
+<!--ASSETS-->
+<!--SCRIPT-->
