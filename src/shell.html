@@ -234,7 +234,12 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   background: var(--sea-lo); font-family: var(--font-display); font-size: 28px; color: var(--duck);
 }
 
+.chips { align-items: center; gap: 8px; }
+.chips::before { content: 'Уровень'; font-weight: 900; font-size: clamp(12px, 2.5vh, 18px); letter-spacing: .04em; text-transform: uppercase; }
+.chip .lv { display: none; }
+.chip { padding-inline: clamp(13px, 2.4vh, 20px); }
 @media (orientation: portrait) {
+  .chips::before { font-size: clamp(12px, 3.6vw, 17px); }
   .half { --title-gap: clamp(26px, 7.5vw, 64px); flex-direction: column; text-align: center; gap: clamp(4px, 1.2vh, 12px); }
   .half.sky { padding-block: clamp(36px, 5vh, 56px) calc(var(--title-gap) * 1.7); }
   .half.sea { padding-block: calc(var(--title-gap) * 1.4) 14px; }
@@ -248,10 +253,6 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   .who .desc { font-size: clamp(12px, 3.7vw, 18px); }
   .who .rec { font-size: clamp(11px, 3.2vw, 15px); }
   .controls-hint { display: none; }
-  .chips { align-items: center; gap: 7px; }
-  .chips::before { content: 'Уровень'; font-weight: 900; font-size: clamp(12px, 3.6vw, 17px); letter-spacing: .03em; text-transform: uppercase; }
-  .chip .lv { display: none; }
-  .chip { padding-inline: clamp(12px, 4vw, 18px); }
   .half.sky:has(~ .menu-tools ~ .fs-prompt:not([hidden])), #menu:has(.fs-prompt:not([hidden])) .half.sky { padding-top: clamp(58px, 8vh, 70px); }
 }
 @media (orientation: portrait) and (max-height: 760px) {
@@ -315,6 +316,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
           <button class="chip" type="button" data-mode="fish" data-level="1"><span class="lv">Уровень </span>1 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="2"><span class="lv">Уровень </span>2 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="3"><span class="lv">Уровень </span>3 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="4"><span class="lv">Уровень </span>4 ▸</button>
         </span>
       </div>
     </div>

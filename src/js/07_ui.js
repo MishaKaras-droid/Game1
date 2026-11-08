@@ -55,11 +55,13 @@ function startGame(mode, fromBoss, level) {
     G.t = G.len; G.ev = G.L.length;
     if (G.mode === 'duck' && G.level === 2) { G.vert = true; setWorld(); G.player.y = H / 2; }
     if (G.level === 3 && G.mode === 'fish') { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
+    if (G.level === 4) { G.bright = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 3 && G.mode === 'duck') startRunner(true);
   } else {
-    if (G.level === 3) { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    if (G.level === 3 && G.mode === 'fish') { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    else if (G.level === 4) { banner('ОЖИДАЕТСЯ КАТОЧКА', 'Уровень 4', 3); sfx('siren'); G.squidUnlocked = true; G.squidCharge = 50; }
     else banner('УРОВЕНЬ ' + G.level, G.LI.name, 2.8);
-    if (G.level >= 2) G.power = G.level === 3 ? 3 : 2;
+    if (G.level >= 2) G.power = G.level >= 3 ? 3 : 2;
   }
   state = 'play';
   input.dx = input.dy = 0;
@@ -111,6 +113,7 @@ function onWin() {
     shawarma: 'Злая шаверма повержена! Утка Илона добежала до победы — и обед в кармане.',
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
     mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
+    kraken: 'Кракен повержен! Но где-то в темноте кто-то уже точит свой нос…',
   }[G.LI.boss];
   const next = LEVEL_INFO[G.level + 1] && LEVEL_INFO[G.level + 1][G.mode] ? G.level + 1 : 0;
   $('winLevel').textContent = next ? 'Уровень ' + G.level + ' пройден. Впереди уровень ' + next + '!' : 'Уровень ' + G.level + ' пройден. Продолжение следует…';
@@ -278,7 +281,7 @@ window.__kb = {
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

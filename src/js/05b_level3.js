@@ -59,7 +59,7 @@ function startSqueeze() {
 }
 function doBurst() {
   const T = G && G.tunnel;
-  if (!T || !T.squeeze || !G.player.alive || state !== 'play' || G.burstCd > 0) return;
+  if (!sqActive() || !G.player.alive || state !== 'play' || G.burstCd > 0) return;
   G.burstCd = 0.1;
   T.sg = Math.min(165, T.sg + 24);
   const h = heroHit();
@@ -70,7 +70,7 @@ function doBurst() {
 }
 function updateSqueeze(dt) {
   const T = G.tunnel;
-  if (!T || !T.squeeze || !tunAt(W * 0.3)) return;
+  if (!sqActive() || !tunAt(W * 0.3)) return;
   T.sg -= 17 * dt;
   if (T.sg < 56) {
     T.sg = 95; G.shake = Math.max(G.shake, 10);
@@ -184,12 +184,12 @@ function updateSquid(dt) {
 }
 
 /* ---------- green portal to the dark depths */
-function startPortal() {
+function startPortal(to) {
   G.phase = 'portal'; G.phaseT = 0; G.timers.length = 0;
   for (const e of G.enemies) killEnemy(e, true);
   for (const b of G.eb) { b.dead = true; puff(b.x, b.y); }
   G.pickups.length = 0; G.tunnel = null;
-  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y } };
+  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y }, to: to || 'dark' };
   banner('ПОРТАЛ!', 'Держись, карась!', 2.2);
   sfx('suck');
 }
@@ -202,7 +202,7 @@ function updatePortal() {
     p.sc = 1 - e * 0.95; p.spin = e * 12;
     if (Math.random() < 0.7) { const a = rand(0, TAU), r = rand(140, 260); part({ type: 'dot', x: P0.x + Math.cos(a) * r, y: P0.y + Math.sin(a) * r, vx: -Math.cos(a) * r * 2.5, vy: -Math.sin(a) * r * 2.5, r: rand(2, 4), life: 0.4, col: '#9dff6a' }); }
   } else if (!P0.done) {
-    P0.done = true; G.dark = true; G.flash = 0.9; G.flashColor = '#7CFF4F'; sfx('bomb');
+    P0.done = true; if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else G.dark = true; G.flash = 0.9; G.flashColor = '#7CFF4F'; sfx('bomb');
     p.x = W * 0.2; p.y = H / 2;
   }
   if (k >= 2.4) { const e = clamp((k - 2.4) / 0.8, 0, 1); p.sc = Math.max(0.05, e); p.spin = (1 - e) * 8; }
@@ -282,7 +282,7 @@ function updateHelpers(dt) {
 function updateOutro(dt) {
   const o = G.outro; o.t += dt;
   if (o.t > 3.8 && o.s < 1) { o.s = 1; sfx('drone'); }
-  if (o.t > 8.6 && o.s < 2) { o.s = 2; sfx('squelch'); G.shake = 14; }
+  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else sfx('squelch'); G.shake = 14; }
   if (o.t >= 12.4) onWin();
 }
 
@@ -392,7 +392,7 @@ function drawLash(c, b, t) {
   const L = b.lash; if (!L) return;
   if (L.phase === 'warn') { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([16, 10]); c.lineWidth = 6; P(c); c.moveTo(0, L.y); c.lineTo(b.x - 80, L.y); c.stroke(); c.restore(); return; }
   const pts = []; for (let x = b.x - 60; x >= -20; x -= 30) pts.push(x, L.y + Math.sin(x * 0.05 + t * 20) * 5);
-  tube(c, pts, 14, '#e0558f');
+  tube(c, pts, 14, b.kind === 'kraken' ? '#3d9a52' : '#e0558f');
   c.fillStyle = '#ffd0e6'; for (let x = b.x - 80; x > 0; x -= 34) { P(c); circ(c, x, L.y + 5, 3.5); c.fill(); }
 }
 function drawPortal(c, t) {
@@ -430,8 +430,11 @@ function drawOutro(c) {
     const a = clamp(Math.min(k * 4, (2.8 - k) * 4), 0, 1), s = 0.7 + 0.3 * easeOut(Math.min(1, k * 3));
     c.globalAlpha = a; c.translate(SW / 2, SH * 0.4); c.scale(s, s); c.rotate(-0.04);
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.font = '50px ' + FONT_DISPLAY; otext(c, 'ТЫ ПРОСТО БОСС,', 0, -32, '#ffd43b', 10);
-    otext(c, 'ТЫ ПРОСТО НАЧАЛЬНИК!', 0, 34, '#7ee7f2', 10);
+    const OT = OUTRO[o.kind || 'mega'];
+    c.font = '50px ' + FONT_DISPLAY;
+    const fit = Math.min(1, (SW * 0.92) / Math.max(c.measureText(OT.a).width, c.measureText(OT.b).width)); c.scale(fit, fit);
+    otext(c, OT.a, 0, -32, '#ffd43b', 10);
+    otext(c, OT.b, 0, 34, '#7ee7f2', 10);
     c.restore(); c.save();
   }
   if (k >= 2.3) {
@@ -445,7 +448,7 @@ function drawOutro(c) {
     const a = clamp((k - 3.9) / 1.4, 0, 1) * (1 - clamp((k - 10.6) / 0.6, 0, 1));
     c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.font = 'italic 700 34px "Old Standard TT", Georgia, "Times New Roman", serif';
-    const lines = ['Теперь угадайте,', 'кого вызовет на помощь', 'Мегалодон?'];
+    const lines = OUTRO[o.kind || 'mega'].lines;
     c.shadowColor = 'rgba(120,255,140,0.8)'; c.shadowBlur = 18;
     lines.forEach((ln, li) => {
       const total = c.measureText(ln).width; let x = SW / 2 - total / 2;
@@ -459,7 +462,8 @@ function drawOutro(c) {
     });
     c.shadowBlur = 0; c.globalAlpha = 1;
   }
-  if (k >= 8.6) {
+  if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'sword') drawSwordEnd(c, k);
+  else if (k >= 8.6) {
     const slam = easeOut(clamp((k - 8.6) / 0.35, 0, 1)), slide = easeInOut(clamp((k - 9.0) / 2.0, 0, 1)) * SH * 1.1;
     // the tentacle's spine as a curve from the top-right corner
     const pts = [];

@@ -234,7 +234,12 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   background: var(--sea-lo); font-family: var(--font-display); font-size: 28px; color: var(--duck);
 }
 
+.chips { align-items: center; gap: 8px; }
+.chips::before { content: 'Уровень'; font-weight: 900; font-size: clamp(12px, 2.5vh, 18px); letter-spacing: .04em; text-transform: uppercase; }
+.chip .lv { display: none; }
+.chip { padding-inline: clamp(13px, 2.4vh, 20px); }
 @media (orientation: portrait) {
+  .chips::before { font-size: clamp(12px, 3.6vw, 17px); }
   .half { --title-gap: clamp(26px, 7.5vw, 64px); flex-direction: column; text-align: center; gap: clamp(4px, 1.2vh, 12px); }
   .half.sky { padding-block: clamp(36px, 5vh, 56px) calc(var(--title-gap) * 1.7); }
   .half.sea { padding-block: calc(var(--title-gap) * 1.4) 14px; }
@@ -248,10 +253,6 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   .who .desc { font-size: clamp(12px, 3.7vw, 18px); }
   .who .rec { font-size: clamp(11px, 3.2vw, 15px); }
   .controls-hint { display: none; }
-  .chips { align-items: center; gap: 7px; }
-  .chips::before { content: 'Уровень'; font-weight: 900; font-size: clamp(12px, 3.6vw, 17px); letter-spacing: .03em; text-transform: uppercase; }
-  .chip .lv { display: none; }
-  .chip { padding-inline: clamp(12px, 4vw, 18px); }
   .half.sky:has(~ .menu-tools ~ .fs-prompt:not([hidden])), #menu:has(.fs-prompt:not([hidden])) .half.sky { padding-top: clamp(58px, 8vh, 70px); }
 }
 @media (orientation: portrait) and (max-height: 760px) {
@@ -315,6 +316,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
           <button class="chip" type="button" data-mode="fish" data-level="1"><span class="lv">Уровень </span>1 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="2"><span class="lv">Уровень </span>2 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="3"><span class="lv">Уровень </span>3 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="4"><span class="lv">Уровень </span>4 ▸</button>
         </span>
       </div>
     </div>
@@ -978,6 +980,12 @@ function drawEB(c, b, t) {
       drawBubble(c, x, y, b.r);
       P(c); heartPath(c, x, y + 1, 6); c.fillStyle = '#ff4d8d'; c.fill();
       break;
+    }
+    case 'ball': {
+      c.save(); c.translate(x, y); c.rotate(b.rot);
+      P(c); circ(c, 0, 0, b.r); fs(c, '#fff', 2.5);
+      for (const [a0, col] of [[0, '#e63946'], [2.09, '#2a6bff'], [4.19, '#ffd43b']]) { P(c); c.moveTo(0, 0); c.arc(0, 0, b.r - 1.5, a0, a0 + 1.05); c.closePath(); c.fillStyle = col; c.fill(); }
+      c.restore(); break;
     }
     default: { // orb
       P(c); circ(c, x, y, b.r + 2); c.fillStyle = INK; c.fill();
@@ -1889,11 +1897,11 @@ let G = null;
 let state = 'loading';  // loading | menu | rotate | play | paused | over | win
 
 function newGame(mode, level) {
-  level = [1, 2, 3].includes(level) ? level : 1;
+  level = [1, 2, 3, 4].includes(level) ? level : 1;
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
-    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
-    evOff: 0, spd: level === 3 ? 1.3 : 1, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
+    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
+    evOff: 0, spd: level >= 3 ? 1.3 : 1, aqua: null, aquaWall: null, megaCameo: null, bright: false, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
     vert: false, turnK: 0, tunnel: null, slowT: 0, tickT: 0, charm: 0, charmT: 0, suck: null, heroSay: null, cameo: null,
     t: 0, bgT: 0, phase: 'intro', phaseT: 0, ev: 0,
     score: 0, hp: MAX_HP, bombs: 2, power: 1,
@@ -2111,7 +2119,8 @@ const smooth = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
 // o: len, speed, squeeze (walls close in), amp (how much it winds), noRampIn (walls already around us), gBase, quiet
 function startTunnel(o) {
   o = o || {};
-  G.tunnel = { t0: G.t, u0: o.noRampIn ? -60 : W + 80, len: o.len || TUN.len, speed: o.speed || TUN.speed, squeeze: !!o.squeeze, sg: 150, amp: o.amp === undefined ? 1 : o.amp, noRampIn: !!o.noRampIn, gBase: o.gBase || 0 };
+  G.tunnel = { t0: G.t, u0: o.noRampIn ? -60 : W + 80, len: o.len || TUN.len, speed: o.speed || TUN.speed, squeeze: !!o.squeeze, sg: 150, amp: o.amp === undefined ? 1 : o.amp, noRampIn: !!o.noRampIn, gBase: o.gBase || 0, style: o.style || 'rock', safe: !!o.safe, ramp: o.ramp || 600, sqFrom: o.sqFrom || 0 };
+  if (o.sg) G.tunnel.sg = o.sg;
   if (!o.quiet) { banner('ТУННЕЛЬ!', 'Не задевай шипы на стенах', 2.8); sfx('charge'); }
 }
 function tunScroll() { return (G.t - G.tunnel.t0) * G.tunnel.speed; }
@@ -2119,8 +2128,9 @@ function tunAt(x) {
   const T = G.tunnel; if (!T) return null;
   const v = tunScroll() + x - T.u0;
   if (v < 0 || v > T.len) return null;
-  const r = Math.min(T.noRampIn ? 1 : smooth(v / 600), smooth((T.len - v) / 600));
-  const base = T.squeeze ? T.sg : T.gBase || 132 - 28 * (v / T.len);
+  const r = Math.min(T.noRampIn ? 1 : smooth(v / T.ramp), smooth((T.len - v) / T.ramp));
+  let base = T.squeeze && !T.sqFrom ? T.sg : T.gBase || 132 - 28 * (v / T.len);
+  if (T.sqFrom) base = lerp(T.gBase, T.sg, smooth((v - T.sqFrom) / 300));
   return {
     c: H / 2 + r * T.amp * (Math.sin(v * 0.0032) * 95 + Math.sin(v * 0.0087 + 1) * 38),
     g: lerp(H / 2 + 70, base, r),
@@ -2301,7 +2311,7 @@ function useBomb() {
     banner(G.M.bombText, '', 1.5, 'sign'); sfx('bomb'); sfx('quack2'); G.flash = 0.4; G.flashColor = '#fff';
     return;
   }
-  if (G && G.tunnel && G.tunnel.squeeze) { doBurst(); return; }
+  if (G && sqActive()) { doBurst(); return; }
   if (state !== 'play' || !G || G.bombs <= 0 || !G.player.alive || G.phase === 'intro' || G.phase === 'bossDead' || G.bombFx) return;
   G.bombs--; updateBombBtn();
   const p = G.player;
@@ -2363,7 +2373,7 @@ function updatePlayer(dt) {
     if (G.tunnel) for (const ox of [26, -42]) {
       const a = tunAt(p.x + ox); if (!a) continue;
       const top = a.c - a.g + 13, bot = a.c + a.g - 13, r = 11;
-      if (p.y - r < top || p.y + r > bot) { hurtPlayer(); p.y = clamp(p.y, top + r + 3, bot - r - 3); }
+      if (p.y - r < top || p.y + r > bot) { if (!G.tunnel.safe) hurtPlayer(); p.y = clamp(p.y, top + r + 3, bot - r - 3); }
     }
   }
   p.vy = lerp(p.vy, (p.y - py) / Math.max(dt, 1e-3), Math.min(1, dt * 10));
@@ -2602,6 +2612,7 @@ function startWarning() {
   G.checkpoint = { score: G.score, power: Math.max(G.power, 3) };
   banner('ВНИМАНИЕ!', BOSS[G.LI.boss].name, 3.0, 'warn');
   if (G.LI.boss === 'catfish') G.cameo = { x: W + 120, y: 120, t: 0 };
+  if (G.LI.boss === 'kraken') G.megaCameo = { x: W + 160, y: 150, t: 0 };
   sfx('siren'); Sound.music(null);
 }
 function spawnBoss(kindOpt) {
@@ -2609,7 +2620,7 @@ function spawnBoss(kindOpt) {
   G.phase = BOSS[kind].mini ? 'mini' : 'boss'; G.phaseT = 0;
   G.cameo = null;
   const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF), maxHp: Math.round(BOSS[kind].hp * DIFF), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
-  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain }[kind](b);
+  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain }[kind](b);
   b.brain.next();
   G.boss = b;
   G.lastHealT = G.t; G.lastBombT = G.t;
@@ -2622,7 +2633,7 @@ function damageBoss(dmg) {
   if (G.squidUnlocked && !(G.squidT > 0)) G.squidCharge = Math.min(100, G.squidCharge + 0.25);
   if (!b.phase2 && b.hp < b.maxHp * 0.5) {
     b.phase2 = true; G.shake = Math.max(G.shake, 8);
-    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!' }[b.kind]);
+    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!', kraken: 'Ну всё, карась! На абордаж!' }[b.kind]);
   }
   if (b.hp <= 0) bossDie();
 }
@@ -2634,7 +2645,8 @@ function bossDie() {
   for (const x of G.eb) { x.dead = true; puff(x.x, x.y); }
   for (const e of G.enemies) killEnemy(e, true);
   b.sucking = false; G.suck = null;
-  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…' }[b.kind]);
+  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…', kraken: 'Мои детки… мои щупальца…' }[b.kind]);
+  b.vlash = null; b.lash = null;
   if (b.kind === 'car') later(1.0, () => { G.heroSay = { text: 'Я твою выхлопную трубу шатала!', t: 3.4 }; sfx('quack2'); });
   addScore(10000, b.x, b.y - 60);
   sfx('boom'); G.shake = 18; G.flash = 0.5; G.flashColor = '#fff';
@@ -2792,7 +2804,7 @@ function update(rdt) {
       break;
     case 'warn': if (G.phaseT >= 3.2) spawnBoss(); break;
     case 'bossDead':
-      if (G.boss && G.boss.kind === 'mega') { if (G.phaseT >= 2.6) { G.phase = 'outro'; G.phaseT = 0; G.outro = { t: 0, s: 0 }; } }
+      if (G.boss && OUTRO[G.boss.kind]) { if (G.phaseT >= 2.6) { G.phase = 'outro'; G.phaseT = 0; G.outro = { t: 0, s: 0, kind: G.boss.kind }; } }
       else if (G.phaseT >= 4.4) onWin();
       break;
     case 'miniDead': if (G.phaseT >= 3.2) endMini(); break;
@@ -2811,6 +2823,7 @@ function update(rdt) {
   updateEnemies(dt);
   updateBoss(dt);
   updateSqueeze(dt);
+  updateLevel4(dt);
   updateSquid(rdt);
   updateHelpers(dt);
   updateEnemyShots(dt);
@@ -2883,7 +2896,7 @@ function startSqueeze() {
 }
 function doBurst() {
   const T = G && G.tunnel;
-  if (!T || !T.squeeze || !G.player.alive || state !== 'play' || G.burstCd > 0) return;
+  if (!sqActive() || !G.player.alive || state !== 'play' || G.burstCd > 0) return;
   G.burstCd = 0.1;
   T.sg = Math.min(165, T.sg + 24);
   const h = heroHit();
@@ -2894,7 +2907,7 @@ function doBurst() {
 }
 function updateSqueeze(dt) {
   const T = G.tunnel;
-  if (!T || !T.squeeze || !tunAt(W * 0.3)) return;
+  if (!sqActive() || !tunAt(W * 0.3)) return;
   T.sg -= 17 * dt;
   if (T.sg < 56) {
     T.sg = 95; G.shake = Math.max(G.shake, 10);
@@ -3008,12 +3021,12 @@ function updateSquid(dt) {
 }
 
 /* ---------- green portal to the dark depths */
-function startPortal() {
+function startPortal(to) {
   G.phase = 'portal'; G.phaseT = 0; G.timers.length = 0;
   for (const e of G.enemies) killEnemy(e, true);
   for (const b of G.eb) { b.dead = true; puff(b.x, b.y); }
   G.pickups.length = 0; G.tunnel = null;
-  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y } };
+  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y }, to: to || 'dark' };
   banner('ПОРТАЛ!', 'Держись, карась!', 2.2);
   sfx('suck');
 }
@@ -3026,7 +3039,7 @@ function updatePortal() {
     p.sc = 1 - e * 0.95; p.spin = e * 12;
     if (Math.random() < 0.7) { const a = rand(0, TAU), r = rand(140, 260); part({ type: 'dot', x: P0.x + Math.cos(a) * r, y: P0.y + Math.sin(a) * r, vx: -Math.cos(a) * r * 2.5, vy: -Math.sin(a) * r * 2.5, r: rand(2, 4), life: 0.4, col: '#9dff6a' }); }
   } else if (!P0.done) {
-    P0.done = true; G.dark = true; G.flash = 0.9; G.flashColor = '#7CFF4F'; sfx('bomb');
+    P0.done = true; if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else G.dark = true; G.flash = 0.9; G.flashColor = '#7CFF4F'; sfx('bomb');
     p.x = W * 0.2; p.y = H / 2;
   }
   if (k >= 2.4) { const e = clamp((k - 2.4) / 0.8, 0, 1); p.sc = Math.max(0.05, e); p.spin = (1 - e) * 8; }
@@ -3106,7 +3119,7 @@ function updateHelpers(dt) {
 function updateOutro(dt) {
   const o = G.outro; o.t += dt;
   if (o.t > 3.8 && o.s < 1) { o.s = 1; sfx('drone'); }
-  if (o.t > 8.6 && o.s < 2) { o.s = 2; sfx('squelch'); G.shake = 14; }
+  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else sfx('squelch'); G.shake = 14; }
   if (o.t >= 12.4) onWin();
 }
 
@@ -3216,7 +3229,7 @@ function drawLash(c, b, t) {
   const L = b.lash; if (!L) return;
   if (L.phase === 'warn') { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([16, 10]); c.lineWidth = 6; P(c); c.moveTo(0, L.y); c.lineTo(b.x - 80, L.y); c.stroke(); c.restore(); return; }
   const pts = []; for (let x = b.x - 60; x >= -20; x -= 30) pts.push(x, L.y + Math.sin(x * 0.05 + t * 20) * 5);
-  tube(c, pts, 14, '#e0558f');
+  tube(c, pts, 14, b.kind === 'kraken' ? '#3d9a52' : '#e0558f');
   c.fillStyle = '#ffd0e6'; for (let x = b.x - 80; x > 0; x -= 34) { P(c); circ(c, x, L.y + 5, 3.5); c.fill(); }
 }
 function drawPortal(c, t) {
@@ -3254,8 +3267,11 @@ function drawOutro(c) {
     const a = clamp(Math.min(k * 4, (2.8 - k) * 4), 0, 1), s = 0.7 + 0.3 * easeOut(Math.min(1, k * 3));
     c.globalAlpha = a; c.translate(SW / 2, SH * 0.4); c.scale(s, s); c.rotate(-0.04);
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.font = '50px ' + FONT_DISPLAY; otext(c, 'ТЫ ПРОСТО БОСС,', 0, -32, '#ffd43b', 10);
-    otext(c, 'ТЫ ПРОСТО НАЧАЛЬНИК!', 0, 34, '#7ee7f2', 10);
+    const OT = OUTRO[o.kind || 'mega'];
+    c.font = '50px ' + FONT_DISPLAY;
+    const fit = Math.min(1, (SW * 0.92) / Math.max(c.measureText(OT.a).width, c.measureText(OT.b).width)); c.scale(fit, fit);
+    otext(c, OT.a, 0, -32, '#ffd43b', 10);
+    otext(c, OT.b, 0, 34, '#7ee7f2', 10);
     c.restore(); c.save();
   }
   if (k >= 2.3) {
@@ -3269,7 +3285,7 @@ function drawOutro(c) {
     const a = clamp((k - 3.9) / 1.4, 0, 1) * (1 - clamp((k - 10.6) / 0.6, 0, 1));
     c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.font = 'italic 700 34px "Old Standard TT", Georgia, "Times New Roman", serif';
-    const lines = ['Теперь угадайте,', 'кого вызовет на помощь', 'Мегалодон?'];
+    const lines = OUTRO[o.kind || 'mega'].lines;
     c.shadowColor = 'rgba(120,255,140,0.8)'; c.shadowBlur = 18;
     lines.forEach((ln, li) => {
       const total = c.measureText(ln).width; let x = SW / 2 - total / 2;
@@ -3283,7 +3299,8 @@ function drawOutro(c) {
     });
     c.shadowBlur = 0; c.globalAlpha = 1;
   }
-  if (k >= 8.6) {
+  if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'sword') drawSwordEnd(c, k);
+  else if (k >= 8.6) {
     const slam = easeOut(clamp((k - 8.6) / 0.35, 0, 1)), slide = easeInOut(clamp((k - 9.0) / 2.0, 0, 1)) * SH * 1.1;
     // the tentacle's spine as a curve from the top-right corner
     const pts = [];
@@ -3965,6 +3982,391 @@ function runnerKey(code) {
   return true;
 }
 
+/* ============================================================ level 4 (carp): pipes, oceanarium, kraken */
+LEVEL_INFO[4] = { duck: null, fish: { name: 'Ожидается каточка', boss: 'kraken', song: 'sea3' } };
+const LEVEL4_LEN = 116;
+Object.assign(BOSS, { kraken: { name: 'Кракен', label: 'КРАКЕН', hp: 820, restX: 240, y: [170, 150], head: [10, -150] } });
+Object.assign(BOSS_HIT, { kraken: [[40, -60, 92], [-70, 50, 52], [-170, 70, 40]] });
+Object.assign(KINDS, {
+  snail:    { hp: 3, r: 17, score: 120, speed: 25, move: 'snail', art: { duck: 'snail', fish: 'snail' } },
+  crab:     { hp: 5, r: 20, score: 150, speed: 130, move: 'crab', art: { duck: 'crab', fish: 'crab' } },
+  seal:     { hp: 9, r: 24, score: 220, speed: 120, move: 'seal', art: { duck: 'seal', fish: 'seal' } },
+  arapaima: { hp: 18, r: 30, score: 400, speed: 140, move: 'dive', art: { duck: 'arapaima', fish: 'arapaima' } },
+  octling:  { hp: 2, r: 14, score: 60, speed: 170, move: 'zig', art: { duck: 'octling', fish: 'octling' } },
+});
+const TANKS = [
+  null,
+  { name: 'АКУЛЫ', tint: '#1f7fd0', floor: '#d9c08a' },
+  { name: 'КРАБЫ', tint: '#1aa6a0', floor: '#e8cf96' },
+  { name: 'ПИРАНЬИ', tint: '#4f7a3a', floor: '#6b5a3a' },
+  { name: 'МОРСКИЕ КОТИКИ', tint: '#6fb6e6', floor: '#eef6fb' },
+  { name: 'АРАПАЙМЫ', tint: '#6b6a2a', floor: '#5a4a30' },
+];
+Object.assign(F, {
+  snails(n, gap) { for (let i = 0; i < n; i++) later(i * (gap || 0.9), () => enemy('snail', W + 40, H / 2, { side: i % 2 ? -1 : 1 })); },
+  crabs(n) { for (let i = 0; i < n; i++) later(i * 0.7, () => enemy('crab', W + 30, H - 82, { jumpT: rand(1, 2.5) })); },
+  seals(ys) { ys.forEach((yf, i) => later(i * 0.6, () => enemy('seal', W + 40, yf * H, { amp: 60, freq: 1.8, phase: i }))); },
+  arapaimas(ys) { ys.forEach((yf, i) => later(i * 0.8, () => enemy('arapaima', W + 60, yf * H))); },
+});
+
+const LEVEL4_FISH = [
+  [2.0, () => F.line('grunt', 6, 0.3, 0.3)],
+  [4.0, () => F.swarm(3, 0.7)],
+  [6.0, () => F.carrier('power', 0.5)],
+  [8.0, () => F.sine('weaver', 7, 0.5)],
+  [10.5, () => F.shooters([0.3, 0.7])],
+  [13.0, () => F.health(0.5)],
+  [15.5, () => startPipe()],
+  [22.0, () => F.snails(3)],
+  [25.0, () => F.tpick(G.M.heal)],
+  [26.5, () => F.snails(4, 0.7)],
+  [30.0, () => F.snails(2)],
+  [35.5, () => F.rocks([-30])],
+  [37.5, () => F.snails(2, 0.6)],
+  [39.0, () => F.rocks([30])],
+  [41.0, () => F.tpick(G.M.heal)],
+  [42.5, () => F.rocks([0])],
+  [44.0, () => F.snails(2, 0.6)],
+  [46.0, () => F.rocks([-28])],
+  [50.0, () => startTank(1)],
+  [51.5, () => F.divers([0.25, 0.5, 0.75])],
+  [54.5, () => F.divers([0.3, 0.7], 0.4)],
+  [57.0, () => F.divers([0.2, 0.5, 0.8], 0.35)],
+  [59.0, () => F.health(0.5)],
+  [61.0, () => startTank(2)],
+  [62.0, () => F.crabs(3)],
+  [65.0, () => F.crabs(3)],
+  [67.0, () => F.carrier('power', 0.4)],
+  [68.5, () => F.crabs(4)],
+  [72.0, () => startTank(3)],
+  [73.0, () => F.line('grunt', 6, 0.3, 0.28)],
+  [74.5, () => F.line('grunt', 6, 0.7, 0.28)],
+  [76.5, () => F.vee('grunt', 7, 0.5)],
+  [79.0, () => F.line('grunt', 8, 0.5, 0.22)],
+  [81.0, () => F.health(0.4)],
+  [83.0, () => startTank(4)],
+  [84.0, () => F.seals([0.3, 0.7])],
+  [87.5, () => F.seals([0.2, 0.5, 0.8])],
+  [91.0, () => F.seals([0.4, 0.6])],
+  [94.0, () => startTank(5)],
+  [95.0, () => F.arapaimas([0.5])],
+  [98.0, () => F.arapaimas([0.3, 0.7])],
+  [101.5, () => F.arapaimas([0.25, 0.75])],
+  [103.0, () => { F.health(0.5); F.carrier('charm', 0.3); }],
+  [106.0, () => startPortal('ocean')],
+  [111.0, () => F.line('grunt', 5, 0.3)],
+  [112.5, () => F.carrier('bomb', 0.6)],
+];
+
+/* ---------- the pipe: a wall with an opening, snails on the walls, then it narrows and squeezes */
+function startPipe() {
+  startTunnel({ len: 6200, speed: 220, style: 'pipe', safe: true, ramp: 140, gBase: 150, amp: 0, squeeze: true, sqFrom: 2550, sg: 128, quiet: true });
+  banner('СТЕНА!', 'Заплывай в трубу', 2.6);
+  sfx('charge');
+}
+function sqActive() {
+  const T = G && G.tunnel;
+  return !!(T && T.squeeze && (!T.sqFrom || tunScroll() + G.player.x - T.u0 > T.sqFrom));
+}
+MOVES.snail = (e, dt) => {
+  const T = G.tunnel;
+  e.x -= ((T ? T.speed : 200) + e.speed) * dt;
+  const a = tunAt(e.x);
+  e.y = a ? a.c + e.side * (a.g - 17) : e.y;
+  e.fireT = (e.fireT === undefined ? rand(0.6, 1.4) : e.fireT) - dt;
+  if (e.fireT <= 0 && e.x < W - 40 && e.x > heroHit().x + 60) { e.fireT = 1.8; ebullet(e.x - 10, e.y - e.side * 8, aimAt(e.x, e.y), 170, { col: '#9be15d', r: 7 }); sfx('bubble'); }
+};
+MOVES.crab = (e, dt) => {
+  e.x -= e.speed * dt;
+  e.jumpT -= dt;
+  if (e.vy !== undefined && e.vy !== 0) { e.vy += 900 * dt; e.y += e.vy * dt; if (e.y >= H - 82) { e.y = H - 82; e.vy = 0; } }
+  if (e.jumpT <= 0) {
+    e.jumpT = rand(1.8, 2.6);
+    if (Math.random() < 0.5) e.vy = -rand(420, 560);
+    else spread(e.x, e.y - 14, 3, 0.18, 200, { col: '#ff7a5c', r: 6 });
+  }
+};
+MOVES.seal = (e, dt) => {
+  e.x -= (e.x > W * 0.62 ? e.speed : 30) * dt;
+  e.y = e.baseY + Math.sin(e.age * e.freq + e.phase) * e.amp;
+  e.rot = Math.cos(e.age * e.freq + e.phase) * 0.25;
+  e.throwT = (e.throwT === undefined ? 1 : e.throwT) - dt;
+  if (e.throwT <= 0 && e.x < W - 30) { e.throwT = 1.9; ebullet(e.x - 20, e.y - 20, aimAt(e.x, e.y) - 0.25, 230, { type: 'ball', r: 11, spin: 6, grav: 120 }); sfx('throw'); }
+  if (e.age > 9) e.x -= 200 * dt;
+};
+
+/* ---------- oceanarium */
+function startTank(i) {
+  G.aqua = { i, t: 0 };
+  G.aquaWall = { x: W + 60 };
+  banner('АКВАРИУМ ' + i, TANKS[i].name, 2.4);
+  if (i === 1) later(0.1, () => floatText(W / 2, 130, 'ОКЕАНАРИУМ', '#7ee7f2', 26));
+  sfx('wave');
+}
+function updateLevel4(dt) {
+  if (G.level !== 4) return;
+  const T = G.tunnel;
+  if (T && T.sqFrom && !T.sqHint && sqActive()) { T.sqHint = true; banner('УЗКАЯ ТРУБА!', isTouch ? 'Жми по экрану — пузыри раздвинут стены' : 'Кликай или жми Пробел — пузыри раздвинут стены', 3); sfx('charge'); }
+  if (G.aqua) G.aqua.t += dt;
+  if (G.aquaWall) { G.aquaWall.x -= 300 * dt; if (G.aquaWall.x < -120) G.aquaWall = null; }
+  if (G.megaCameo) { G.megaCameo.t += dt; G.megaCameo.x -= 260 * dt; }
+  const B = G.boss;
+  if (B && B.kind === 'kraken' && B.vlash && B.vlash.phase === 'hit') { const h = heroHit(); if (Math.abs(h.x - B.vlash.x) < 30) hurtPlayer(); }
+}
+
+/* ---------- kraken */
+const KA = {
+  *octlings(b) {
+    say(b, pick(['Детки, на абордаж!', 'Осьминожки, в атаку!']));
+    b.mouth = 1;
+    for (let k = 0; k < (b.phase2 ? 6 : 4); k++) { const q = bp(b, -40, 70); enemy('octling', q.x, q.y + rand(-40, 40)); sfx('bubble'); yield* wait(0.3); }
+    b.mouth = 0; yield* wait(0.6);
+  },
+  *lash(b) { yield* QA.lash(b); },
+  *vgrab(b) {
+    say(b, pick(['Получай по плавникам!', 'Щупальцем сверху!']));
+    for (let k = 0; k < (b.phase2 ? 2 : 1); k++) {
+      b.vlash = { x: clamp(heroHit().x, 60, W * 0.7), top: Math.random() < 0.5, phase: 'warn' }; sfx('charge');
+      yield* wait(0.75);
+      b.vlash.phase = 'hit'; sfx('swoosh'); G.shake = Math.max(G.shake, 8);
+      yield* wait(0.45);
+      b.vlash = null; yield* wait(0.2);
+    }
+  },
+  *whirl(b) {
+    say(b, 'Водоворот! На абордаж!');
+    b.mouth = 1; sfx('suck');
+    for (let t = 0; t < 2.6;) {
+      const dt = yield; t += dt;
+      const m = bp(b, -40, 30); G.suck = { x: m.x, y: m.y, t: 0.15 };
+      if (Math.random() < 0.6) { const x = m.x - rand(150, 500), y = m.y + rand(-170, 170), d = Math.hypot(m.x - x, m.y - y); part({ type: 'dot', x, y, vx: ((m.x - x) / d) * 420, vy: ((m.y - y) / d) * 420, r: rand(1.5, 3), life: d / 420, col: 'rgba(190,255,190,0.8)' }); }
+      if (b.phase2 && Math.random() < dt * 2) ebullet(m.x, m.y, aimAt(m.x, m.y) + rand(-0.7, 0.7), 160, { type: 'ink', r: 8 });
+    }
+    b.mouth = 0;
+  },
+  *ink(b) { yield* QA.ink(b); },
+};
+function* krakenBrain(b) {
+  yield* moveTo(b, W - 240, H * 0.5, 2.6);
+  b.vul = true;
+  say(b, 'НА АБОРДАЖ!');
+  yield* wait(1.3);
+  const list = ['octlings', 'vgrab', 'lash', 'whirl', 'ink'];
+  let i = 0;
+  for (;;) {
+    yield* moveTo(b, W - rand(220, 260), bossY(b), b.phase2 ? 0.7 : 1.0);
+    yield* KA[list[i++ % list.length]](b);
+    if (Math.random() < 0.35) say(b, pick(['На абордаж!', 'Получай по плавникам!']));
+    yield* wait(b.phase2 ? 0.45 : 0.8);
+  }
+}
+
+/* ============================================================ level 4 art */
+Object.assign(ART, {
+  snail(c, e, t) {
+    if (e.side < 0) c.scale(1, -1);
+    const s = Math.sin(t * 4 + e.seed) * 2;
+    P(c); c.moveTo(-26, 14); c.quadraticCurveTo(-30, 0, -20, -2); c.lineTo(20, 6); c.quadraticCurveTo(26, 14, 18, 16); c.closePath(); fs(c, '#c7b28a', 2.5);
+    tube(c, [-20, 0, -28, -16 + s], 2, '#c7b28a'); tube(c, [-14, 0, -18, -18 - s], 2, '#c7b28a');
+    P(c); circ(c, -28, -17 + s, 3); fs(c, INK, 0); P(c); circ(c, -18, -19 - s, 3); fs(c, INK, 0);
+    P(c); circ(c, 4, -6, 15); fs(c, '#b5652f', 3);
+    P(c); c.arc(4, -6, 10, 0, Math.PI * 1.6); c.lineWidth = 3; c.strokeStyle = '#7a3d18'; c.stroke();
+    P(c); c.arc(4, -6, 5, Math.PI, Math.PI * 2.6); c.stroke();
+  },
+  crab(c, e, t) {
+    const w = Math.sin(t * 12 + e.seed);
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) tube(c, [s * (6 + k * 6), 6, s * (16 + k * 7), 14 + w * s * 2, s * (20 + k * 7), 22], 2.2, '#d9472b');
+    for (const s of [-1, 1]) { tube(c, [s * 14, -4, s * 24, -16], 3, '#d9472b'); P(c); ell(c, s * 28, -22, 9, 7, s * 0.5); fs(c, '#ff6a4a', 2.5); line(c, [s * 28, -22, s * 36, -28 + w * 3], 2.5); }
+    P(c); ell(c, 0, 0, 22, 14); fs(c, '#ff6a4a', 3);
+    tube(c, [-6, -10, -8, -20], 2, '#d9472b'); tube(c, [6, -10, 8, -20], 2, '#d9472b');
+    eye(c, -8, -22, 4, -0.2, 0.1, 1.2); eye(c, 8, -22, 4, -0.2, 0.1, -1.2);
+  },
+  seal(c, e, t) {
+    const f = Math.sin(t * 8 + e.seed);
+    P(c); c.moveTo(24, 0); c.lineTo(42, -10 + f * 4); c.lineTo(40, 10 + f * 4); c.closePath(); fs(c, '#4a4f5c', 2.5);
+    P(c); ell(c, 0, 0, 28, 15); fs(c, '#5d6475', 3);
+    P(c); ell(c, 2, 6, 20, 7); c.fillStyle = '#7c8496'; c.fill();
+    P(c); circ(c, -24, -6, 12); fs(c, '#5d6475', 3);
+    P(c); ell(c, -34, -2, 6, 4); fs(c, '#6f7788', 2);
+    P(c); circ(c, -38, -4, 2); c.fillStyle = INK; c.fill();
+    for (const k of [-1, 1]) line(c, [-36, -1, -46, -1 + k * 4], 1.2);
+    eye(c, -26, -10, 3.4, -0.3, 0.1, 1);
+    P(c); ell(c, -4, 14, 9, 4, 0.5 + f * 0.2); fs(c, '#4a4f5c', 2);
+  },
+  arapaima(c, e, t) {
+    const w = Math.sin(t * 6 + e.seed);
+    c.save(); c.translate(54, 0); c.rotate(w * 0.2);
+    P(c); c.moveTo(0, -6); c.quadraticCurveTo(22, -24, 30, -2); c.quadraticCurveTo(22, 22, 0, 6); c.closePath(); fs(c, '#c0392b', 3); c.restore();
+    P(c); c.moveTo(-60, 2); c.quadraticCurveTo(-50, -20, -10, -20); c.quadraticCurveTo(40, -18, 58, -4); c.lineTo(58, 6); c.quadraticCurveTo(40, 18, -10, 18); c.quadraticCurveTo(-50, 18, -60, 2); c.closePath();
+    fs(c, '#6b7a4a', 3);
+    c.save(); P(c); c.rect(10, -30, 50, 60); c.clip(); P(c); c.moveTo(-60, 2); c.quadraticCurveTo(-50, -20, -10, -20); c.quadraticCurveTo(40, -18, 58, -4); c.lineTo(58, 6); c.quadraticCurveTo(40, 18, -10, 18); c.quadraticCurveTo(-50, 18, -60, 2); c.closePath(); c.fillStyle = 'rgba(200,50,40,0.55)'; c.fill(); c.restore();
+    c.fillStyle = 'rgba(40,50,25,0.35)'; for (let k = 0; k < 6; k++) { P(c); ell(c, -30 + k * 13, -4, 5, 7); c.fill(); }
+    P(c); c.moveTo(20, -16); c.lineTo(48, -16); c.lineTo(52, -6); c.closePath(); fs(c, '#4f5a35', 2);
+    P(c); c.moveTo(-58, 4); c.lineTo(-46, 6); c.lineWidth = 2; c.strokeStyle = INK; c.stroke();
+    eye(c, -46, -6, 4, -0.3, 0.1, 1.3);
+  },
+  octling(c, e, t) {
+    for (let i = 0; i < 4; i++) { const x0 = -9 + i * 6; tube(c, [x0, 4, x0 + Math.sin(t * 8 + i) * 4, 13, x0 + 2, 20], 2.5, '#4fbf5f'); }
+    P(c); ell(c, 0, -4, 13, 12); fs(c, '#5fd36f', 2.5);
+    eye(c, -5, -4, 3.4, -0.2, 0.1, 1.1); eye(c, 5, -4, 3.4, -0.2, 0.1, -1.1);
+  },
+});
+// a tapered tentacle along a curling spine, suckers on the underside
+function tentacle(c, x0, y0, ang, len, w0, ph, col, curl) {
+  const N = 16, pts = [];
+  let x = x0, y = y0, a = ang;
+  for (let i = 0; i <= N; i++) {
+    const u = i / N;
+    pts.push([x, y, Math.max(1.5, w0 * Math.pow(1 - u, 0.9)), a]);
+    a += (Math.sin(ph + u * 4) * 0.12 + curl * u * u * 0.5);
+    x += Math.cos(a) * len / N; y += Math.sin(a) * len / N;
+  }
+  P(c);
+  pts.forEach(([px, py, w, aa], i) => { const nx = -Math.sin(aa), ny = Math.cos(aa); if (i) c.lineTo(px + nx * w / 2, py + ny * w / 2); else c.moveTo(px + nx * w / 2, py + ny * w / 2); });
+  for (let i = pts.length - 1; i >= 0; i--) { const [px, py, w, aa] = pts[i]; c.lineTo(px + Math.sin(aa) * w / 2, py - Math.cos(aa) * w / 2); }
+  c.closePath(); fs(c, col, 3);
+  c.fillStyle = '#c9f2b0';
+  for (let i = 2; i < N - 1; i += 2) { const [px, py, w, aa] = pts[i]; P(c); circ(c, px - Math.sin(aa) * w * 0.28, py + Math.cos(aa) * w * 0.28, Math.max(1.5, w * 0.13)); c.fill(); }
+}
+function drawKraken(c, b, t) {
+  const angry = b.phase2, skin = angry ? '#3fae4a' : '#3d9a52', dark = angry ? '#2a7a34' : '#2b7040', m = b.mouth || 0;
+  // back tentacles fan out down and to the left
+  for (let i = 0; i < 6; i++) {
+    const ang = Math.PI * (0.55 + i * 0.09);
+    tentacle(c, 10 + i * 18, 30, ang, 190 + (i % 3) * 30, 34, t * 2.4 + i * 1.3, i % 2 ? dark : skin, i % 2 ? -1 : 1);
+  }
+  // mantle (head)
+  P(c); c.moveTo(-50, 30); c.bezierCurveTo(-90, -120, 60, -230, 150, -110); c.bezierCurveTo(190, -50, 140, 40, 90, 50); c.quadraticCurveTo(20, 70, -50, 30); c.closePath();
+  fs(c, skin, 4.5);
+  c.fillStyle = dark; for (const [x, y, r] of [[60, -140, 12], [100, -90, 9], [20, -100, 8], [120, -40, 7], [-10, -40, 6]]) { P(c); circ(c, x, y, r); c.fill(); }
+  P(c); ell(c, 30, -170, 40, 14, -0.5); c.fillStyle = 'rgba(255,255,255,0.18)'; c.fill();
+  P(c); ell(c, -40, 34, 14 + m * 10, 8 + m * 14); fs(c, '#2b1a14', 3);
+  for (const [ex, ey, r] of [[-20, -30, 20], [40, -40, 16]]) {
+    P(c); circ(c, ex, ey, r); fs(c, '#ffe14d', 3.5);
+    P(c); ell(c, ex - 3, ey, r * 0.18, r * 0.75); c.fillStyle = INK; c.fill();
+    line(c, [ex - r * 1.2, ey - r * (angry ? 1.4 : 1.2), ex + r * 0.9, ey - r * 0.9], 5);
+  }
+  // two front tentacles reaching towards the carp
+  tentacle(c, -30, 46, Math.PI * 0.95, 230, 30, t * 3, skin, 1.4);
+  tentacle(c, 20, 52, Math.PI * 0.8, 210, 28, t * 3 + 2, skin, -1.2);
+}
+function drawVLash(c, b, t) {
+  const L = b.vlash; if (!L) return;
+  if (L.phase === 'warn') { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([16, 10]); c.lineWidth = 6; P(c); c.moveTo(L.x, 0); c.lineTo(L.x, H); c.stroke(); c.restore(); return; }
+  const pts = []; for (let y = -20; y <= H + 20; y += 30) pts.push(L.x + Math.sin(y * 0.05 + t * 20) * 6, L.top ? y : H - y);
+  tube(c, pts, 22, '#3d9a52');
+  c.fillStyle = '#c9f2b0'; for (let y = 10; y < H; y += 34) { P(c); circ(c, L.x + 7, L.top ? y : H - y, 4); c.fill(); }
+}
+function drawAquarium(c, t) {
+  const A = G.aqua; if (!A || G.dark) return;
+  const T = TANKS[A.i];
+  c.save();
+  c.globalAlpha = 0.3; c.fillStyle = T.tint; c.fillRect(0, 0, W, H); c.globalAlpha = 1;
+  // gravel and decor
+  c.fillStyle = T.floor; P(c); c.moveTo(0, H - 46); for (let x = 0; x <= W + 20; x += 20) c.lineTo(x, H - 46 + Math.sin(x * 0.05) * 3); c.lineTo(W + 20, H); c.lineTo(0, H); c.closePath(); c.fill();
+  const off = (t * 60) % 120;
+  for (let x = -off; x < W + 120; x += 120) {
+    c.fillStyle = 'rgba(0,0,0,0.12)'; P(c); circ(c, x + 20, H - 30, 6); circ(c, x + 70, H - 22, 5); circ(c, x + 100, H - 36, 4); c.fill();
+  }
+  const dx = W - ((t * 40) % (W + 300));
+  if (A.i === 1) { P(c); c.rect(dx, H - 140, 70, 96); c.rect(dx - 10, H - 160, 22, 30); c.rect(dx + 58, H - 160, 22, 30); fs(c, '#b5a07a', 3); P(c); c.rect(dx + 24, H - 90, 22, 46); c.fillStyle = '#3a2f22'; c.fill(); }
+  if (A.i === 3 || A.i === 5) { tube(c, [dx, H - 46, dx + 40, H - 110, dx + 120, H - 130, dx + 160, H - 90], 12, '#6b4a2b'); }
+  if (A.i === 4) { P(c); c.moveTo(dx, H - 46); c.lineTo(dx + 50, H - 120); c.lineTo(dx + 110, H - 46); c.closePath(); fs(c, '#f4fbff', 3); }
+  // glass reflections and the rim on top
+  c.fillStyle = 'rgba(255,255,255,0.06)';
+  for (const x of [W * 0.15, W * 0.55, W * 0.82]) { P(c); c.moveTo(x, 0); c.lineTo(x + 60, 0); c.lineTo(x - 140, H); c.lineTo(x - 200, H); c.closePath(); c.fill(); }
+  P(c); c.rect(0, 0, W, 16); fs(c, '#8a95a5', 0);
+  c.font = '900 13px ' + FONT_UI; c.textAlign = 'center'; c.textBaseline = 'middle';
+  const label = 'АКВАРИУМ ' + A.i + ' · ' + T.name, lw = c.measureText(label).width + 28;
+  P(c); rr(c, W - 82 - lw, 22, lw, 26, 6); fs(c, '#fff6e5', 2.5);
+  c.fillStyle = INK; c.fillText(label, W - 82 - lw / 2, 36);
+  c.restore();
+}
+function drawAquaWall(c) {
+  const Wl = G.aquaWall; if (!Wl) return;
+  c.save();
+  c.fillStyle = 'rgba(200,235,255,0.35)'; c.fillRect(Wl.x - 16, 0, 32, H);
+  c.fillStyle = 'rgba(255,255,255,0.6)'; c.fillRect(Wl.x - 10, 0, 4, H);
+  P(c); c.rect(Wl.x - 22, 0, 8, H); c.rect(Wl.x + 14, 0, 8, H); fs(c, '#8a95a5', 2);
+  for (let y = 30; y < H; y += 60) { P(c); circ(c, Wl.x - 18, y, 2.5); circ(c, Wl.x + 18, y, 2.5); c.fillStyle = INK; c.fill(); }
+  c.restore();
+}
+function drawMegaCameo(c, t) {
+  const m = G.megaCameo; if (!m) return;
+  c.save(); c.translate(m.x, m.y + Math.sin(t * 3) * 8); c.scale(0.42, 0.42);
+  drawMega(c, { mouth: 0.4 + Math.sin(t * 8) * 0.4 }, t); c.restore();
+}
+function drawL4World(c, t) {
+  if (G.level !== 4) return;
+  drawAquaWall(c);
+  drawMegaCameo(c, t);
+  if (G.boss && G.boss.vlash) drawVLash(c, G.boss, t);
+}
+function drawL4Speech(c) {
+  const m = G.megaCameo;
+  if (m && m.t > 0.4 && m.t < 3.2) { const q = toScreen(m.x, m.y); speechAt(c, 'Кракен, на помощь! ДОН-ДОН!', q.x - 60, q.y - 30, 3.2 - m.t, 2.8, -1); }
+}
+// pipe-style walls for drawTunnel
+function drawPipeWalls(c, top, bot) {
+  P(c); top.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); for (let i = bot.length - 1; i >= 0; i--) c.lineTo(bot[i][0], bot[i][1]); c.closePath();
+  c.fillStyle = 'rgba(6,14,26,0.42)'; c.fill();
+  const metal = c.createLinearGradient(0, 0, 0, H); metal.addColorStop(0, '#3c4654'); metal.addColorStop(0.5, '#7d8a9c'); metal.addColorStop(1, '#3c4654');
+  c.fillStyle = metal;
+  P(c); c.moveTo(-24, -70); for (const [x, y] of top) c.lineTo(x, y); c.lineTo(W + 24, -70); c.closePath(); c.fill();
+  P(c); c.moveTo(-24, H + 70); for (const [x, y] of bot) c.lineTo(x, y); c.lineTo(W + 24, H + 70); c.closePath(); c.fill();
+  c.lineWidth = 6; c.strokeStyle = '#b8c3d1';
+  P(c); top.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.stroke();
+  P(c); bot.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.stroke();
+  const s = tunScroll(), step = 90;
+  for (let u = Math.ceil((s - 40) / step) * step; u < s + W + 40; u += step) {
+    const x = u - s, a = tunAt(x);
+    if (!a || a.g > H / 2 + 20) continue;
+    for (const [y0, y1] of [[0, a.c - a.g], [a.c + a.g, H]]) { P(c); c.rect(x - 6, y0, 12, y1 - y0); c.fillStyle = 'rgba(30,36,46,0.35)'; c.fill(); }
+    P(c); circ(c, x, a.c - a.g - 9, 3); circ(c, x, a.c + a.g + 9, 3); c.fillStyle = '#dfe6ee'; c.fill();
+  }
+}
+
+/* ---------- endings shared with level 3 */
+const OUTRO = {
+  mega: { a: 'ТЫ ПРОСТО БОСС,', b: 'ТЫ ПРОСТО НАЧАЛЬНИК!', lines: ['Теперь угадайте,', 'кого вызовет на помощь', 'Мегалодон?'], end: 'tentacle' },
+  kraken: { a: 'ТЫ БОЛЬШОЙ МОЛОДЕЦ,', b: 'НО В СЛЕДУЮЩИЙ РАЗ ТЕБЕ НЕ ПОВЕЗЁТ!', lines: ['Зря ты тронул', 'моих детей…', 'Тебе несдобровать.'], end: 'sword' },
+};
+// the swordfish's bill pierces the darkness, the screen cracks, an eye lights up
+function drawSwordEnd(c, k) {
+  const thrust = easeOut(clamp((k - 8.6) / 0.22, 0, 1)), back = easeInOut(clamp((k - 10.3) / 0.5, 0, 1));
+  const tipX = lerp(SW + 40, SW * 0.18, thrust) + back * SW, y = SH * 0.8;
+  if (k > 8.82) {
+    c.save(); c.strokeStyle = 'rgba(230,240,255,0.85)'; c.lineWidth = 2;
+    const R = mulberry(5);
+    for (let i = 0; i < 9; i++) {
+      let x = SW * 0.18 + R() * SW * 0.25, yy = y + (R() - 0.5) * 20, a = (R() - 0.5) * Math.PI * 1.6 + (R() < 0.5 ? Math.PI : 0);
+      P(c); c.moveTo(x, yy);
+      for (let j = 0; j < 5; j++) { x += Math.cos(a) * (30 + R() * 40); yy += Math.sin(a) * (30 + R() * 40); a += (R() - 0.5) * 1.2; c.lineTo(x, yy); }
+      c.stroke();
+    }
+    c.restore();
+  }
+  if (thrust > 0 && back < 1) {
+    // eye and dorsal sail of the swordfish hiding in the dark
+    const eyeA = clamp((k - 9.1) / 0.5, 0, 1) * (1 - back);
+    if (eyeA > 0) {
+      c.save(); c.globalAlpha = eyeA;
+      const ex = tipX + SW * 0.62, ey = y - 18;
+      glow(c, ex, ey, 70, 'rgba(255,220,80,A)', 0.6);
+      P(c); ell(c, ex, ey, 26, 22); c.fillStyle = '#ffd43b'; c.fill();
+      P(c); ell(c, ex, ey, 5, 19); c.fillStyle = '#000'; c.fill();
+      P(c); c.moveTo(ex - 60, y - 70); c.quadraticCurveTo(ex + 40, y - 300, ex + 260, y - 120); c.lineTo(ex + 240, y - 60); c.closePath();
+      c.fillStyle = 'rgba(40,70,120,0.55)'; c.fill(); c.lineWidth = 2; c.strokeStyle = 'rgba(150,190,255,0.6)'; c.stroke();
+      c.restore();
+    }
+    // the bill
+    const g = c.createLinearGradient(0, y - 14, 0, y + 14); g.addColorStop(0, '#f4f7fb'); g.addColorStop(0.5, '#9aa6b8'); g.addColorStop(1, '#5a6578');
+    P(c); c.moveTo(tipX, y); c.lineTo(tipX + 40, y - 9); c.lineTo(SW + 60, y - 22); c.lineTo(SW + 60, y + 22); c.lineTo(tipX + 40, y + 9); c.closePath();
+    c.fillStyle = g; c.fill(); c.lineWidth = 3; c.strokeStyle = '#1b2230'; c.stroke();
+    if (k < 8.95) { c.fillStyle = 'rgba(255,255,255,' + (0.6 * (1 - (k - 8.6) / 0.35)).toFixed(3) + ')'; c.fillRect(0, 0, SW, SH); }
+  }
+}
+
 /* ============================================================ particles & effects */
 const FONT_DISPLAY = '"Dela Gothic One", "Arial Black", Impact, sans-serif';
 const FONT_UI = '"Nunito", "Segoe UI", Roboto, Arial, sans-serif';
@@ -4126,7 +4528,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -4160,6 +4562,7 @@ function drawTunnel(c, t) {
   if (!G.tunnel) return;
   const s = tunScroll(), top = [], bot = [];
   for (let x = -24; x <= W + 24; x += 12) { const a = tunAt(x); top.push([x, a ? a.c - a.g : -60]); bot.push([x, a ? a.c + a.g : H + 60]); }
+  if (G.tunnel.style === 'pipe') { drawPipeWalls(c, top, bot); return; }
   const rock = c.createLinearGradient(0, 0, 0, H); rock.addColorStop(0, '#16202b'); rock.addColorStop(0.5, '#2c3b4c'); rock.addColorStop(1, '#16202b');
   c.fillStyle = rock;
   P(c); c.moveTo(-24, -70); for (const [x, y] of top) c.lineTo(x, y); c.lineTo(W + 24, -70); c.closePath(); c.fill();
@@ -4303,7 +4706,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
-  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : p); if (G.level >= 2) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); return; }
+  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua ? 0.2 : p); if (G.level >= 2 && !G.bright && !G.aqua) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
   c.save();
@@ -4336,6 +4739,7 @@ function render() {
   for (const e of G.enemies) drawEnemy(c, e, T);
   drawHelpers(c, T);
   if (G.boss) drawBossEntity(c, G.boss, T);
+  drawL4World(c, T);
   drawCameo(c, T);
   for (const s of G.pb) {
     if (s.charm) drawEB(c, { type: 'charm', x: s.x, y: s.y + Math.sin(s.age * 10) * 2, r: s.r }, T);
@@ -4358,6 +4762,7 @@ function render() {
     if (G.phaseT > 0.3 && G.phaseT < 1.8) speechAt(c, 'Мегалодон, приди!', a.x - 70, a.y - 30, 1.8 - G.phaseT, 1.5, -1);
     if (G.phaseT > 1.7 && G.phaseT < 3.2) speechAt(c, 'Отомсти за нас!', b.x - 60, b.y - 10, 3.2 - G.phaseT, 1.5, -1);
   }
+  drawL4Speech(c);
   if (G.heroSay) { const q = toScreen(G.player.x, G.player.y); speechAt(c, G.heroSay.text, q.x + 10, q.y - 46, G.heroSay.t, 3.4, 1); }
   c.restore();
   drawTexts(c);
@@ -4427,11 +4832,13 @@ function startGame(mode, fromBoss, level) {
     G.t = G.len; G.ev = G.L.length;
     if (G.mode === 'duck' && G.level === 2) { G.vert = true; setWorld(); G.player.y = H / 2; }
     if (G.level === 3 && G.mode === 'fish') { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
+    if (G.level === 4) { G.bright = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 3 && G.mode === 'duck') startRunner(true);
   } else {
-    if (G.level === 3) { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    if (G.level === 3 && G.mode === 'fish') { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    else if (G.level === 4) { banner('ОЖИДАЕТСЯ КАТОЧКА', 'Уровень 4', 3); sfx('siren'); G.squidUnlocked = true; G.squidCharge = 50; }
     else banner('УРОВЕНЬ ' + G.level, G.LI.name, 2.8);
-    if (G.level >= 2) G.power = G.level === 3 ? 3 : 2;
+    if (G.level >= 2) G.power = G.level >= 3 ? 3 : 2;
   }
   state = 'play';
   input.dx = input.dy = 0;
@@ -4483,6 +4890,7 @@ function onWin() {
     shawarma: 'Злая шаверма повержена! Утка Илона добежала до победы — и обед в кармане.',
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
     mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
+    kraken: 'Кракен повержен! Но где-то в темноте кто-то уже точит свой нос…',
   }[G.LI.boss];
   const next = LEVEL_INFO[G.level + 1] && LEVEL_INFO[G.level + 1][G.mode] ? G.level + 1 : 0;
   $('winLevel').textContent = next ? 'Уровень ' + G.level + ' пройден. Впереди уровень ' + next + '!' : 'Уровень ' + G.level + ' пройден. Продолжение следует…';
@@ -4650,7 +5058,7 @@ window.__kb = {
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

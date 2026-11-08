@@ -47,11 +47,11 @@ let G = null;
 let state = 'loading';  // loading | menu | rotate | play | paused | over | win
 
 function newGame(mode, level) {
-  level = [1, 2, 3].includes(level) ? level : 1;
+  level = [1, 2, 3, 4].includes(level) ? level : 1;
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
-    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
-    evOff: 0, spd: level === 3 ? 1.3 : 1, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
+    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
+    evOff: 0, spd: level >= 3 ? 1.3 : 1, aqua: null, aquaWall: null, megaCameo: null, bright: false, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
     vert: false, turnK: 0, tunnel: null, slowT: 0, tickT: 0, charm: 0, charmT: 0, suck: null, heroSay: null, cameo: null,
     t: 0, bgT: 0, phase: 'intro', phaseT: 0, ev: 0,
     score: 0, hp: MAX_HP, bombs: 2, power: 1,
@@ -269,7 +269,8 @@ const smooth = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
 // o: len, speed, squeeze (walls close in), amp (how much it winds), noRampIn (walls already around us), gBase, quiet
 function startTunnel(o) {
   o = o || {};
-  G.tunnel = { t0: G.t, u0: o.noRampIn ? -60 : W + 80, len: o.len || TUN.len, speed: o.speed || TUN.speed, squeeze: !!o.squeeze, sg: 150, amp: o.amp === undefined ? 1 : o.amp, noRampIn: !!o.noRampIn, gBase: o.gBase || 0 };
+  G.tunnel = { t0: G.t, u0: o.noRampIn ? -60 : W + 80, len: o.len || TUN.len, speed: o.speed || TUN.speed, squeeze: !!o.squeeze, sg: 150, amp: o.amp === undefined ? 1 : o.amp, noRampIn: !!o.noRampIn, gBase: o.gBase || 0, style: o.style || 'rock', safe: !!o.safe, ramp: o.ramp || 600, sqFrom: o.sqFrom || 0 };
+  if (o.sg) G.tunnel.sg = o.sg;
   if (!o.quiet) { banner('ТУННЕЛЬ!', 'Не задевай шипы на стенах', 2.8); sfx('charge'); }
 }
 function tunScroll() { return (G.t - G.tunnel.t0) * G.tunnel.speed; }
@@ -277,8 +278,9 @@ function tunAt(x) {
   const T = G.tunnel; if (!T) return null;
   const v = tunScroll() + x - T.u0;
   if (v < 0 || v > T.len) return null;
-  const r = Math.min(T.noRampIn ? 1 : smooth(v / 600), smooth((T.len - v) / 600));
-  const base = T.squeeze ? T.sg : T.gBase || 132 - 28 * (v / T.len);
+  const r = Math.min(T.noRampIn ? 1 : smooth(v / T.ramp), smooth((T.len - v) / T.ramp));
+  let base = T.squeeze && !T.sqFrom ? T.sg : T.gBase || 132 - 28 * (v / T.len);
+  if (T.sqFrom) base = lerp(T.gBase, T.sg, smooth((v - T.sqFrom) / 300));
   return {
     c: H / 2 + r * T.amp * (Math.sin(v * 0.0032) * 95 + Math.sin(v * 0.0087 + 1) * 38),
     g: lerp(H / 2 + 70, base, r),
@@ -459,7 +461,7 @@ function useBomb() {
     banner(G.M.bombText, '', 1.5, 'sign'); sfx('bomb'); sfx('quack2'); G.flash = 0.4; G.flashColor = '#fff';
     return;
   }
-  if (G && G.tunnel && G.tunnel.squeeze) { doBurst(); return; }
+  if (G && sqActive()) { doBurst(); return; }
   if (state !== 'play' || !G || G.bombs <= 0 || !G.player.alive || G.phase === 'intro' || G.phase === 'bossDead' || G.bombFx) return;
   G.bombs--; updateBombBtn();
   const p = G.player;
@@ -521,7 +523,7 @@ function updatePlayer(dt) {
     if (G.tunnel) for (const ox of [26, -42]) {
       const a = tunAt(p.x + ox); if (!a) continue;
       const top = a.c - a.g + 13, bot = a.c + a.g - 13, r = 11;
-      if (p.y - r < top || p.y + r > bot) { hurtPlayer(); p.y = clamp(p.y, top + r + 3, bot - r - 3); }
+      if (p.y - r < top || p.y + r > bot) { if (!G.tunnel.safe) hurtPlayer(); p.y = clamp(p.y, top + r + 3, bot - r - 3); }
     }
   }
   p.vy = lerp(p.vy, (p.y - py) / Math.max(dt, 1e-3), Math.min(1, dt * 10));
@@ -760,6 +762,7 @@ function startWarning() {
   G.checkpoint = { score: G.score, power: Math.max(G.power, 3) };
   banner('ВНИМАНИЕ!', BOSS[G.LI.boss].name, 3.0, 'warn');
   if (G.LI.boss === 'catfish') G.cameo = { x: W + 120, y: 120, t: 0 };
+  if (G.LI.boss === 'kraken') G.megaCameo = { x: W + 160, y: 150, t: 0 };
   sfx('siren'); Sound.music(null);
 }
 function spawnBoss(kindOpt) {
@@ -767,7 +770,7 @@ function spawnBoss(kindOpt) {
   G.phase = BOSS[kind].mini ? 'mini' : 'boss'; G.phaseT = 0;
   G.cameo = null;
   const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF), maxHp: Math.round(BOSS[kind].hp * DIFF), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
-  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain }[kind](b);
+  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain }[kind](b);
   b.brain.next();
   G.boss = b;
   G.lastHealT = G.t; G.lastBombT = G.t;
@@ -780,7 +783,7 @@ function damageBoss(dmg) {
   if (G.squidUnlocked && !(G.squidT > 0)) G.squidCharge = Math.min(100, G.squidCharge + 0.25);
   if (!b.phase2 && b.hp < b.maxHp * 0.5) {
     b.phase2 = true; G.shake = Math.max(G.shake, 8);
-    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!' }[b.kind]);
+    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!', kraken: 'Ну всё, карась! На абордаж!' }[b.kind]);
   }
   if (b.hp <= 0) bossDie();
 }
@@ -792,7 +795,8 @@ function bossDie() {
   for (const x of G.eb) { x.dead = true; puff(x.x, x.y); }
   for (const e of G.enemies) killEnemy(e, true);
   b.sucking = false; G.suck = null;
-  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…' }[b.kind]);
+  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…', kraken: 'Мои детки… мои щупальца…' }[b.kind]);
+  b.vlash = null; b.lash = null;
   if (b.kind === 'car') later(1.0, () => { G.heroSay = { text: 'Я твою выхлопную трубу шатала!', t: 3.4 }; sfx('quack2'); });
   addScore(10000, b.x, b.y - 60);
   sfx('boom'); G.shake = 18; G.flash = 0.5; G.flashColor = '#fff';
@@ -950,7 +954,7 @@ function update(rdt) {
       break;
     case 'warn': if (G.phaseT >= 3.2) spawnBoss(); break;
     case 'bossDead':
-      if (G.boss && G.boss.kind === 'mega') { if (G.phaseT >= 2.6) { G.phase = 'outro'; G.phaseT = 0; G.outro = { t: 0, s: 0 }; } }
+      if (G.boss && OUTRO[G.boss.kind]) { if (G.phaseT >= 2.6) { G.phase = 'outro'; G.phaseT = 0; G.outro = { t: 0, s: 0, kind: G.boss.kind }; } }
       else if (G.phaseT >= 4.4) onWin();
       break;
     case 'miniDead': if (G.phaseT >= 3.2) endMini(); break;
@@ -969,6 +973,7 @@ function update(rdt) {
   updateEnemies(dt);
   updateBoss(dt);
   updateSqueeze(dt);
+  updateLevel4(dt);
   updateSquid(rdt);
   updateHelpers(dt);
   updateEnemyShots(dt);

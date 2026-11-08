@@ -218,6 +218,12 @@ function drawEB(c, b, t) {
       P(c); heartPath(c, x, y + 1, 6); c.fillStyle = '#ff4d8d'; c.fill();
       break;
     }
+    case 'ball': {
+      c.save(); c.translate(x, y); c.rotate(b.rot);
+      P(c); circ(c, 0, 0, b.r); fs(c, '#fff', 2.5);
+      for (const [a0, col] of [[0, '#e63946'], [2.09, '#2a6bff'], [4.19, '#ffd43b']]) { P(c); c.moveTo(0, 0); c.arc(0, 0, b.r - 1.5, a0, a0 + 1.05); c.closePath(); c.fillStyle = col; c.fill(); }
+      c.restore(); break;
+    }
     default: { // orb
       P(c); circ(c, x, y, b.r + 2); c.fillStyle = INK; c.fill();
       P(c); circ(c, x, y, b.r); c.fillStyle = b.col || '#ff2d55'; c.fill();

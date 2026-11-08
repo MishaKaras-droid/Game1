@@ -159,7 +159,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -193,6 +193,7 @@ function drawTunnel(c, t) {
   if (!G.tunnel) return;
   const s = tunScroll(), top = [], bot = [];
   for (let x = -24; x <= W + 24; x += 12) { const a = tunAt(x); top.push([x, a ? a.c - a.g : -60]); bot.push([x, a ? a.c + a.g : H + 60]); }
+  if (G.tunnel.style === 'pipe') { drawPipeWalls(c, top, bot); return; }
   const rock = c.createLinearGradient(0, 0, 0, H); rock.addColorStop(0, '#16202b'); rock.addColorStop(0.5, '#2c3b4c'); rock.addColorStop(1, '#16202b');
   c.fillStyle = rock;
   P(c); c.moveTo(-24, -70); for (const [x, y] of top) c.lineTo(x, y); c.lineTo(W + 24, -70); c.closePath(); c.fill();
@@ -336,7 +337,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
-  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : p); if (G.level >= 2) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); return; }
+  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua ? 0.2 : p); if (G.level >= 2 && !G.bright && !G.aqua) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
   c.save();
@@ -369,6 +370,7 @@ function render() {
   for (const e of G.enemies) drawEnemy(c, e, T);
   drawHelpers(c, T);
   if (G.boss) drawBossEntity(c, G.boss, T);
+  drawL4World(c, T);
   drawCameo(c, T);
   for (const s of G.pb) {
     if (s.charm) drawEB(c, { type: 'charm', x: s.x, y: s.y + Math.sin(s.age * 10) * 2, r: s.r }, T);
@@ -391,6 +393,7 @@ function render() {
     if (G.phaseT > 0.3 && G.phaseT < 1.8) speechAt(c, 'Мегалодон, приди!', a.x - 70, a.y - 30, 1.8 - G.phaseT, 1.5, -1);
     if (G.phaseT > 1.7 && G.phaseT < 3.2) speechAt(c, 'Отомсти за нас!', b.x - 60, b.y - 10, 3.2 - G.phaseT, 1.5, -1);
   }
+  drawL4Speech(c);
   if (G.heroSay) { const q = toScreen(G.player.x, G.player.y); speechAt(c, G.heroSay.text, q.x + 10, q.y - 46, G.heroSay.t, 3.4, 1); }
   c.restore();
   drawTexts(c);
