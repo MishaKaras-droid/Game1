@@ -14,9 +14,9 @@ const LEVEL3_DUCK = [
   [31.0, () => startLanding()],
 ];
 // distances in metres; z = metres in front of the camera; the duck runs at z = PZ
-const RUN = { PZ: 4.2, LANE: 2.1, HALF: 3.4, G: 36, JUMP: 13.5, SPRING: 21, BASE: 24, MAXS: 31, BOSS_AT: 1800, ZMAX: 95 };
-const SURFACES = [[0, 'road'], [380, 'grass'], [720, 'sand'], [1000, 'ice'], [1300, 'road']];
-const SURF_NAME = { grass: ['ПАРК', 'Деревянная дорожка'], sand: ['ПЛЯЖ', 'Песок замедляет бег'], ice: ['КАТОК', 'Скользко! Дорожки меняются с заносом'], road: ['ГОРОД', 'Скоро шаверма…'] };
+const RUN = { PZ: 4.2, LANE: 2.1, HALF: 3.4, G: 36, JUMP: 13.5, SPRING: 21, BASE: 19.2, MAXS: 24.8, BOSS_AT: 1800, ZMAX: 95 };
+const SURFACES = [[0, 'grass'], [520, 'sand'], [900, 'ice'], [1250, 'road']];
+const SURF_NAME = { grass: ['ЗЕЛЁНЫЕ ХОЛМЫ', 'Беги по траве'], sand: ['ПЛЯЖ', 'Песок замедляет бег'], ice: ['КАТОК', 'Скользко! Дорожки меняются с заносом'], road: ['ГОРОД', 'Скоро шаверма…'] };
 function surfaceAt(d) { let s = 'road'; for (const [d0, k] of SURFACES) if (d >= d0) s = k; return s; }
 const laneX = (l) => (l - 1) * RUN.LANE;
 
@@ -25,7 +25,11 @@ function buildTrack() {
   const add = (o) => objs.push(Object.assign({ x: 0, h: 0, dead: false }, o));
   const cups = (d0, lane, n, gap, h, arc) => { for (let i = 0; i < n; i++) add({ type: 'cup', d: d0 + i * gap, x: laneX(lane), h: h + (arc ? Math.sin((i / Math.max(1, n - 1)) * Math.PI) * arc : 0) }); };
   let d = 70;
+  const loopsDone = new Set();
   while (d < RUN.BOSS_AT - 70) {
+    // loops: no obstacles, just a ribbon of coffee around the loop
+    const lr = planRanges().find(([a, b, ty]) => ty === 'loop' && d > a - 22 && d < b + 10);
+    if (lr) { if (!loopsDone.has(lr[0])) { loopsDone.add(lr[0]); cups(lr[0] - 6, 1, Math.floor((lr[1] - lr[0] + 6) / 3), 3, 0.5); } d = lr[1] + 14; continue; }
     const pool = d < 250 ? ['jump', 'jump', 'free'] : d < 420 ? ['jump', 'roll', 'roll', 'free'] : ['jump', 'roll', 'lanes', 'enemy', 'enemy', 'spring', 'dash', 'combo', 'wall', 'hole'];
     const pat = pool[Math.floor(Rn() * pool.length)], L = Math.floor(Rn() * 3), L2 = (L + 1 + Math.floor(Rn() * 2)) % 3, L3 = 3 - L - L2;
     switch (pat) {
@@ -80,12 +84,16 @@ function startRunner(atBoss) {
     camH: 9, hor: SH * 0.1, camX: 0, curve: 0, fade: 1, hints: {}, streak: null, target: null, boss: null, end: null, surf: 'road',
   };
   if (atBoss) { R.s = RUN.BOSS_AT - 25; R.objs = []; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, grass: 1, sand: 1, ice: 1, road: 1 }; }
+  R.surf = surfaceAt(R.s);
+  R.three = r3Init();
   G.run = R; G.phase = 'run'; G.phaseT = 0;
+  if (R.three) r3Reset();
   G.enemies.length = 0; G.eb.length = 0; G.pickups.length = 0; G.parts.length = 0; G.banners.length = 0;
   G.player.inv = 0; G.player.alive = true;
   if (!atBoss) Sound.music('sky2');
 }
-function runProj(x, h, z) {
+function runProj(x, h, z) { return G.run && G.run.three && R3.camera ? runProj3(x, h, z) : runProj2D(x, h, z); }
+function runProj2D(x, h, z) {
   const R = G.run, k = (SH * 0.9) / z, dz = z - RUN.PZ;
   return { sx: SW / 2 + (x - R.camX + R.curve * dz * dz) * k, sy: R.hor + (R.camH - h) * k, k };
 }
@@ -107,8 +115,9 @@ function runLane(dir) {
   R.lane = n; sfx('click');
 }
 function runBoost() {
-  const R = G.run; if (!R || R.meter < 100 || R.boost > 0 || !G.player.alive) return;
-  R.boost = 3.5; R.meter = 0; banner('РЫВОК!', '', 1.2, 'small'); sfx('power'); sfx('quack');
+  const R = G.run; if (!R || R.boost > 0 || !G.player.alive || R.end || R.phase === 'intro') return;
+  if (R.meter < 100) { if (!R.boostNag || R.t - R.boostNag > 1.5) { R.boostNag = R.t; floatText(SW / 2, SH * 0.7, 'Шкала «Рывок» ещё не полная — собирай кофе!', '#ffe9a0', 18); sfx('click'); } return; }
+  R.boost = 4; R.meter = 0; banner('РЫВОК!', '', 1.2, 'small'); sfx('power'); sfx('quack'); sfx('swoosh'); G.shake = 6;
 }
 function runBomb() {
   const R = G.run;
@@ -165,11 +174,10 @@ function runCollide(o) {
         const q = runProj(o.x, o.h, RUN.PZ + 0.3); burst(q.sx, q.sy, 4, { type: 'star', col: '#ffe066', smin: 40, smax: 120, lmin: 0.3, lmax: 0.5, rmin: 4, rmax: 6 });
         sfx('heal');
         if (R.cupsTotal % 30 === 0 && G.hp < MAX_HP) { G.hp++; floatText(q.sx, q.sy - 40, '+1 ♥', '#ff8fa3', 24); }
-        if (R.meter >= 100 && !R.hints.boost) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми кнопку «Рывок»' : 'Жми кнопку «Рывок» или Shift', 2.4, 'small'); }
       }
       return;
     case 'spring': if (!o.used && R.y < 0.4) { o.used = true; R.vy = RUN.SPRING; R.y = 0.05; R.roll = 0; sfx('power'); } return;
-    case 'dash': if (!o.used && R.y < 0.4) { o.used = true; R.boost = Math.max(R.boost, 1.4); sfx('swoosh'); } return;
+    case 'dash': if (!o.used && R.y < 0.4) { o.used = true; R.boost = Math.max(R.boost, 1.6); sfx('swoosh'); } return;
   }
   if (o.hitDone) return;
   if (R.boost > 0) { runDestroy(o); return; }
@@ -279,7 +287,8 @@ function updateRunner(dt) {
   if (surf !== R.surf) { R.surf = surf; if (!R.hints[surf] && R.s > 50) { R.hints[surf] = 1; banner(SURF_NAME[surf][0], SURF_NAME[surf][1], 2.2, 'small'); } }
   let target = Math.min(RUN.MAXS, RUN.BASE + R.s * 0.004);
   if (surf === 'sand') target *= 0.78;
-  if (R.boost > 0) target *= 1.55;
+  if (R.boost > 0) target *= 1.8;
+  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0)) R.meter = Math.min(100, R.meter + 2.2 * dt); if (R.meter >= 100 && !R.hints.boost) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
   R.speed = lerp(R.speed, target, Math.min(1, dt * 2.5));
   R.s += R.speed * dt;
   R.curve = Math.sin(R.s / 230) * 0.0026 + Math.sin(R.s / 97) * 0.0009;
@@ -297,10 +306,10 @@ function updateRunner(dt) {
   // hints for the controls
   const hint = (key, at, title, sub) => { if (!R.hints[key] && R.s > at) { R.hints[key] = 1; banner(title, sub, 2.6, 'small'); } };
   if (R.phase === 'run') {
-    hint('jump', 25, 'ПРЫЖОК', isTouch ? 'Свайп вверх или касание экрана' : 'Стрелка вверх или Пробел');
+    hint('jump', 25, 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел');
     hint('roll', 255, 'КУВЫРОК', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой');
     hint('lane', 425, 'ДОРОЖКИ', isTouch ? 'Свайп влево или вправо' : 'Стрелки влево и вправо');
-    hint('homing', 520, 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке коснись ещё раз — утка бросится на врага' : 'В прыжке нажми ещё раз — утка бросится на врага');
+    hint('homing', 560, 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — утка бросится на врага' : 'В прыжке нажми ещё раз — утка бросится на врага');
   }
   // moving boss projectiles and falling sauce
   for (const o of R.objs) {
@@ -507,7 +516,7 @@ function drawDuckBack(c, t) {
   if (R.inv > 0 && Math.floor(R.inv * 14) % 2 === 0) c.globalAlpha = 0.4;
   if (R.boost > 0) { glow(c, a.sx, a.sy - k * 0.5, k * 1.1, 'rgba(255,220,90,A)', 0.6); for (let i = 0; i < 5; i++) line(c, [a.sx + rand(-k, k), a.sy - rand(0, k), a.sx + rand(-k, k) * 1.4, a.sy + k * 0.8], 2, 'rgba(255,255,255,0.6)'); }
   c.save(); c.translate(a.sx, a.sy);
-  const rolling = R.roll > 0 || R.slam;
+  const rolling = R.roll > 0 || R.slam || R.boost > 0;
   if (rolling) {
     const r = k * 0.42; c.translate(0, -r);
     P(c); circ(c, 0, 0, r); fs(c, '#f6d64a', Math.max(2, k * 0.04));
@@ -614,6 +623,7 @@ function drawRunEnd(c, t) {
   if (k < 1.4) { c.fillStyle = 'rgba(255,255,255,' + clamp(1 - (k - 0.8) / 0.6, 0, 1).toFixed(3) + ')'; c.fillRect(0, 0, SW, SH); }
 }
 function renderRunner(c) {
+  if (G.run.three) return renderRunner3D(c);
   const R = G.run, t = G.bgT;
   c.save();
   if (G.shake > 0.3 && !reducedMotion) c.translate(rand(-1, 1) * G.shake, rand(-1, 1) * G.shake);

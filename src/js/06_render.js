@@ -349,6 +349,7 @@ function drawBackground(c, T) {
 function render() {
   const c = ctx;
   setScreen();
+  if (!G || !G.run || !G.run.three) r3Show(false);
   c.setTransform(view.px, 0, 0, view.px, 0, 0);
   if (!G) { c.fillStyle = '#0b2f57'; c.fillRect(0, 0, W, H); return; }
   ensureBg(G.mode);

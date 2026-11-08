@@ -34,7 +34,7 @@ async function keepAwake(on) {
 }
 
 function goMenu() {
-  state = 'menu'; G = null;
+  state = 'menu'; G = null; r3Show(false);
   Sound.music(null); Sound.resume(); keepAwake(false);
   refreshRecords(); updateSoundUi();
   show('menu');
@@ -138,6 +138,23 @@ for (const id of ['btnMenu1', 'btnMenu2', 'btnMenu3']) $(id).addEventListener('c
 $('btnAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
 $('btnWinAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
 $('btnNext').addEventListener('click', (e) => { tryStart(G ? G.mode : 'duck', false, +e.currentTarget.dataset.level || 2); });
+let runUi = '';
+function updateRunCtl(run) {
+  const show = run && !G.run.end && state !== 'menu';
+  const p = show ? Math.round(G.run.meter) : 0, act = show && G.run.boost > 0;
+  const key = show + '|' + p + '|' + act;
+  if (key === runUi) return;
+  runUi = key;
+  $('hud').classList.toggle('runner', show);
+  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch);
+  $('dashFill').style.width = (act ? 100 : p) + '%';
+  $('dashBar').classList.toggle('full', p >= 100 && !act);
+  $('dashBar').classList.toggle('active', act);
+}
+$('btnJump').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runJump(); });
+$('dashBar').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runBoost(); });
+$('dashBar').addEventListener('click', (e) => { if (e.detail === 0) runBoost(); e.currentTarget.blur(); });
+if (isTouch) $('hud').classList.add('touch');
 const special = () => { if (G && G.run) runBoost(); else useSquid(); };
 $('btnSquid').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); special(); });
 $('btnSquid').addEventListener('click', (e) => { if (e.detail === 0) special(); e.currentTarget.blur(); });
@@ -145,8 +162,9 @@ if (isTouch) $('squidKey').hidden = true;
 let squidUi = '';
 function updateSquidBtn() {
   const run = !!(G && G.run);
-  const on = !!(G && (G.squidUnlocked || run) && state !== 'menu' && !(run && G.run.end));
-  const p = !G ? 0 : run ? Math.round(G.run.meter) : Math.round(G.squidCharge || 0), act = !!G && (run ? G.run.boost > 0 : G.squidT > 0);
+  updateRunCtl(run);
+  const on = !!(G && G.squidUnlocked && !run && state !== 'menu');
+  const p = !G ? 0 : Math.round(G.squidCharge || 0), act = !!G && G.squidT > 0;
   const key = on + '|' + p + '|' + act + '|' + run;
   if (key === squidUi) return;
   squidUi = key;
@@ -206,8 +224,7 @@ hooks.key = (code, e, onButton) => {
 };
 hooks.blur = () => { if (state === 'play') pauseGame(); };
 hooks.tap = () => { if (state === 'play' && G && !G.run) doBurst(); };
-hooks.swipe = (dir) => { if (state !== 'play' || !G || !G.run) return; if (dir === 'up') runJump(); else if (dir === 'down') runRoll(); else runLane(dir === 'left' ? -1 : 1); };
-hooks.tapUp = () => { if (state === 'play' && G && G.run) runJump(); };
+hooks.swipe = (dir) => { if (state !== 'play' || !G || !G.run) return; if (dir === 'down') runRoll(); else if (dir !== 'up') runLane(dir === 'left' ? -1 : 1); };
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (state === 'play') pauseGame(); Sound.suspend(); }
   else if (state !== 'paused') Sound.resume();

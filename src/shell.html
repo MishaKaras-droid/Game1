@@ -189,6 +189,29 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 #btnSquid.ready { animation: squidReady 0.9s ease-in-out infinite; }
 #btnSquid.active { background: radial-gradient(circle, #ff8fc0, #b23c72); }
 @keyframes squidReady { 50% { box-shadow: 0 4px 0 var(--ink), 0 0 0 8px rgba(214,90,160,.45); } }
+#btnJump {
+  position: absolute; right: max(20px, env(safe-area-inset-right, 0px)); bottom: 20px; width: 100px; height: 100px; border-radius: 50%; padding: 0;
+  border: 4px solid var(--ink); background: radial-gradient(circle at 35% 30%, #c8f6ff, #3aa6e8 65%, #1f6fc0); color: #fff;
+  box-shadow: 0 6px 0 var(--ink); display: grid; place-items: center; align-content: center; gap: 2px;
+  font: 900 13px var(--font-ui); letter-spacing: .04em; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+#btnJump svg { width: 38px; height: 38px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+#btnJump:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+#dashBar {
+  position: absolute; left: max(18px, env(safe-area-inset-left, 0px)); bottom: 18px; width: min(320px, 42vw); height: 56px; padding: 0; overflow: hidden;
+  border: 4px solid var(--ink); border-radius: 16px; background: rgba(20, 30, 70, .78); box-shadow: 0 5px 0 var(--ink);
+  display: flex; align-items: center; justify-content: center;
+}
+#dashBar .dash-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(#b8ff8a, #3fbf3a); transition: width .15s linear; }
+#dashBar .dash-lbl { position: relative; font-family: var(--font-display); font-size: 22px; letter-spacing: .06em; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+#dashBar .dash-key { position: absolute; right: 10px; bottom: 4px; font: 900 10px var(--font-ui); color: #fff; opacity: .75; }
+#dashBar.full .dash-fill { background: linear-gradient(#fff4a8, #ffb800); }
+#dashBar.full { animation: dashReady .8s ease-in-out infinite; }
+#dashBar.active .dash-fill { background: linear-gradient(#fff, #ffe14d); }
+@keyframes dashReady { 50% { box-shadow: 0 5px 0 var(--ink), 0 0 0 7px rgba(255, 210, 60, .55); transform: scale(1.03); } }
+#hud.touch .dash-key { display: none; }
+#hud.runner.touch #btnBomb { right: 34px; bottom: 136px; width: 64px; height: 64px; }
+#hud.runner.touch #btnBomb svg { width: 26px; height: 26px; }
 #btnBomb.empty { filter: grayscale(1) brightness(.85); opacity: .65; }
 
 /* ---------- overlays ---------- */
@@ -269,6 +292,9 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   #btnBomb svg { width: 28px; height: 28px; }
   #btnPause { width: 40px; height: 40px; top: 6px; right: 8px; }
   #btnSquid { width: 56px; height: 56px; right: 19px; bottom: 90px; }
+  #btnJump { width: 84px; height: 84px; bottom: 12px; }
+  #dashBar { height: 48px; bottom: 12px; }
+  #hud.runner.touch #btnBomb { bottom: 108px; right: 28px; width: 56px; height: 56px; }
 }
 </style>
 
@@ -283,6 +309,15 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3l4.9 10.6 11.6 1.3-8.6 7.9 2.4 11.4L20 28.4 9.7 34.2l2.4-11.4-8.6-7.9 11.6-1.3z" fill="#fff6e5" stroke="#221d2e" stroke-width="3" stroke-linejoin="round"/></svg>
       <span class="cnt" id="bombCount">2</span>
       <span class="key" id="bombKey">ПРОБЕЛ</span>
+    </button>
+    <button id="btnJump" type="button" aria-label="Прыжок" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 9h-5v8H9v-8H4z" fill="currentColor"/></svg>
+      <span>ПРЫЖОК</span>
+    </button>
+    <button id="dashBar" type="button" aria-label="Рывок" hidden>
+      <span class="dash-fill" id="dashFill"></span>
+      <span class="dash-lbl">РЫВОК</span>
+      <span class="dash-key" id="dashKey">SHIFT</span>
     </button>
     <button id="btnSquid" type="button" aria-label="Позвать кальмара" hidden>
       <span class="sq-label">КАЛЬ&#173;МАР</span>
@@ -391,5 +426,6 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 
   <div id="loading">Загрузка…</div>
 </div>
+<!--VENDOR-->
 <!--ASSETS-->
 <!--SCRIPT-->

@@ -75,7 +75,9 @@ function spread(x, y, n, step, speed, o, base) {
   for (let i = 0; i < n; i++) ebullet(x, y, base + (i - (n - 1) / 2) * step, speed, o);
 }
 function ring(x, y, n, speed, o, off) { for (let i = 0; i < n; i++) ebullet(x, y, (off || 0) + (i / n) * TAU, speed, o); }
-function banner(text, sub, life, style) { G.banners.push({ text, sub, t: 0, life: life || 2.4, style: style || 'title' }); }
+function banner(text, sub, life, style) {
+  if (G.run && style === 'small') G.banners = G.banners.filter((b) => b.style !== 'small');
+  G.banners.push({ text, sub, t: 0, life: life || 2.4, style: style || 'title' }); }
 function floatText(x, y, text, col, size) { if (G.texts.length < 40) G.texts.push({ x, y, text, col: col || '#fff', t: 0, life: 1, size: size || 18 }); }
 function addScore(n, x, y) { G.score += n; if (n >= 100 && x !== undefined) floatText(x, y - 10, '+' + n, '#fff6e5', n >= 1000 ? 22 : 16); }
 

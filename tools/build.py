@@ -39,6 +39,9 @@ def main():
     assets_js = "const ASSETS = " + json.dumps({"img": img, "meta": meta}, ensure_ascii=False) + ";"
     js = "\n".join(p.read_text() for p in sorted((K / "src" / "js").glob("*.js")))
     shell = (K / "src" / "shell.html").read_text()
+    three = (K / "vendor" / "three-r128.min.js").read_text()
+    assert "</script" not in three.lower()
+    shell = shell.replace("<!--VENDOR-->", "<script>\n" + three + "\n</script>")
     page = shell.replace("<!--ASSETS-->", "<script>\n" + assets_js + "\n</script>").replace(
         "<!--SCRIPT-->", "<script>\n(function () {\n" + js + "\n})();\n</script>"
     )
