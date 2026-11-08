@@ -68,7 +68,7 @@ function resize() {
 const keys = Object.create(null);
 const input = { dx: 0, dy: 0, dragging: false };
 let dragPtr = null;
-const hooks = { key: null, blur: null, tap: null };   // set by the UI layer
+const hooks = { key: null, blur: null, tap: null, swipe: null, tapUp: null };   // set by the UI layer
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -89,7 +89,7 @@ stage.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, .overlay, #menu')) return;
   if (dragPtr) return;
   if (hooks.tap) hooks.tap();
-  dragPtr = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  dragPtr = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), fired: false };
   input.dragging = true;
   try { stage.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ }
   e.preventDefault();
@@ -100,8 +100,20 @@ stage.addEventListener('pointermove', (e) => {
   input.dx += ((e.clientX - dragPtr.x) / view.scale) * sens;
   input.dy += ((e.clientY - dragPtr.y) / view.scale) * sens;
   dragPtr.x = e.clientX; dragPtr.y = e.clientY;
+  // quick strokes are swipes (used by the running level)
+  if (!dragPtr.fired && hooks.swipe) {
+    const dx = e.clientX - dragPtr.sx, dy = e.clientY - dragPtr.sy;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 32) {
+      dragPtr.fired = true;
+      hooks.swipe(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    }
+  }
 });
-const endDrag = (e) => { if (dragPtr && e.pointerId === dragPtr.id) { dragPtr = null; input.dragging = false; } };
+const endDrag = (e) => {
+  if (!dragPtr || e.pointerId !== dragPtr.id) return;
+  if (e.type === 'pointerup' && !dragPtr.fired && performance.now() - dragPtr.t0 < 350 && hooks.tapUp) hooks.tapUp();
+  dragPtr = null; input.dragging = false;
+};
 stage.addEventListener('pointerup', endDrag);
 stage.addEventListener('pointercancel', endDrag);
 stage.addEventListener('lostpointercapture', endDrag);

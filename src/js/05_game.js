@@ -50,7 +50,7 @@ function newGame(mode, level) {
   level = [1, 2, 3].includes(level) ? level : 1;
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
-    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 3 ? LEVEL3_FISH : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 3 ? LEVEL3_LEN : LEVEL_LEN,
+    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
     evOff: 0, spd: level === 3 ? 1.3 : 1, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
     vert: false, turnK: 0, tunnel: null, slowT: 0, tickT: 0, charm: 0, charmT: 0, suck: null, heroSay: null, cameo: null,
     t: 0, bgT: 0, phase: 'intro', phaseT: 0, ev: 0,
@@ -453,6 +453,12 @@ function charmEnemy(e) {
   sfx('heal');
 }
 function useBomb() {
+  if (G && G.run) {
+    if (state !== 'play' || G.bombs <= 0 || !G.player.alive || G.run.end) return;
+    G.bombs--; updateBombBtn(); runBomb();
+    banner(G.M.bombText, '', 1.5, 'sign'); sfx('bomb'); sfx('quack2'); G.flash = 0.4; G.flashColor = '#fff';
+    return;
+  }
   if (G && G.tunnel && G.tunnel.squeeze) { doBurst(); return; }
   if (state !== 'play' || !G || G.bombs <= 0 || !G.player.alive || G.phase === 'intro' || G.phase === 'bossDead' || G.bombFx) return;
   G.bombs--; updateBombBtn();
@@ -489,6 +495,7 @@ function updatePlayer(dt) {
   const py = p.y;
   if (G.phase === 'turn') { updateTurn(); return; }
   if (G.phase === 'portal') { updatePortal(); return; }
+  if (G.phase === 'land') { updateLand(); return; }
   if (G.phase === 'intro') {
     p.x = lerp(-90, W * 0.2, easeOut(G.phaseT / 1.4)); p.y = H / 2; input.dx = input.dy = 0;
   } else {
@@ -922,6 +929,7 @@ function updatePickups(dt) {
 
 function update(rdt) {
   setWorld();
+  if (G.run) { updateRunner(rdt); return; }
   // slow-motion bonus: the world slows down, the duck does not
   if (G.slowT > 0) { G.slowT -= rdt; G.tickT -= rdt; if (G.tickT <= 0) { G.tickT = 0.5; sfx('tick'); } }
   const dt = G.slowT > 0 ? rdt * 0.4 : rdt;

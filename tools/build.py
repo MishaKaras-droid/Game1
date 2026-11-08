@@ -18,6 +18,7 @@ IMAGES = {  # key in ASSETS.img -> file
     # boss faces, added later when photos arrive:
     "grannyFace": "granny_face.png",
     "pikeFace": "pike_face.png",
+    "squidFace": "squid_face.png",
 }
 
 

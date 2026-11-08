@@ -42,6 +42,7 @@ function goMenu() {
 }
 function tryStart(mode, fromBoss, level) {
   Sound.init(); sfx('click');
+  if (isTouch) goFullscreen();
   pending = { mode, fromBoss: !!fromBoss, level: level || 1 };
   if (isTouch && view.portrait && !rotateSkipped) { state = 'rotate'; show('rotate'); return; }
   startGame(mode, fromBoss, level);
@@ -53,7 +54,8 @@ function startGame(mode, fromBoss, level) {
     G.score = lastCheckpoint.score; G.power = lastCheckpoint.power;
     G.t = G.len; G.ev = G.L.length;
     if (G.mode === 'duck' && G.level === 2) { G.vert = true; setWorld(); G.player.y = H / 2; }
-    if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
+    if (G.level === 3 && G.mode === 'fish') { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
+    if (G.level === 3 && G.mode === 'duck') startRunner(true);
   } else {
     if (G.level === 3) { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
     else banner('УРОВЕНЬ ' + G.level, G.LI.name, 2.8);
@@ -106,6 +108,7 @@ function onWin() {
     granny: 'Бабка на самокате улетела восвояси. Небо над городом снова спокойное!',
     pike: 'Злая рыба уплыла пузом кверху. Море снова тёплое и тихое!',
     car: '«Я твою выхлопную трубу шатала!» — сказала утка Илона. Бешеная Mitsubishi заглохла навсегда.',
+    shawarma: 'Злая шаверма повержена! Утка Илона добежала до победы — и обед в кармане.',
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
     mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
   }[G.LI.boss];
@@ -132,17 +135,22 @@ for (const id of ['btnMenu1', 'btnMenu2', 'btnMenu3']) $(id).addEventListener('c
 $('btnAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
 $('btnWinAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
 $('btnNext').addEventListener('click', (e) => { tryStart(G ? G.mode : 'duck', false, +e.currentTarget.dataset.level || 2); });
-$('btnSquid').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); useSquid(); });
-$('btnSquid').addEventListener('click', (e) => { if (e.detail === 0) useSquid(); e.currentTarget.blur(); });
+const special = () => { if (G && G.run) runBoost(); else useSquid(); };
+$('btnSquid').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); special(); });
+$('btnSquid').addEventListener('click', (e) => { if (e.detail === 0) special(); e.currentTarget.blur(); });
 if (isTouch) $('squidKey').hidden = true;
 let squidUi = '';
 function updateSquidBtn() {
-  const on = !!(G && G.squidUnlocked && state !== 'menu');
-  const p = G ? Math.round(G.squidCharge || 0) : 0, act = G && G.squidT > 0;
-  const key = on + '|' + p + '|' + act;
+  const run = !!(G && G.run);
+  const on = !!(G && (G.squidUnlocked || run) && state !== 'menu' && !(run && G.run.end));
+  const p = !G ? 0 : run ? Math.round(G.run.meter) : Math.round(G.squidCharge || 0), act = !!G && (run ? G.run.boost > 0 : G.squidT > 0);
+  const key = on + '|' + p + '|' + act + '|' + run;
   if (key === squidUi) return;
   squidUi = key;
   const b = $('btnSquid');
+  b.querySelector('.sq-label').innerHTML = run ? 'РЫВОК' : 'КАЛЬ&shy;МАР';
+  $('squidKey').textContent = run ? 'SHIFT' : 'Q';
+  b.setAttribute('aria-label', run ? 'Рывок' : 'Позвать кальмара');
   b.hidden = !on;
   b.style.setProperty('--p', String(p));
   b.classList.toggle('ready', p >= 100 && !act);
@@ -159,16 +167,27 @@ $('controlsHint').textContent = isTouch
   : 'Стрелки / WASD или тяни мышью · стреляет сам · Пробел — суперудар · P — пауза';
 const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 if (!fsOk) $('btnFull').hidden = true;
-$('btnFull').addEventListener('click', () => {
+const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function goFullscreen() {
+  if (!fsOk || isFull()) return;
   const el = document.documentElement;
   try {
-    if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
     const r = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen && el.webkitRequestFullscreen();
     if (r && r.then) r.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not supported */ } }).catch(() => {});
   } catch (e) { /* fullscreen refused */ }
+}
+function updateFsPrompt() { $('fsPrompt').hidden = !(isTouch && fsOk && !isFull()); }
+$('btnFull').addEventListener('click', () => {
+  if (isFull()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { /* ignore */ } return; }
+  goFullscreen();
 });
+$('fsPrompt').addEventListener('click', () => { sfx('click'); goFullscreen(); });
+document.addEventListener('fullscreenchange', () => { updateFsPrompt(); setTimeout(resize, 200); });
+document.addEventListener('webkitfullscreenchange', () => { updateFsPrompt(); setTimeout(resize, 200); });
+updateFsPrompt();
 
 hooks.key = (code, e, onButton) => {
+  if (state === 'play' && G && G.run && code !== 'Escape' && code !== 'KeyP' && code !== 'KeyM') { runnerKey(code); return; }
   if (state === 'play') {
     if (code === 'Space' || code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
     else if (code === 'KeyQ' || code === 'KeyC') useSquid();
@@ -183,7 +202,9 @@ hooks.key = (code, e, onButton) => {
   }
 };
 hooks.blur = () => { if (state === 'play') pauseGame(); };
-hooks.tap = () => { if (state === 'play') doBurst(); };
+hooks.tap = () => { if (state === 'play' && G && !G.run) doBurst(); };
+hooks.swipe = (dir) => { if (state !== 'play' || !G || !G.run) return; if (dir === 'up') runJump(); else if (dir === 'down') runRoll(); else runLane(dir === 'left' ? -1 : 1); };
+hooks.tapUp = () => { if (state === 'play' && G && G.run) runJump(); };
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (state === 'play') pauseGame(); Sound.suspend(); }
   else if (state !== 'paused') Sound.resume();
@@ -252,11 +273,12 @@ function boot() {
 window.__kb = {
   get G() { return G; }, get state() { return state; },
   start: (m, fromBoss, level) => startGame(m, fromBoss, level),
-  tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), burst: () => doBurst(), squid: () => useSquid(), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
+  tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), burst: () => doBurst(), squid: () => useSquid(),
+  runAct: (a) => ({ jump: runJump, roll: runRoll, left: () => runLane(-1), right: () => runLane(1), boost: runBoost })[a](), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

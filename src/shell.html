@@ -139,6 +139,15 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 }
 .round svg { width: 22px; height: 22px; }
 .round:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.fs-prompt {
+  position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: 10px; z-index: 4;
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border: 3px solid var(--ink); border-radius: 999px; background: var(--duck); color: var(--ink);
+  font: 900 clamp(11px, 2.2vh, 14px) var(--font-ui); line-height: 1.1; box-shadow: 0 4px 0 var(--ink);
+  animation: fsPulse 1.6s ease-in-out infinite; transform-origin: left center;
+}
+.fs-prompt svg { width: 16px; height: 16px; flex: none; }
+@keyframes fsPulse { 50% { transform: scale(1.06); } }
 .controls-hint {
   position: absolute; left: 0; right: 0; bottom: 6px; z-index: 2; text-align: center;
   font-size: clamp(10px, 1.9vh, 14px); font-weight: 800; color: var(--paper); opacity: .78;
@@ -239,6 +248,11 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   .who .desc { font-size: clamp(12px, 3.7vw, 18px); }
   .who .rec { font-size: clamp(11px, 3.2vw, 15px); }
   .controls-hint { display: none; }
+  .chips { align-items: center; gap: 7px; }
+  .chips::before { content: 'Уровень'; font-weight: 900; font-size: clamp(12px, 3.6vw, 17px); letter-spacing: .03em; text-transform: uppercase; }
+  .chip .lv { display: none; }
+  .chip { padding-inline: clamp(12px, 4vw, 18px); }
+  .half.sky:has(~ .menu-tools ~ .fs-prompt:not([hidden])), #menu:has(.fs-prompt:not([hidden])) .half.sky { padding-top: clamp(58px, 8vh, 70px); }
 }
 @media (orientation: portrait) and (max-height: 760px) {
   .who .rec { display: none; }
@@ -284,8 +298,9 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
         <span class="desc">Летит над городом и метает ножички. Силы восстанавливает кофе с собой.</span>
         <span class="rec" id="recDuck">Рекорд: —</span>
         <span class="chips">
-          <button class="chip" type="button" data-mode="duck" data-level="1">Уровень 1 ▸</button>
-          <button class="chip" type="button" data-mode="duck" data-level="2">Уровень 2 ▸</button>
+          <button class="chip" type="button" data-mode="duck" data-level="1"><span class="lv">Уровень </span>1 ▸</button>
+          <button class="chip" type="button" data-mode="duck" data-level="2"><span class="lv">Уровень </span>2 ▸</button>
+          <button class="chip" type="button" data-mode="duck" data-level="3"><span class="lv">Уровень </span>3 ▸</button>
         </span>
       </div>
     </div>
@@ -297,9 +312,9 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
         <span class="desc">Плывёт под водой и стреляет пузырями. Силы восстанавливают бургеры.</span>
         <span class="rec" id="recFish">Рекорд: —</span>
         <span class="chips">
-          <button class="chip" type="button" data-mode="fish" data-level="1">Уровень 1 ▸</button>
-          <button class="chip" type="button" data-mode="fish" data-level="2">Уровень 2 ▸</button>
-          <button class="chip" type="button" data-mode="fish" data-level="3">Уровень 3 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="1"><span class="lv">Уровень </span>1 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="2"><span class="lv">Уровень </span>2 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="3"><span class="lv">Уровень </span>3 ▸</button>
         </span>
       </div>
     </div>
@@ -314,6 +329,10 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       </button>
     </div>
     <p class="controls-hint" id="controlsHint"></p>
+    <button class="fs-prompt" id="fsPrompt" type="button" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>
+      Разверни на весь экран
+    </button>
   </section>
 
   <section id="pause" class="overlay" hidden>

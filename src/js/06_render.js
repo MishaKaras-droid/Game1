@@ -74,6 +74,7 @@ function drawParts(c) {
       case 'spark': c.globalAlpha = a; line(c, [p.x, p.y, p.x - p.vx * 0.04, p.y - p.vy * 0.04], p.r, p.col); c.globalAlpha = 1; break;
       case 'feather': c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.globalAlpha = Math.min(1, a * 2); P(c); ell(c, 0, 0, p.r * 1.6, p.r * 0.6); fs(c, p.col, 1.2); c.restore(); c.globalAlpha = 1; break;
       case 'chunk': c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.globalAlpha = Math.min(1, a * 2); P(c); c.rect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2); fs(c, p.col, 1.2); c.restore(); c.globalAlpha = 1; break;
+      case 'cup': c.save(); c.globalAlpha = Math.min(1, a * 2); drawCoffee(c, p.x, p.y, 0, (p.r * 2) / 48); c.restore(); break;
       case 'star': c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.globalAlpha = a; P(c); starPath(c, 0, 0, p.r, p.r * 0.45); c.fillStyle = p.col; c.fill(); c.restore(); c.globalAlpha = 1; break;
       default: P(c); circ(c, p.x, p.y, Math.max(0.3, p.r * (1 - k * 0.7))); c.globalAlpha = Math.min(1, a * 1.6); c.fillStyle = p.col; c.fill(); c.globalAlpha = 1;
     }
@@ -300,7 +301,7 @@ function drawBanners(c, t) {
   for (const b of G.banners) {
     const appear = easeOut(Math.min(1, b.t * 4)), a = clamp(Math.min(appear, (b.life - b.t) * 3), 0, 1);
     c.save(); c.globalAlpha = a;
-    c.translate(W / 2, H * 0.42); const s = 0.6 + 0.4 * appear; c.scale(s, s); c.rotate(-0.04);
+    c.translate(W / 2, G.run ? H * 0.2 : H * 0.42); const s = 0.6 + 0.4 * appear; c.scale(s, s); c.rotate(-0.04);
     c.textAlign = 'center'; c.textBaseline = 'middle';
     if (b.style === 'sign') {
       c.font = '54px ' + FONT_HAND;
@@ -309,7 +310,7 @@ function drawBanners(c, t) {
       P(c); rr(c, -w / 2, -42, w, 80, 12); fs(c, '#ffffff', 7);
       c.fillStyle = INK; c.fillText(b.text, 0, 0);
     } else if (b.style === 'small') {
-      c.translate(0, H * 0.22);
+      c.translate(0, G.run ? 0 : H * 0.22);
       c.font = '34px ' + FONT_DISPLAY; otext(c, b.text, 0, -10, '#ff8fc0', 8);
       if (b.sub) { c.font = '900 20px ' + FONT_UI; otext(c, b.sub, 0, 26, '#fff6e5', 5); }
     } else if (b.style === 'wave') {
@@ -350,6 +351,7 @@ function render() {
   c.setTransform(view.px, 0, 0, view.px, 0, 0);
   if (!G) { c.fillStyle = '#0b2f57'; c.fillRect(0, 0, W, H); return; }
   ensureBg(G.mode);
+  if (G.run) { renderRunner(c); updateSquidBtn(); return; }
   const T = G.bgT;
   c.save();
   if (G.shake > 0.3 && !reducedMotion) c.translate(rand(-1, 1) * G.shake, rand(-1, 1) * G.shake);
@@ -359,6 +361,7 @@ function render() {
   if (G.vert) { c.translate(0, SH); c.rotate(-Math.PI / 2); }
   setWorld();
   drawLair(c, T);
+  drawLandGround(c);
   drawFriendsBg(c, T);
   drawTunnel(c, T);
   drawPortal(c, T);
@@ -394,6 +397,7 @@ function render() {
   if (G.slowT > 0) { const a = Math.min(1, G.slowT) * 0.16; c.fillStyle = 'rgba(80,160,255,' + a.toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
   if (!G.outro) { drawHUD(c, T); drawBanners(c, T); }
   if (G.flash > 0) { c.globalAlpha = Math.min(0.55, G.flash); c.fillStyle = G.flashColor; c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
+  drawLandFade(c);
   drawOutro(c);
   if (G.outro && !$('hud').hidden) $('hud').hidden = true;
   updateSquidBtn();

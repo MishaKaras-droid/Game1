@@ -171,6 +171,14 @@ function updateSquid(dt) {
       const d = d2(e.x, e.y, h.x, h.y); if (d < best) { best = d; tgt = e; }
     }
     if (tgt) { s.strike = { x: tgt.x, y: tgt.y, t: 0.22 }; damageEnemy(tgt, 14); s.strikeT = 0.3; sfx('swoosh'); }
+    else {
+      const B = G.boss;
+      if (B && B.vul && !B.dead && !BOSS[B.kind].mini) {
+        let bc = null, bd = 480 * 480;
+        for (const [cx, cy] of bossCircles(B)) { const d = d2(cx, cy, s.x, s.y); if (d < bd) { bd = d; bc = [cx, cy]; } }
+        if (bc) { s.strike = { x: bc[0], y: bc[1], t: 0.22 }; damageBoss(7); s.strikeT = 0.45; sfx('swoosh'); hitSpark(bc[0], bc[1]); }
+      }
+    }
   }
   if (G.squidT <= 0) { G.squidT = 0; G.squid = null; }
 }
@@ -305,9 +313,15 @@ function drawSquid(c, b, t) {
   P(c); c.moveTo(-24, -32); c.quadraticCurveTo(60, -48, 132, -10); c.quadraticCurveTo(144, 0, 132, 10); c.quadraticCurveTo(60, 48, -24, 32); c.closePath(); fs(c, body, 3.5);
   c.fillStyle = 'rgba(120,20,60,0.35)';
   for (const [x, y, r] of [[20, -18, 5], [50, 10, 6], [80, -10, 4], [100, 8, 3.5], [36, 22, 4]]) { P(c); circ(c, x, y, r); c.fill(); }
-  P(c); ell(c, -34, 0, 32, 30); fs(c, body, 3.5);
-  eye(c, -42, -10, 11, -0.35, 0.15, b.friendly ? 0 : 1.2, '#15121c', 0.6);
-  eye(c, -24, 12, 7, -0.35, 0.15, b.friendly ? 0 : 1.2, '#15121c', 0.6);
+  P(c); ell(c, -34, 0, 36, 34); fs(c, body, 3.5);
+  if (IMG.squidFace) {
+    photoFace(c, IMG.squidFace, -36, 0, 31);
+    P(c); circ(c, -36, 0, 31); c.lineWidth = 3.5; c.strokeStyle = INK; c.stroke();
+    if (!b.friendly) { line(c, [-60, -22, -42, -14], 4.5); line(c, [-12, -22, -30, -14], 4.5); }
+  } else {
+    eye(c, -42, -10, 11, -0.35, 0.15, b.friendly ? 0 : 1.2, '#15121c', 0.6);
+    eye(c, -24, 12, 7, -0.35, 0.15, b.friendly ? 0 : 1.2, '#15121c', 0.6);
+  }
 }
 function drawMega(c, b, t) {
   const m = b.mouth || 0, w = Math.sin(t * 3.5), angry = b.phase2;
