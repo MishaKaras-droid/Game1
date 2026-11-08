@@ -53,9 +53,11 @@ function startGame(mode, fromBoss, level) {
     G.score = lastCheckpoint.score; G.power = lastCheckpoint.power;
     G.t = G.len; G.ev = G.L.length;
     if (G.mode === 'duck' && G.level === 2) { G.vert = true; setWorld(); G.player.y = H / 2; }
+    if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
   } else {
-    banner('УРОВЕНЬ ' + G.level, G.LI.name, 2.8);
-    if (G.level === 2) G.power = 2;
+    if (G.level === 3) { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    else banner('УРОВЕНЬ ' + G.level, G.LI.name, 2.8);
+    if (G.level >= 2) G.power = G.level === 3 ? 3 : 2;
   }
   state = 'play';
   input.dx = input.dy = 0;
@@ -105,10 +107,14 @@ function onWin() {
     pike: 'Злая рыба уплыла пузом кверху. Море снова тёплое и тихое!',
     car: '«Я твою выхлопную трубу шатала!» — сказала утка Илона. Бешеная Mitsubishi заглохла навсегда.',
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
+    mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
   }[G.LI.boss];
-  $('winLevel').textContent = G.level === 1 ? 'Уровень 1 пройден. Впереди уровень 2!' : 'Уровень 2 пройден. Продолжение следует…';
-  $('btnNext').hidden = G.level !== 1;
-  $('btnWinAgain').className = G.level === 1 ? 'btn alt' : 'btn';
+  const next = LEVEL_INFO[G.level + 1] && LEVEL_INFO[G.level + 1][G.mode] ? G.level + 1 : 0;
+  $('winLevel').textContent = next ? 'Уровень ' + G.level + ' пройден. Впереди уровень ' + next + '!' : 'Уровень ' + G.level + ' пройден. Продолжение следует…';
+  $('btnNext').hidden = !next;
+  $('btnNext').textContent = 'Уровень ' + next + ' ▸';
+  $('btnNext').dataset.level = String(next);
+  $('btnWinAgain').className = next ? 'btn alt' : 'btn';
   $('winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
   $('winScore').textContent = fmt(G.score);
   $('winBest').textContent = 'Бонус за сердечки +' + fmt(bonus) + ' · Рекорд: ' + fmt(b);
@@ -125,7 +131,23 @@ $('btnRestart').addEventListener('click', () => { const m = G ? G.mode : 'duck',
 for (const id of ['btnMenu1', 'btnMenu2', 'btnMenu3']) $(id).addEventListener('click', () => { sfx('click'); goMenu(); });
 $('btnAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
 $('btnWinAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
-$('btnNext').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, 2); });
+$('btnNext').addEventListener('click', (e) => { tryStart(G ? G.mode : 'duck', false, +e.currentTarget.dataset.level || 2); });
+$('btnSquid').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); useSquid(); });
+$('btnSquid').addEventListener('click', (e) => { if (e.detail === 0) useSquid(); e.currentTarget.blur(); });
+if (isTouch) $('squidKey').hidden = true;
+let squidUi = '';
+function updateSquidBtn() {
+  const on = !!(G && G.squidUnlocked && state !== 'menu');
+  const p = G ? Math.round(G.squidCharge || 0) : 0, act = G && G.squidT > 0;
+  const key = on + '|' + p + '|' + act;
+  if (key === squidUi) return;
+  squidUi = key;
+  const b = $('btnSquid');
+  b.hidden = !on;
+  b.style.setProperty('--p', String(p));
+  b.classList.toggle('ready', p >= 100 && !act);
+  b.classList.toggle('active', !!act);
+}
 $('btnBossAgain').addEventListener('click', () => { if (lastCheckpoint) tryStart(lastCheckpoint.mode, true, lastCheckpoint.level); });
 $('btnRotateSkip').addEventListener('click', () => { rotateSkipped = true; if (pending) startGame(pending.mode, pending.fromBoss, pending.level); });
 $('btnPause').addEventListener('click', (e) => { e.currentTarget.blur(); pauseGame(); });
@@ -149,6 +171,7 @@ $('btnFull').addEventListener('click', () => {
 hooks.key = (code, e, onButton) => {
   if (state === 'play') {
     if (code === 'Space' || code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
+    else if (code === 'KeyQ' || code === 'KeyC') useSquid();
     else if (code === 'Escape' || code === 'KeyP') pauseGame();
     else if (code === 'KeyM') toggleMute();
   } else if (state === 'paused') {
@@ -160,6 +183,7 @@ hooks.key = (code, e, onButton) => {
   }
 };
 hooks.blur = () => { if (state === 'play') pauseGame(); };
+hooks.tap = () => { if (state === 'play') doBurst(); };
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (state === 'play') pauseGame(); Sound.suspend(); }
   else if (state !== 'paused') Sound.resume();
@@ -208,7 +232,7 @@ function loop(now) {
 function fontsReady() {
   try {
     if (!document.fonts) return Promise.resolve();
-    const loads = ['26px "Dela Gothic One"', '900 16px "Nunito"', '800 16px "Nunito"', '21px "Pangolin"'].map((f) => document.fonts.load(f, 'АБВ').catch(() => {}));
+    const loads = ['26px "Dela Gothic One"', '900 16px "Nunito"', '800 16px "Nunito"', '21px "Pangolin"', 'italic 700 34px "Old Standard TT"'].map((f) => document.fonts.load(f, 'АБВ').catch(() => {}));
     return Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 2500))]);
   } catch (e) { return Promise.resolve(); }
 }
@@ -228,11 +252,11 @@ function boot() {
 window.__kb = {
   get G() { return G; }, get state() { return state; },
   start: (m, fromBoss, level) => startGame(m, fromBoss, level),
-  tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
+  tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), burst: () => doBurst(), squid: () => useSquid(), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

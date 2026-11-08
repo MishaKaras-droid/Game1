@@ -25,6 +25,7 @@ const UPRIGHT = new Set(['drone', 'cloud', 'balloon', 'blimp', 'wasp']);
 const LEVEL_INFO = {
   1: { duck: { name: 'Небо над городом', boss: 'granny', song: 'sky' }, fish: { name: 'Тёплое море', boss: 'pike', song: 'sea' } },
   2: { duck: { name: 'Вечер над городом и выше облаков', boss: 'car', song: 'sky2' }, fish: { name: 'Глубокие воды', boss: 'catfish', song: 'sea2' } },
+  3: { duck: null, fish: { name: 'Газ! Туннели и тёмные глубины', boss: 'mega', song: 'sea3' } },
 };
 const BOSS = {
   granny:  { name: 'Бабка на самокате', label: 'БАБКА НА САМОКАТЕ', hp: 420, restX: 190, y: [150, 135], head: [-14, -92] },
@@ -46,9 +47,11 @@ let G = null;
 let state = 'loading';  // loading | menu | rotate | play | paused | over | win
 
 function newGame(mode, level) {
-  level = level === 2 ? 2 : 1;
+  level = [1, 2, 3].includes(level) ? level : 1;
+  if (!LEVEL_INFO[level][mode]) level = 1;
   return {
-    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: LEVEL_LEN,
+    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 3 ? LEVEL3_FISH : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 3 ? LEVEL3_LEN : LEVEL_LEN,
+    evOff: 0, spd: level === 3 ? 1.3 : 1, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
     vert: false, turnK: 0, tunnel: null, slowT: 0, tickT: 0, charm: 0, charmT: 0, suck: null, heroSay: null, cameo: null,
     t: 0, bgT: 0, phase: 'intro', phaseT: 0, ev: 0,
     score: 0, hp: MAX_HP, bombs: 2, power: 1,
@@ -85,6 +88,7 @@ function enemy(kind, x, y, o) {
   if (G.mode === 'fish' && kind === 'zig') { e.hp = 4; e.r = 20; e.speed = 150; e.score = 150; }
   if (G.mode === 'fish' && kind === 'lance') { e.hp = 3; e.r = 16; }
   if (!e.invuln) e.hp = Math.round(e.hp * DIFF * 10) / 10;
+  if (G.level === 3 && e.speed && e.kind !== 'lance') e.speed *= 1.15;
   e.maxHp = e.hp; e.baseY = y;
   G.enemies.push(e);
   return e;
@@ -262,16 +266,22 @@ function updateTurn() {
 /* ---------- fish level 2: tunnel with spiked walls */
 const TUN = { speed: 170, len: 4300 };
 const smooth = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
-function startTunnel() { G.tunnel = { t0: G.t, u0: W + 80 }; banner('ТУННЕЛЬ!', 'Не задевай шипы на стенах', 2.8); sfx('charge'); }
-function tunScroll() { return (G.t - G.tunnel.t0) * TUN.speed; }
+// o: len, speed, squeeze (walls close in), amp (how much it winds), noRampIn (walls already around us), gBase, quiet
+function startTunnel(o) {
+  o = o || {};
+  G.tunnel = { t0: G.t, u0: o.noRampIn ? -60 : W + 80, len: o.len || TUN.len, speed: o.speed || TUN.speed, squeeze: !!o.squeeze, sg: 150, amp: o.amp === undefined ? 1 : o.amp, noRampIn: !!o.noRampIn, gBase: o.gBase || 0 };
+  if (!o.quiet) { banner('ТУННЕЛЬ!', 'Не задевай шипы на стенах', 2.8); sfx('charge'); }
+}
+function tunScroll() { return (G.t - G.tunnel.t0) * G.tunnel.speed; }
 function tunAt(x) {
   const T = G.tunnel; if (!T) return null;
   const v = tunScroll() + x - T.u0;
-  if (v < 0 || v > TUN.len) return null;
-  const r = Math.min(smooth(v / 600), smooth((TUN.len - v) / 600));
+  if (v < 0 || v > T.len) return null;
+  const r = Math.min(T.noRampIn ? 1 : smooth(v / 600), smooth((T.len - v) / 600));
+  const base = T.squeeze ? T.sg : T.gBase || 132 - 28 * (v / T.len);
   return {
-    c: H / 2 + r * (Math.sin(v * 0.0032) * 95 + Math.sin(v * 0.0087 + 1) * 38),
-    g: lerp(H / 2 + 70, 132 - 28 * (v / TUN.len), r),
+    c: H / 2 + r * T.amp * (Math.sin(v * 0.0032) * 95 + Math.sin(v * 0.0087 + 1) * 38),
+    g: lerp(H / 2 + 70, base, r),
   };
 }
 function tunnelC(x) { const a = tunAt(x); return a ? a.c : H / 2; }
@@ -392,6 +402,7 @@ function killEnemy(e, quiet) {
   explode(e);
   if (quiet) return;
   addScore(e.score, e.x, e.y);
+  if (G.squidUnlocked && !(G.squidT > 0)) G.squidCharge = Math.min(100, G.squidCharge + 6);
   if (e.kind === 'carrier' && e.drop) pickup(e.drop, e.x, e.y + (G.mode === 'duck' ? 28 : -30), { float: false, vx: -40, vy: -120 });
   if (e.kind === 'heavy' || e.kind === 'heavy2') {
     pickup(G.power < MAX_POWER ? 'power' : 'bomb', e.x, e.y, { float: false, vx: -50, vy: -140 });
@@ -442,6 +453,7 @@ function charmEnemy(e) {
   sfx('heal');
 }
 function useBomb() {
+  if (G && G.tunnel && G.tunnel.squeeze) { doBurst(); return; }
   if (state !== 'play' || !G || G.bombs <= 0 || !G.player.alive || G.phase === 'intro' || G.phase === 'bossDead' || G.bombFx) return;
   G.bombs--; updateBombBtn();
   const p = G.player;
@@ -476,6 +488,7 @@ function updatePlayer(dt) {
   p.inv = Math.max(0, p.inv - dt);
   const py = p.y;
   if (G.phase === 'turn') { updateTurn(); return; }
+  if (G.phase === 'portal') { updatePortal(); return; }
   if (G.phase === 'intro') {
     p.x = lerp(-90, W * 0.2, easeOut(G.phaseT / 1.4)); p.y = H / 2; input.dx = input.dy = 0;
   } else {
@@ -487,12 +500,12 @@ function updatePlayer(dt) {
     let ddx = input.dx, ddy = input.dy; input.dx = 0; input.dy = 0;
     if (G.vert) { const t1 = ax; ax = -ay; ay = t1; const t2 = ddx; ddx = -ddy; ddy = t2; }  // screen -> turned world
     if (DEBUG.bot) { const m = DEBUG.bot(G, W, H); ax = m.ax; ay = m.ay; }
-    if (ax || ay) { const l = Math.max(1, Math.hypot(ax, ay)); p.x += (ax / l) * 340 * dt; p.y += (ay / l) * 340 * dt; }
+    if (ax || ay) { const l = Math.max(1, Math.hypot(ax, ay)); const sp = 340 * G.spd; p.x += (ax / l) * sp * dt; p.y += (ay / l) * sp * dt; }
     p.x += ddx; p.y += ddy;
     // the catfish sucks the carp towards its mouth
     const B0 = G.boss;
-    if (G.suck && B0 && !B0.dead) {
-      const m = bp(B0, -165, 12), h = heroHit(), dx = m.x - h.x, dy = m.y - h.y, d = Math.hypot(dx, dy) || 1;
+    if (G.suck) {
+      const m = G.suck, h = heroHit(), dx = m.x - h.x, dy = m.y - h.y, d = Math.hypot(dx, dy) || 1;
       const f = 235 * clamp(1.25 - d / 900, 0.4, 1);
       p.x += (dx / d) * f * dt; p.y += (dy / d) * f * dt;
     }
@@ -507,7 +520,7 @@ function updatePlayer(dt) {
   p.vy = lerp(p.vy, (p.y - py) / Math.max(dt, 1e-3), Math.min(1, dt * 10));
   p.tilt = clamp(p.vy * 0.0009, -0.3, 0.3);
   p.fireT -= dt; G.charmT -= dt;
-  if (p.fireT <= 0 && G.phase !== 'intro' && G.phase !== 'bossDead') { fire(); p.fireT = G.M.fireInt; }
+  if (p.fireT <= 0 && G.phase !== 'intro' && G.phase !== 'bossDead' && G.phase !== 'outro' && G.phase !== 'miniDead') { fire(); p.fireT = G.M.fireInt; }
 }
 
 /* ---------- boss */
@@ -517,7 +530,7 @@ function* moveTo(b, x, y, dur) {
   let t = 0;
   while (t < dur) { t += yield; const k = easeInOut(t / dur); b.x = lerp(sx, x, k); b.y = lerp(sy, y, k); }
 }
-function say(b, text) { b.speech = { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : 'blub'); }
+function say(b, text) { b.speech = { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : 'blub'); }
 const bossY = (b) => rand(BOSS[b.kind].y[0], H - BOSS[b.kind].y[1]);
 function* dash(b, speed) {
   b.telegraph = 0.85; sfx('charge');
@@ -639,9 +652,10 @@ const SA = {
   *suck(b) {
     say(b, pick(['Иди-ка сюда, карасик!', 'Ам! Сейчас проглочу!']));
     for (let t = 0; t < 0.5; t += yield) b.mouth = t / 0.5;
-    b.mouth = 1; b.sucking = true; G.suck = true; sfx('suck');
+    b.mouth = 1; b.sucking = true; sfx('suck');
     for (let t = 0; t < (b.phase2 ? 3.2 : 2.6);) {
       const dt = yield; t += dt;
+      const sp = bp(b, -165, 12); G.suck = { x: sp.x, y: sp.y, t: 0.15 };
       if (Math.random() < 0.6) { const m = bp(b, -165, 12), x = m.x - rand(150, 520), y = m.y + rand(-170, 170), d = Math.hypot(m.x - x, m.y - y); part({ type: 'dot', x, y, vx: ((m.x - x) / d) * 420, vy: ((m.y - y) / d) * 420, r: rand(1.5, 3), life: d / 420, col: 'rgba(230,250,255,0.8)' }); }
       if (b.phase2 && Math.random() < dt * 2.5) { const q = bp(b, -165, 12); ebullet(q.x, q.y, aimAt(q.x, q.y) + rand(-0.8, 0.8), 150, { type: 'mud', r: 8 }); }
     }
@@ -741,35 +755,37 @@ function startWarning() {
   if (G.LI.boss === 'catfish') G.cameo = { x: W + 120, y: 120, t: 0 };
   sfx('siren'); Sound.music(null);
 }
-function spawnBoss() {
-  G.phase = 'boss'; G.phaseT = 0;
-  const kind = G.LI.boss;
+function spawnBoss(kindOpt) {
+  const kind = kindOpt || G.LI.boss;
+  G.phase = BOSS[kind].mini ? 'mini' : 'boss'; G.phaseT = 0;
   G.cameo = null;
   const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF), maxHp: Math.round(BOSS[kind].hp * DIFF), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
-  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain }[kind](b);
+  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain }[kind](b);
   b.brain.next();
   G.boss = b;
   G.lastHealT = G.t; G.lastBombT = G.t;
-  Sound.music('boss');
+  Sound.music(kind === 'mega' ? 'boss3' : 'boss');
 }
 function damageBoss(dmg) {
   const b = G.boss;
   if (!b || !b.vul || b.dead) return;
   b.hp -= dmg; b.flash = 0.05; sfx('bossHit');
+  if (G.squidUnlocked && !(G.squidT > 0)) G.squidCharge = Math.min(100, G.squidCharge + 0.25);
   if (!b.phase2 && b.hp < b.maxHp * 0.5) {
     b.phase2 = true; G.shake = Math.max(G.shake, 8);
-    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!' }[b.kind]);
+    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!' }[b.kind]);
   }
   if (b.hp <= 0) bossDie();
 }
 function bossDie() {
   const b = G.boss;
+  if (BOSS[b.kind].mini) return miniDie(b);
   b.dead = true; b.hp = 0; b.deadT = 0; b.vul = false; b.dash = false; b.telegraph = 0;
   G.phase = 'bossDead'; G.phaseT = 0;
   for (const x of G.eb) { x.dead = true; puff(x.x, x.y); }
   for (const e of G.enemies) killEnemy(e, true);
   b.sucking = false; G.suck = null;
-  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…' }[b.kind]);
+  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…' }[b.kind]);
   if (b.kind === 'car') later(1.0, () => { G.heroSay = { text: 'Я твою выхлопную трубу шатала!', t: 3.4 }; sfx('quack2'); });
   addScore(10000, b.x, b.y - 60);
   sfx('boom'); G.shake = 18; G.flash = 0.5; G.flashColor = '#fff';
@@ -782,6 +798,7 @@ function updateBoss(dt) {
   if (b.speech) { b.speech.t -= dt; if (b.speech.t <= 0) b.speech = null; }
   if (b.dead) {
     b.deadT += dt;
+    if (b.kind === 'squid') { if (b.deadT > 1.6) b.x += 280 * dt; return; }
     if (b.deadT < 2.2 && Math.random() < dt * 9) { const x = b.x + rand(-90, 90), y = b.y + b.oy + rand(-90, 80); explodeAt(x, y, G.mode === 'duck' ? '#ffb347' : '#9fe8ff'); sfx('pop'); G.shake = Math.max(G.shake, 6); }
     if (b.kind === 'granny') { if (b.deadT > 1.2) { b.rot += dt * 7; b.x += 200 * dt; b.y -= 260 * dt; } }
     else if (b.kind === 'car') { if (b.deadT > 1.2) { b.rot += dt * 3; b.x -= 160 * dt; } if (Math.random() < dt * 6) { const q = bp(b, 160, 20); part({ type: 'smoke', x: q.x, y: q.y, r: 10, r1: 30, col: 'rgba(70,70,80,A)', life: 0.8 }); } }
@@ -796,6 +813,7 @@ function updateBoss(dt) {
     const h = heroHit();
     for (const [cx, cy, cr] of bossCircles(b)) if (d2(h.x, h.y, cx, cy) < (cr * 0.85 + h.r) ** 2) { hurtPlayer(); break; }
   }
+  if (b.lash && b.lash.phase === 'hit') { const h = heroHit(); if (Math.abs(h.y - b.lash.y) < 24 && h.x < b.x) hurtPlayer(); }
 }
 
 /* ---------- per-frame update */
@@ -907,23 +925,31 @@ function update(rdt) {
   // slow-motion bonus: the world slows down, the duck does not
   if (G.slowT > 0) { G.slowT -= rdt; G.tickT -= rdt; if (G.tickT <= 0) { G.tickT = 0.5; sfx('tick'); } }
   const dt = G.slowT > 0 ? rdt * 0.4 : rdt;
-  G.t += dt; G.phaseT += dt; G.bgT += dt;
+  G.t += dt; G.phaseT += dt; G.bgT += dt * G.spd;
+  if (G.phase === 'mini' || G.phase === 'miniDead' || G.phase === 'portal') G.evOff += dt;  // level script waits
+  if (G.suck) { G.suck.t -= rdt; if (G.suck.t <= 0) G.suck = null; }
+  G.burstCd -= rdt;
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); } }
   if (G.heroSay) { G.heroSay.t -= rdt; if (G.heroSay.t <= 0) G.heroSay = null; }
   if (G.cameo) { G.cameo.t += dt; G.cameo.x -= 230 * dt; }
-  if (G.tunnel && tunScroll() > G.tunnel.u0 + TUN.len + 80) G.tunnel = null;
+  if (G.tunnel && tunScroll() > G.tunnel.u0 + G.tunnel.len + 80) G.tunnel = null;
   switch (G.phase) {
     case 'intro': if (G.phaseT >= 1.4) { G.phase = 'waves'; G.phaseT = 0; } break;
     case 'turn': break;
     case 'waves':
-      while (G.ev < G.L.length && G.L[G.ev][0] <= G.t && G.phase === 'waves') G.L[G.ev++][1]();
-      if (G.phase === 'waves' && G.t >= G.len) startWarning();
+      while (G.ev < G.L.length && G.L[G.ev][0] <= G.t - G.evOff && G.phase === 'waves') G.L[G.ev++][1]();
+      if (G.phase === 'waves' && G.t - G.evOff >= G.len) startWarning();
       break;
     case 'warn': if (G.phaseT >= 3.2) spawnBoss(); break;
-    case 'bossDead': if (G.phaseT >= 4.4) onWin(); break;
+    case 'bossDead':
+      if (G.boss && G.boss.kind === 'mega') { if (G.phaseT >= 2.6) { G.phase = 'outro'; G.phaseT = 0; G.outro = { t: 0, s: 0 }; } }
+      else if (G.phaseT >= 4.4) onWin();
+      break;
+    case 'miniDead': if (G.phaseT >= 3.2) endMini(); break;
+    case 'outro': updateOutro(rdt); break;
     case 'dead': if (G.phaseT >= 2.2) onGameOver(); break;
   }
-  if ((G.phase === 'waves' || G.phase === 'boss') && !(G.tunnel && tunAt(W * 0.5))) {
+  if ((G.phase === 'waves' || G.phase === 'boss' || G.phase === 'mini') && !(G.tunnel && tunAt(W * 0.5))) {
     const healOnScreen = G.pickups.some((k) => k.type === G.M.heal);
     if (!healOnScreen && ((G.hp <= 2 && G.t - G.lastHealT > 12) || (G.phase === 'boss' && G.hp < MAX_HP && G.t - G.lastHealT > 22))) F.health(rand(0.25, 0.75));
     if (G.phase === 'boss' && G.bombs === 0 && G.t - G.lastBombT > 24) { pickup('bomb', W + 30, rand(0.25, 0.75) * H); G.lastBombT = G.t; }
@@ -934,6 +960,9 @@ function update(rdt) {
   updateShots(rdt);
   updateEnemies(dt);
   updateBoss(dt);
+  updateSqueeze(dt);
+  updateSquid(rdt);
+  updateHelpers(dt);
   updateEnemyShots(dt);
   updatePickups(rdt);
   updateBomb(rdt);

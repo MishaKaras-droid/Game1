@@ -68,7 +68,7 @@ function resize() {
 const keys = Object.create(null);
 const input = { dx: 0, dy: 0, dragging: false };
 let dragPtr = null;
-const hooks = { key: null, blur: null };   // set by the UI layer
+const hooks = { key: null, blur: null, tap: null };   // set by the UI layer
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -88,6 +88,7 @@ window.addEventListener('blur', () => {
 stage.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, .overlay, #menu')) return;
   if (dragPtr) return;
+  if (hooks.tap) hooks.tap();
   dragPtr = { id: e.pointerId, x: e.clientX, y: e.clientY };
   input.dragging = true;
   try { stage.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ }

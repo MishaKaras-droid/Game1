@@ -117,6 +117,8 @@ function drawPlayer(c, t) {
   if (p.inv > 0 && p.alive && Math.floor(p.inv * 14) % 2 === 0) c.globalAlpha = 0.35;
   c.translate(p.x, p.y); upright(c);
   if (!p.alive) c.rotate(p.rot);
+  if (p.sc !== undefined && p.sc !== 1) c.scale(p.sc, p.sc);
+  if (p.spin) c.rotate(p.spin);
   if (G.mode === 'duck') drawDuckHero(c, 0, 0, t, { h: 77, tilt: p.tilt, flapSpeed: G.phase === 'turn' ? 24 : 15 });
   else drawCarpHero(c, 0, 0, t, { w: 150, tilt: p.tilt * 0.7 });
   c.restore();
@@ -156,18 +158,20 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
     c.save(); c.globalAlpha = 0.3 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([18, 12]); c.lineWidth = 7;
     P(c); c.moveTo(0, y); c.lineTo(x - 120, y); c.stroke(); c.restore();
   }
+  if (b.lash) drawLash(c, b, t);
   c.save(); c.translate(x, y); upright(c);
   if (b.telegraph > 0) c.translate(rand(-2.5, 2.5), rand(-2.5, 2.5));
   if (b.kind === 'car' && b.nose > 0.01) c.rotate(-b.nose * Math.PI / 2);
   if (b.dead) {
     if (b.kind === 'granny' || b.kind === 'car') c.rotate(b.rot);
+    else if (b.kind === 'squid') { b.friendly = true; if (b.deadT > 1.4) c.scale(-1, 1); }
     else c.scale(1, Math.cos(b.rot));
   }
   const fn = BOSS_ART[b.kind];
@@ -275,7 +279,7 @@ function drawHUD(c, t) {
   c.font = '26px ' + FONT_DISPLAY; c.textAlign = 'center';
   otext(c, fmt(G.score), W / 2, 28, '#fff6e5', 6);
   const b = G.boss;
-  if (b && (G.phase === 'boss' || G.phase === 'bossDead' || G.phase === 'dead')) {
+  if (b && ['boss', 'bossDead', 'dead', 'mini', 'miniDead'].includes(G.phase)) {
     const bw = Math.min(440, W * 0.46), bx = W / 2 - bw / 2, by = 60;
     c.font = '900 13px ' + FONT_UI; otext(c, BOSS[b.kind].label, W / 2, 52, '#ffd43b', 4);
     P(c); rr(c, bx, by, bw, 15, 7.5); fs(c, 'rgba(34,29,46,0.65)', 3);
@@ -331,7 +335,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
-  if (G.mode === 'fish') { drawSea(c, T, p); if (G.level === 2) drawDeepGlow(c, T); return; }
+  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : p); if (G.level >= 2) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
   c.save();
@@ -354,9 +358,13 @@ function render() {
   c.save();
   if (G.vert) { c.translate(0, SH); c.rotate(-Math.PI / 2); }
   setWorld();
+  drawLair(c, T);
+  drawFriendsBg(c, T);
   drawTunnel(c, T);
+  drawPortal(c, T);
   for (const k of G.pickups) drawPickup(c, k, T);
   for (const e of G.enemies) drawEnemy(c, e, T);
+  drawHelpers(c, T);
   if (G.boss) drawBossEntity(c, G.boss, T);
   drawCameo(c, T);
   for (const s of G.pb) {
@@ -366,6 +374,7 @@ function render() {
     else drawBubble(c, s.x, s.y + Math.sin(s.age * 16 + s.wob) * 1.6, s.r * (0.85 + Math.min(s.age * 1.2, 0.35)));
   }
   drawPlayer(c, T);
+  drawSquidAlly(c, T);
   drawParts(c);
   for (const b of G.eb) drawEB(c, b, T);
   drawBombFx(c, T);
@@ -374,11 +383,18 @@ function render() {
   drawWarns(c, T);
   if (G.boss && G.boss.speech) drawSpeech(c, G.boss);
   if (G.cameo && G.cameo.t < 3) { const q = toScreen(G.cameo.x, G.cameo.y); speechAt(c, 'Сом, помоги! Меня обижают!', q.x - 40, q.y - 20, 3 - G.cameo.t, 3, -1); }
+  if (G.LI.boss === 'mega' && G.phase === 'warn') {
+    const a = toScreen(W * 0.6, H - 96), b = toScreen(W * 0.42, 118);
+    if (G.phaseT > 0.3 && G.phaseT < 1.8) speechAt(c, 'Мегалодон, приди!', a.x - 70, a.y - 30, 1.8 - G.phaseT, 1.5, -1);
+    if (G.phaseT > 1.7 && G.phaseT < 3.2) speechAt(c, 'Отомсти за нас!', b.x - 60, b.y - 10, 3.2 - G.phaseT, 1.5, -1);
+  }
   if (G.heroSay) { const q = toScreen(G.player.x, G.player.y); speechAt(c, G.heroSay.text, q.x + 10, q.y - 46, G.heroSay.t, 3.4, 1); }
   c.restore();
   drawTexts(c);
   if (G.slowT > 0) { const a = Math.min(1, G.slowT) * 0.16; c.fillStyle = 'rgba(80,160,255,' + a.toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
-  drawHUD(c, T);
-  drawBanners(c, T);
+  if (!G.outro) { drawHUD(c, T); drawBanners(c, T); }
   if (G.flash > 0) { c.globalAlpha = Math.min(0.55, G.flash); c.fillStyle = G.flashColor; c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
+  drawOutro(c);
+  if (G.outro && !$('hud').hidden) $('hud').hidden = true;
+  updateSquidBtn();
 }
