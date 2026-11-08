@@ -87,8 +87,8 @@ window.addEventListener('blur', () => {
 
 stage.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, .overlay, #menu')) return;
-  if (dragPtr) return;
-  if (hooks.tap) hooks.tap();
+  if (hooks.tap) hooks.tap();          // every finger counts (bubbles in the squeezing pipe)
+  if (dragPtr) { e.preventDefault(); return; }
   dragPtr = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), fired: false };
   input.dragging = true;
   try { stage.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ }

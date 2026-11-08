@@ -248,14 +248,16 @@ function* megaBrain(b) {
     yield* wait(b.phase2 ? 0.45 : 0.8);
   }
 }
+const HELPERS = { mega: ['pike', 'catfish'], kraken: ['pike', 'mega', 'catfish'] };
 function updateHelpers(dt) {
-  const B = G.boss;
-  if (G.LI.boss !== 'mega' || !B || B.kind !== 'mega' || B.dead || G.phase !== 'boss' || !B.vul) { G.helper = null; return; }
+  const B = G.boss, list = HELPERS[G.LI.boss];
+  if (!list || !B || B.kind !== G.LI.boss || B.dead || G.phase !== 'boss' || !B.vul) { G.helper = null; return; }
   G.helperCd = (G.helperCd === undefined ? 6 : G.helperCd) - dt;
   if (!G.helper && G.helperCd <= 0) {
-    G.helperCd = rand(7, 9); G.helperN = (G.helperN || 0) + 1;
-    const h = heroHit();
-    if (G.helperN % 2) G.helper = { kind: 'pike', t: 0, tx: h.x, ty: h.y };
+    G.helperCd = (B.kind === 'kraken' ? rand(5.5, 7) : rand(7, 9)) * (B.phase2 ? 0.8 : 1); G.helperN = (G.helperN || 0) + 1;
+    const h = heroHit(), kind = list[(G.helperN - 1) % list.length];
+    if (kind === 'pike') G.helper = { kind: 'pike', t: 0, tx: h.x, ty: h.y };
+    else if (kind === 'mega') G.helper = { kind: 'mega', t: 0, x: W + 320, y: clamp(h.y, 80, H - 80) };
     else { const top = h.y > H / 2; G.helper = { kind: 'catfish', t: 0, x: clamp(h.x + 260, 300, W * 0.6), y: top ? 95 : H - 80 }; }
     sfx('charge');
   }
@@ -266,6 +268,15 @@ function updateHelpers(dt) {
     if (k.t < 0.65) { k.tx = lerp(k.tx, h.x, Math.min(1, dt * 6)); k.ty = lerp(k.ty, h.y, Math.min(1, dt * 6)); }
     if (k.t >= 1.0 && !k.bit) { k.bit = true; sfx('swoosh'); G.shake = Math.max(G.shake, 6); if (d2(h.x, h.y, k.tx, k.ty) < 64 * 64) hurtPlayer(); ringFx(k.tx, k.ty, 10, 70, '#ff3d5a', 0.3); }
     if (k.t > 1.7) G.helper = null;
+  } else if (k.kind === 'mega') {
+    // the megalodon charges across the screen along a warned line
+    if (k.t < 0.8) k.y = lerp(k.y, clamp(h.y, 80, H - 80), Math.min(1, dt * 5));
+    if (k.t >= 1.1) {
+      if (!k.go) { k.go = true; sfx('don'); floatText(W - 140, k.y - 50, 'ДОН-ДОН!', '#ff8fa3', 22); G.shake = Math.max(G.shake, 6); }
+      k.x -= 1500 * dt;
+      if (Math.abs(h.y - k.y) < 44 && h.x > k.x - 160 && h.x < k.x + 120) hurtPlayer();
+    }
+    if (k.x < -420) G.helper = null;
   } else {
     const mx = k.x - 165 * 0.5, my = k.y + 6;
     k.sucking = k.t > 0.7 && k.t < 2.9;
@@ -356,9 +367,11 @@ function drawLair(c, t) {
   P(c); c.moveTo(0, H); for (let x = 0; x <= W + 30; x += 30) c.lineTo(x, H - 62 - Math.sin(x * 0.027 + 1) * 10 - (x % 120 === 0 ? 22 : 0)); c.lineTo(W + 30, H); c.closePath(); c.fill();
 }
 function drawFriendsBg(c, t) {
-  if (G.LI.boss !== 'mega' || !(G.phase === 'warn' || G.phase === 'boss' || G.phase === 'dead')) return;
+  const list = HELPERS[G.LI.boss];
+  if (!list || !(G.phase === 'warn' || G.phase === 'boss' || G.phase === 'dead')) return;
   const k = G.phase === 'warn' ? clamp(G.phaseT / 1.2, 0, 1) : 1, hk = G.helper && G.helper.kind;
   c.save(); c.globalAlpha = 0.3 * k;
+  if (list.includes('mega') && hk !== 'mega' && G.phase !== 'warn') { c.save(); c.translate(W * 0.22, 160 + Math.sin(t * 0.9) * 10); c.scale(0.42, 0.42); drawMega(c, { mouth: 0.2 }, t); c.restore(); }
   if (hk !== 'pike') { c.save(); c.translate(W * 0.42, 118 + Math.sin(t * 1.3) * 8); c.scale(0.55, 0.55); drawPike(c, { mouth: 0.2 }, t); c.restore(); }
   if (hk !== 'catfish') { c.save(); c.translate(W * 0.6, H - 96 + Math.sin(t * 1.1 + 1) * 8); c.scale(0.5, 0.5); drawCatfish(c, { mouth: 0.2 }, t); c.restore(); }
   c.restore();
@@ -371,6 +384,12 @@ function drawHelpers(c, t) {
     const s = lerp(0.2, 0.62, easeOut(grow)) * (1 - out * 0.6), lunge = k.t > 1.0 ? Math.min(1, (k.t - 1.0) / 0.12) : 0;
     c.save(); c.globalAlpha = Math.min(1, 0.3 + grow) * (1 - out); c.translate(k.tx + 150 * s / 0.62 - lunge * 60, k.ty - 8); c.scale(s, s);
     drawPike(c, { mouth: k.t > 0.8 && k.t < 1.15 ? 1 : 0.3, phase2: true }, t); c.restore();
+  } else if (k.kind === 'mega') {
+    if (k.t < 1.1) {
+      c.save(); c.globalAlpha = 0.35 + 0.35 * Math.sin(t * 28); c.strokeStyle = '#ff3d5a'; c.setLineDash([20, 12]); c.lineWidth = 8;
+      P(c); c.moveTo(0, k.y); c.lineTo(W, k.y); c.stroke(); c.restore();
+      c.font = '34px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, '!', W - 40, k.y, '#ff3d5a', 7);
+    } else { c.save(); c.translate(k.x, k.y - 4); c.scale(0.62, 0.62); drawMega(c, { mouth: 1, phase2: true }, t); c.restore(); }
   } else {
     const grow = clamp(k.t / 0.7, 0, 1), out = clamp((k.t - 3.0) / 0.5, 0, 1);
     c.save(); c.globalAlpha = (0.3 + 0.7 * grow) * (1 - out); c.translate(k.x, k.y); const s = lerp(0.2, 0.5, easeOut(grow)); c.scale(s, s);

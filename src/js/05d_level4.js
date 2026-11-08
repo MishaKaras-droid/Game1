@@ -173,7 +173,7 @@ function* krakenBrain(b) {
     yield* moveTo(b, W - rand(220, 260), bossY(b), b.phase2 ? 0.7 : 1.0);
     yield* KA[list[i++ % list.length]](b);
     if (Math.random() < 0.35) say(b, pick(['На абордаж!', 'Получай по плавникам!']));
-    yield* wait(b.phase2 ? 0.45 : 0.8);
+    yield* wait((b.phase2 ? 0.45 : 0.8) / G.lvlDiff);
   }
 }
 

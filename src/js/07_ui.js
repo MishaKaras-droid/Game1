@@ -1,5 +1,6 @@
 /* ============================================================ screens, buttons, main loop */
 const SCREENS = ['menu', 'pause', 'over', 'win', 'rotate'];
+let recTab = 'duck', recResetArmed = false;
 let pending = null, rotateSkipped = false, lastCheckpoint = null, wakeLock = null;
 
 function show(id) {
@@ -8,9 +9,54 @@ function show(id) {
 }
 function best(mode) { return store.get('best.' + mode, 0) || 0; }
 function saveBest(mode, score) { const b = Math.max(best(mode), Math.floor(score)); store.set('best.' + mode, b); return b; }
+/* ---------- local records: top 5 per hero and level, plus cleared levels */
+const RKEY = 'records2';
+function loadRec() { const r = store.get(RKEY, null); return r && typeof r === 'object' && !Array.isArray(r) ? r : {}; }
+function levelsOf(mode) { return [1, 2, 3, 4, 5, 6].filter((l) => LEVEL_INFO[l] && LEVEL_INFO[l][mode]); }
+function addRecord(mode, level, score, won, stars) {
+  const all = loadRec(), key = mode + '-' + level;
+  const list = Array.isArray(all[key]) ? all[key].filter((e) => e && typeof e.s === 'number') : [];
+  const entry = { s: Math.floor(score), d: Date.now(), w: !!won, st: stars || 0 };
+  list.push(entry); list.sort((a, b) => b.s - a.s);
+  all[key] = list.slice(0, 5);
+  if (won) { all._cleared = all._cleared || {}; all._cleared[key] = true; }
+  store.set(RKEY, all);
+  saveBest(mode, score);
+  return { isBest: all[key][0] === entry && entry.s > 0, best: all[key][0].s };
+}
 function refreshRecords() {
-  $('recDuck').textContent = best('duck') ? 'Рекорд: ' + fmt(best('duck')) : 'Рекорда пока нет';
-  $('recFish').textContent = best('fish') ? 'Рекорд: ' + fmt(best('fish')) : 'Рекорда пока нет';
+  const all = loadRec(), cl = all._cleared || {};
+  for (const [mode, id] of [['duck', 'recDuck'], ['fish', 'recFish']]) {
+    const lv = levelsOf(mode), done = lv.filter((l) => cl[mode + '-' + l]).length;
+    $(id).textContent = (best(mode) ? 'Рекорд: ' + fmt(best(mode)) : 'Рекорда пока нет') + ' · пройдено ' + done + ' из ' + lv.length;
+  }
+}
+const fmtDate = (d) => { try { return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: '2-digit' }); } catch (e) { return ''; } };
+function renderRecords() {
+  const all = loadRec(), cl = all._cleared || {}, body = $('recBody');
+  for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.tab === recTab));
+  body.textContent = '';
+  for (const l of levelsOf(recTab)) {
+    const key = recTab + '-' + l, list = all[key] || [], row = document.createElement('div');
+    row.className = 'rec-row';
+    const head = document.createElement('div'); head.className = 'rec-head';
+    const name = document.createElement('span'); name.className = 'rec-lv'; name.textContent = 'Уровень ' + l + ' · ' + LEVEL_INFO[l][recTab].name;
+    const b = document.createElement('span'); b.className = 'rec-best'; b.textContent = list.length ? fmt(list[0].s) : '—';
+    head.append(name, b); row.append(head);
+    if (cl[key]) { const d = document.createElement('span'); d.className = 'rec-done'; d.textContent = '✓ Уровень пройден'; row.append(d); }
+    if (list.length) {
+      const ol = document.createElement('ol'); ol.className = 'rec-list';
+      for (const e of list) { const li = document.createElement('li'); li.textContent = fmt(e.s) + ' — ' + fmtDate(e.d) + (e.w ? ' · победа ' + '★'.repeat(e.st || 0) : ''); ol.append(li); }
+      row.append(ol);
+    } else { const p = document.createElement('span'); p.className = 'rec-empty'; p.textContent = 'Ещё не играли'; row.append(p); }
+    body.append(row);
+  }
+  $('btnRecReset').textContent = recResetArmed ? 'Точно сбросить?' : 'Сбросить';
+}
+function openRecords(on) {
+  recResetArmed = false;
+  $('records').hidden = !on;
+  if (on) { renderRecords(); $('btnRecClose').focus(); } else { refreshRecords(); $('btnRecords').focus(); }
 }
 function updateBombBtn() {
   if (!G) return;
@@ -89,10 +135,11 @@ function onGameOver() {
   if (!G || G.ended) return;
   G.ended = true; state = 'over';
   sfx('lose'); keepAwake(false); Sound.music(null);
-  const b = saveBest(G.mode, G.score);
+  const rec = addRecord(G.mode, G.level, G.score, false, 0), b = rec.best;
+  $('overNew').hidden = !rec.isBest;
   $('overText').textContent = G.mode === 'duck' ? 'Утка Илона устала. Глоток кофе — и снова в небо!' : 'Карась Миша уплыл перекусить. Ещё попытка?';
   $('overScore').textContent = fmt(G.score);
-  $('overBest').textContent = 'Рекорд: ' + fmt(b);
+  $('overBest').textContent = 'Рекорд уровня ' + G.level + ': ' + fmt(b);
   lastCheckpoint = G.checkpoint ? Object.assign({ mode: G.mode, level: G.level }, G.checkpoint) : null;
   $('btnBossAgain').hidden = !lastCheckpoint;
   $('btnAgain').className = lastCheckpoint ? 'btn alt' : 'btn';
@@ -104,8 +151,9 @@ function onWin() {
   const bonus = G.hp * 1000;
   G.score += bonus;
   sfx('win'); keepAwake(false);
-  const b = saveBest(G.mode, G.score);
   const stars = G.hp >= 4 ? 3 : G.hp >= 2 ? 2 : 1;
+  const rec = addRecord(G.mode, G.level, G.score, true, stars), b = rec.best;
+  $('winNew').hidden = !rec.isBest;
   $('winText').textContent = {
     granny: 'Бабка на самокате улетела восвояси. Небо над городом снова спокойное!',
     pike: 'Злая рыба уплыла пузом кверху. Море снова тёплое и тихое!',
@@ -123,7 +171,7 @@ function onWin() {
   $('btnWinAgain').className = next ? 'btn alt' : 'btn';
   $('winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
   $('winScore').textContent = fmt(G.score);
-  $('winBest').textContent = 'Бонус за сердечки +' + fmt(bonus) + ' · Рекорд: ' + fmt(b);
+  $('winBest').textContent = 'Бонус за сердечки +' + fmt(bonus) + ' · Рекорд уровня: ' + fmt(b);
   show('win');
 }
 
@@ -131,6 +179,13 @@ function onWin() {
 for (const b of document.querySelectorAll('[data-level]')) b.addEventListener('click', () => tryStart(b.dataset.mode, false, +b.dataset.level));
 for (const cv of document.querySelectorAll('canvas.hero')) cv.addEventListener('click', () => tryStart(cv.dataset.mode, false, 1));
 $('btnSound').addEventListener('click', toggleMute);
+$('btnRecords').addEventListener('click', () => { sfx('click'); openRecords(true); });
+$('btnRecClose').addEventListener('click', () => openRecords(false));
+$('btnRecReset').addEventListener('click', () => {
+  if (!recResetArmed) { recResetArmed = true; renderRecords(); return; }
+  store.set(RKEY, {}); store.set('best.duck', 0); store.set('best.fish', 0); recResetArmed = false; renderRecords();
+});
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => { recTab = t.dataset.tab; recResetArmed = false; renderRecords(); });
 $('btnSound2').addEventListener('click', toggleMute);
 $('btnResume').addEventListener('click', resumeGame);
 $('btnRestart').addEventListener('click', () => { const m = G ? G.mode : 'duck', l = G ? G.level : 1; Sound.resume(); startGame(m, false, l); });
@@ -166,6 +221,8 @@ function updateSquidBtn() {
   const on = !!(G && G.squidUnlocked && !run && state !== 'menu');
   const p = !G ? 0 : Math.round(G.squidCharge || 0), act = !!G && G.squidT > 0;
   const key = on + '|' + p + '|' + act + '|' + run;
+  const bub = !!(G && !G.run && typeof sqActive === 'function' && sqActive());
+  if ($('btnBomb').classList.contains('bubbles') !== bub) $('btnBomb').classList.toggle('bubbles', bub);
   if (key === squidUi) return;
   squidUi = key;
   const b = $('btnSquid');
@@ -217,6 +274,8 @@ hooks.key = (code, e, onButton) => {
   } else if (state === 'paused') {
     if (code === 'Escape' || code === 'KeyP') resumeGame();
     else if (code === 'KeyM') toggleMute();
+  } else if (state === 'menu' && !$('records').hidden) {
+    if (code === 'Escape') openRecords(false);
   } else if (state === 'menu' && !onButton) {
     if (code === 'Digit1') tryStart('duck');
     else if (code === 'Digit2') tryStart('fish');

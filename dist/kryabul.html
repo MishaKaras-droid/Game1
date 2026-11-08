@@ -212,6 +212,10 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 #hud.touch .dash-key { display: none; }
 #hud.runner.touch #btnBomb { right: 34px; bottom: 136px; width: 64px; height: 64px; }
 #hud.runner.touch #btnBomb svg { width: 26px; height: 26px; }
+#btnBomb .bub-lbl { display: none; }
+#btnBomb.bubbles { background: radial-gradient(circle at 35% 30%, #e8fcff, #6fd3f0 60%, #2a8fbf); }
+#btnBomb.bubbles svg, #btnBomb.bubbles .cnt, #btnBomb.bubbles .key { display: none; }
+#btnBomb.bubbles .bub-lbl { display: block; font: 900 12px var(--font-ui); line-height: 1.05; text-align: center; }
 #btnBomb.empty { filter: grayscale(1) brightness(.85); opacity: .65; }
 
 /* ---------- overlays ---------- */
@@ -242,6 +246,25 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .btn.sea { background: #7ee7f2; }
 .btn:hover { transform: translateY(-1px); }
 .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.newrec {
+  justify-self: center; margin: 0; padding: 4px 14px; border: 3px solid var(--ink); border-radius: 999px;
+  background: var(--duck); font-weight: 900; font-size: clamp(12px, 2.4vh, 16px); transform: rotate(-2deg);
+  animation: recPop .9s ease-in-out infinite;
+}
+@keyframes recPop { 50% { transform: rotate(2deg) scale(1.06); } }
+.rec-panel { width: min(560px, 100%); }
+.tabs { display: flex; gap: 8px; justify-content: center; }
+.tab { border: 3px solid var(--ink); border-radius: 12px; padding: 6px 14px; background: #fff; font-weight: 900; font-size: clamp(12px, 2.4vh, 16px); }
+.tab[aria-selected="true"] { background: var(--duck); box-shadow: 0 3px 0 var(--ink); }
+.rec-body { display: grid; gap: 8px; max-height: min(52vh, 420px); overflow: auto; text-align: left; }
+.rec-row { border: 3px solid var(--ink); border-radius: 12px; padding: 8px 12px; background: #fff; display: grid; gap: 4px; }
+.rec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.rec-lv { font-weight: 900; font-size: clamp(13px, 2.5vh, 16px); }
+.rec-best { font-family: var(--font-display); font-size: clamp(16px, 3.2vh, 22px); font-variant-numeric: tabular-nums; }
+.rec-done { font-weight: 900; font-size: 12px; color: #2f8a3a; }
+.rec-list { margin: 0; padding-left: 20px; font-weight: 800; font-size: clamp(11px, 2.1vh, 13px); opacity: .8; font-variant-numeric: tabular-nums; }
+.rec-empty { font-weight: 800; font-size: 13px; opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .newrec { animation: none; } }
 .stars { font-family: "Segoe UI Symbol", "Apple Symbols", "DejaVu Sans", sans-serif; font-size: clamp(26px, 6vh, 40px); line-height: 1; letter-spacing: .12em; color: var(--beak); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
 
 #rotate .phone {
@@ -309,6 +332,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3l4.9 10.6 11.6 1.3-8.6 7.9 2.4 11.4L20 28.4 9.7 34.2l2.4-11.4-8.6-7.9 11.6-1.3z" fill="#fff6e5" stroke="#221d2e" stroke-width="3" stroke-linejoin="round"/></svg>
       <span class="cnt" id="bombCount">2</span>
       <span class="key" id="bombKey">ПРОБЕЛ</span>
+      <span class="bub-lbl">ПУЗЫ&#173;РИ</span>
     </button>
     <button id="btnJump" type="button" aria-label="Прыжок" hidden>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 9h-5v8H9v-8H4z" fill="currentColor"/></svg>
@@ -360,6 +384,9 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
     </div>
     <h1 class="title">КРЯ<span class="amp">&amp;</span>БУЛЬ</h1>
     <div class="menu-tools">
+      <button class="round" id="btnRecords" type="button" aria-label="Рекорды">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v3h3v2a5 5 0 0 1-4.3 5A5 5 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A5 5 0 0 1 8.3 13 5 5 0 0 1 4 8V6h3zM6 8a3 3 0 0 0 1 2.2V8zm12 0h-1v2.2A3 3 0 0 0 18 8z" fill="currentColor"/></svg>
+      </button>
       <button class="round" id="btnSound" type="button" aria-label="Звук"></button>
       <button class="round" id="btnFull" type="button" aria-label="На весь экран">
         <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>
@@ -388,6 +415,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   <section id="over" class="overlay" hidden>
     <div class="panel" role="dialog" aria-labelledby="overTitle">
       <h2 id="overTitle">Ой!</h2>
+      <p class="newrec" id="overNew" hidden>Новый рекорд уровня!</p>
       <p id="overText"></p>
       <div class="big" id="overScore">0</div>
       <p class="small" id="overBest"></p>
@@ -402,6 +430,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   <section id="win" class="overlay" hidden>
     <div class="panel" role="dialog" aria-labelledby="winTitle">
       <h2 id="winTitle">Победа!</h2>
+      <p class="newrec" id="winNew" hidden>Новый рекорд уровня!</p>
       <p id="winText"></p>
       <div class="stars" id="winStars"></div>
       <div class="big" id="winScore">0</div>
@@ -411,6 +440,22 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
         <button class="btn" id="btnNext" type="button">Уровень 2 ▸</button>
         <button class="btn alt" id="btnWinAgain" type="button">Сыграть ещё</button>
         <button class="btn alt" id="btnMenu3" type="button">В меню</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="records" class="overlay" hidden>
+    <div class="panel rec-panel" role="dialog" aria-labelledby="recTitle">
+      <h2 id="recTitle">Рекорды</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab" type="button" role="tab" data-tab="duck">Утка Илона</button>
+        <button class="tab" type="button" role="tab" data-tab="fish">Карась Миша</button>
+      </div>
+      <div class="rec-body" id="recBody"></div>
+      <p class="small">Рекорды хранятся только на этом устройстве, в этом браузере.</p>
+      <div class="btns">
+        <button class="btn" id="btnRecClose" type="button">Закрыть</button>
+        <button class="btn alt" id="btnRecReset" type="button">Сбросить</button>
       </div>
     </div>
   </section>
@@ -529,8 +574,8 @@ window.addEventListener('blur', () => {
 
 stage.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, .overlay, #menu')) return;
-  if (dragPtr) return;
-  if (hooks.tap) hooks.tap();
+  if (hooks.tap) hooks.tap();          // every finger counts (bubbles in the squeezing pipe)
+  if (dragPtr) { e.preventDefault(); return; }
   dragPtr = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), fired: false };
   input.dragging = true;
   try { stage.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ }
@@ -1945,6 +1990,7 @@ function newGame(mode, level) {
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
     mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
+    lvlDiff: mode === 'fish' && level === 4 ? 1.3 : 1,
     evOff: 0, spd: level >= 3 ? 1.3 : 1, aqua: null, aquaWall: null, megaCameo: null, bright: false, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
     vert: false, turnK: 0, tunnel: null, slowT: 0, tickT: 0, charm: 0, charmT: 0, suck: null, heroSay: null, cameo: null,
     t: 0, bgT: 0, phase: 'intro', phaseT: 0, ev: 0,
@@ -1961,7 +2007,7 @@ const later = (dt, fn) => G.timers.push({ t: dt, fn });
 const heroHit = () => (G.mode === 'duck' ? { x: G.player.x, y: G.player.y - 3, r: 10 } : { x: G.player.x + 26, y: G.player.y, r: 12 });
 const aimAt = (x, y) => { const h = heroHit(); return Math.atan2(h.y - y, h.x - x); };
 function ebullet(x, y, ang, speed, o) {
-  speed *= DIFF;
+  speed *= DIFF * (G && G.lvlDiff > 1 ? 1.15 : 1);
   G.eb.push(Object.assign({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 6, type: 'orb', col: '#ff2d55', age: 0, rot: rand(0, TAU), spin: 0 }, o));
 }
 function spread(x, y, n, step, speed, o, base) {
@@ -1983,7 +2029,7 @@ function enemy(kind, x, y, o) {
   if (kind === 'grunt' && (G.t > 45 || G.level === 2) && Math.random() < 0.35) e.shoots = true;
   if (G.mode === 'fish' && kind === 'zig') { e.hp = 4; e.r = 20; e.speed = 150; e.score = 150; }
   if (G.mode === 'fish' && kind === 'lance') { e.hp = 3; e.r = 16; }
-  if (!e.invuln) e.hp = Math.round(e.hp * DIFF * 10) / 10;
+  if (!e.invuln) e.hp = Math.round(e.hp * DIFF * G.lvlDiff * 10) / 10;
   if (G.level === 3 && e.speed && e.kind !== 'lance') e.speed *= 1.15;
   e.maxHp = e.hp; e.baseY = y;
   G.enemies.push(e);
@@ -2665,7 +2711,7 @@ function spawnBoss(kindOpt) {
   const kind = kindOpt || G.LI.boss;
   G.phase = BOSS[kind].mini ? 'mini' : 'boss'; G.phaseT = 0;
   G.cameo = null;
-  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF), maxHp: Math.round(BOSS[kind].hp * DIFF), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
+  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff), maxHp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
   b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain }[kind](b);
   b.brain.next();
   G.boss = b;
@@ -3131,14 +3177,16 @@ function* megaBrain(b) {
     yield* wait(b.phase2 ? 0.45 : 0.8);
   }
 }
+const HELPERS = { mega: ['pike', 'catfish'], kraken: ['pike', 'mega', 'catfish'] };
 function updateHelpers(dt) {
-  const B = G.boss;
-  if (G.LI.boss !== 'mega' || !B || B.kind !== 'mega' || B.dead || G.phase !== 'boss' || !B.vul) { G.helper = null; return; }
+  const B = G.boss, list = HELPERS[G.LI.boss];
+  if (!list || !B || B.kind !== G.LI.boss || B.dead || G.phase !== 'boss' || !B.vul) { G.helper = null; return; }
   G.helperCd = (G.helperCd === undefined ? 6 : G.helperCd) - dt;
   if (!G.helper && G.helperCd <= 0) {
-    G.helperCd = rand(7, 9); G.helperN = (G.helperN || 0) + 1;
-    const h = heroHit();
-    if (G.helperN % 2) G.helper = { kind: 'pike', t: 0, tx: h.x, ty: h.y };
+    G.helperCd = (B.kind === 'kraken' ? rand(5.5, 7) : rand(7, 9)) * (B.phase2 ? 0.8 : 1); G.helperN = (G.helperN || 0) + 1;
+    const h = heroHit(), kind = list[(G.helperN - 1) % list.length];
+    if (kind === 'pike') G.helper = { kind: 'pike', t: 0, tx: h.x, ty: h.y };
+    else if (kind === 'mega') G.helper = { kind: 'mega', t: 0, x: W + 320, y: clamp(h.y, 80, H - 80) };
     else { const top = h.y > H / 2; G.helper = { kind: 'catfish', t: 0, x: clamp(h.x + 260, 300, W * 0.6), y: top ? 95 : H - 80 }; }
     sfx('charge');
   }
@@ -3149,6 +3197,15 @@ function updateHelpers(dt) {
     if (k.t < 0.65) { k.tx = lerp(k.tx, h.x, Math.min(1, dt * 6)); k.ty = lerp(k.ty, h.y, Math.min(1, dt * 6)); }
     if (k.t >= 1.0 && !k.bit) { k.bit = true; sfx('swoosh'); G.shake = Math.max(G.shake, 6); if (d2(h.x, h.y, k.tx, k.ty) < 64 * 64) hurtPlayer(); ringFx(k.tx, k.ty, 10, 70, '#ff3d5a', 0.3); }
     if (k.t > 1.7) G.helper = null;
+  } else if (k.kind === 'mega') {
+    // the megalodon charges across the screen along a warned line
+    if (k.t < 0.8) k.y = lerp(k.y, clamp(h.y, 80, H - 80), Math.min(1, dt * 5));
+    if (k.t >= 1.1) {
+      if (!k.go) { k.go = true; sfx('don'); floatText(W - 140, k.y - 50, 'ДОН-ДОН!', '#ff8fa3', 22); G.shake = Math.max(G.shake, 6); }
+      k.x -= 1500 * dt;
+      if (Math.abs(h.y - k.y) < 44 && h.x > k.x - 160 && h.x < k.x + 120) hurtPlayer();
+    }
+    if (k.x < -420) G.helper = null;
   } else {
     const mx = k.x - 165 * 0.5, my = k.y + 6;
     k.sucking = k.t > 0.7 && k.t < 2.9;
@@ -3239,9 +3296,11 @@ function drawLair(c, t) {
   P(c); c.moveTo(0, H); for (let x = 0; x <= W + 30; x += 30) c.lineTo(x, H - 62 - Math.sin(x * 0.027 + 1) * 10 - (x % 120 === 0 ? 22 : 0)); c.lineTo(W + 30, H); c.closePath(); c.fill();
 }
 function drawFriendsBg(c, t) {
-  if (G.LI.boss !== 'mega' || !(G.phase === 'warn' || G.phase === 'boss' || G.phase === 'dead')) return;
+  const list = HELPERS[G.LI.boss];
+  if (!list || !(G.phase === 'warn' || G.phase === 'boss' || G.phase === 'dead')) return;
   const k = G.phase === 'warn' ? clamp(G.phaseT / 1.2, 0, 1) : 1, hk = G.helper && G.helper.kind;
   c.save(); c.globalAlpha = 0.3 * k;
+  if (list.includes('mega') && hk !== 'mega' && G.phase !== 'warn') { c.save(); c.translate(W * 0.22, 160 + Math.sin(t * 0.9) * 10); c.scale(0.42, 0.42); drawMega(c, { mouth: 0.2 }, t); c.restore(); }
   if (hk !== 'pike') { c.save(); c.translate(W * 0.42, 118 + Math.sin(t * 1.3) * 8); c.scale(0.55, 0.55); drawPike(c, { mouth: 0.2 }, t); c.restore(); }
   if (hk !== 'catfish') { c.save(); c.translate(W * 0.6, H - 96 + Math.sin(t * 1.1 + 1) * 8); c.scale(0.5, 0.5); drawCatfish(c, { mouth: 0.2 }, t); c.restore(); }
   c.restore();
@@ -3254,6 +3313,12 @@ function drawHelpers(c, t) {
     const s = lerp(0.2, 0.62, easeOut(grow)) * (1 - out * 0.6), lunge = k.t > 1.0 ? Math.min(1, (k.t - 1.0) / 0.12) : 0;
     c.save(); c.globalAlpha = Math.min(1, 0.3 + grow) * (1 - out); c.translate(k.tx + 150 * s / 0.62 - lunge * 60, k.ty - 8); c.scale(s, s);
     drawPike(c, { mouth: k.t > 0.8 && k.t < 1.15 ? 1 : 0.3, phase2: true }, t); c.restore();
+  } else if (k.kind === 'mega') {
+    if (k.t < 1.1) {
+      c.save(); c.globalAlpha = 0.35 + 0.35 * Math.sin(t * 28); c.strokeStyle = '#ff3d5a'; c.setLineDash([20, 12]); c.lineWidth = 8;
+      P(c); c.moveTo(0, k.y); c.lineTo(W, k.y); c.stroke(); c.restore();
+      c.font = '34px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, '!', W - 40, k.y, '#ff3d5a', 7);
+    } else { c.save(); c.translate(k.x, k.y - 4); c.scale(0.62, 0.62); drawMega(c, { mouth: 1, phase2: true }, t); c.restore(); }
   } else {
     const grow = clamp(k.t / 0.7, 0, 1), out = clamp((k.t - 3.0) / 0.5, 0, 1);
     c.save(); c.globalAlpha = (0.3 + 0.7 * grow) * (1 - out); c.translate(k.x, k.y); const s = lerp(0.2, 0.5, easeOut(grow)); c.scale(s, s);
@@ -4213,7 +4278,7 @@ function* krakenBrain(b) {
     yield* moveTo(b, W - rand(220, 260), bossY(b), b.phase2 ? 0.7 : 1.0);
     yield* KA[list[i++ % list.length]](b);
     if (Math.random() < 0.35) say(b, pick(['На абордаж!', 'Получай по плавникам!']));
-    yield* wait(b.phase2 ? 0.45 : 0.8);
+    yield* wait((b.phase2 ? 0.45 : 0.8) / G.lvlDiff);
   }
 }
 
@@ -5275,6 +5340,7 @@ function render() {
 
 /* ============================================================ screens, buttons, main loop */
 const SCREENS = ['menu', 'pause', 'over', 'win', 'rotate'];
+let recTab = 'duck', recResetArmed = false;
 let pending = null, rotateSkipped = false, lastCheckpoint = null, wakeLock = null;
 
 function show(id) {
@@ -5283,9 +5349,54 @@ function show(id) {
 }
 function best(mode) { return store.get('best.' + mode, 0) || 0; }
 function saveBest(mode, score) { const b = Math.max(best(mode), Math.floor(score)); store.set('best.' + mode, b); return b; }
+/* ---------- local records: top 5 per hero and level, plus cleared levels */
+const RKEY = 'records2';
+function loadRec() { const r = store.get(RKEY, null); return r && typeof r === 'object' && !Array.isArray(r) ? r : {}; }
+function levelsOf(mode) { return [1, 2, 3, 4, 5, 6].filter((l) => LEVEL_INFO[l] && LEVEL_INFO[l][mode]); }
+function addRecord(mode, level, score, won, stars) {
+  const all = loadRec(), key = mode + '-' + level;
+  const list = Array.isArray(all[key]) ? all[key].filter((e) => e && typeof e.s === 'number') : [];
+  const entry = { s: Math.floor(score), d: Date.now(), w: !!won, st: stars || 0 };
+  list.push(entry); list.sort((a, b) => b.s - a.s);
+  all[key] = list.slice(0, 5);
+  if (won) { all._cleared = all._cleared || {}; all._cleared[key] = true; }
+  store.set(RKEY, all);
+  saveBest(mode, score);
+  return { isBest: all[key][0] === entry && entry.s > 0, best: all[key][0].s };
+}
 function refreshRecords() {
-  $('recDuck').textContent = best('duck') ? 'Рекорд: ' + fmt(best('duck')) : 'Рекорда пока нет';
-  $('recFish').textContent = best('fish') ? 'Рекорд: ' + fmt(best('fish')) : 'Рекорда пока нет';
+  const all = loadRec(), cl = all._cleared || {};
+  for (const [mode, id] of [['duck', 'recDuck'], ['fish', 'recFish']]) {
+    const lv = levelsOf(mode), done = lv.filter((l) => cl[mode + '-' + l]).length;
+    $(id).textContent = (best(mode) ? 'Рекорд: ' + fmt(best(mode)) : 'Рекорда пока нет') + ' · пройдено ' + done + ' из ' + lv.length;
+  }
+}
+const fmtDate = (d) => { try { return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: '2-digit' }); } catch (e) { return ''; } };
+function renderRecords() {
+  const all = loadRec(), cl = all._cleared || {}, body = $('recBody');
+  for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.tab === recTab));
+  body.textContent = '';
+  for (const l of levelsOf(recTab)) {
+    const key = recTab + '-' + l, list = all[key] || [], row = document.createElement('div');
+    row.className = 'rec-row';
+    const head = document.createElement('div'); head.className = 'rec-head';
+    const name = document.createElement('span'); name.className = 'rec-lv'; name.textContent = 'Уровень ' + l + ' · ' + LEVEL_INFO[l][recTab].name;
+    const b = document.createElement('span'); b.className = 'rec-best'; b.textContent = list.length ? fmt(list[0].s) : '—';
+    head.append(name, b); row.append(head);
+    if (cl[key]) { const d = document.createElement('span'); d.className = 'rec-done'; d.textContent = '✓ Уровень пройден'; row.append(d); }
+    if (list.length) {
+      const ol = document.createElement('ol'); ol.className = 'rec-list';
+      for (const e of list) { const li = document.createElement('li'); li.textContent = fmt(e.s) + ' — ' + fmtDate(e.d) + (e.w ? ' · победа ' + '★'.repeat(e.st || 0) : ''); ol.append(li); }
+      row.append(ol);
+    } else { const p = document.createElement('span'); p.className = 'rec-empty'; p.textContent = 'Ещё не играли'; row.append(p); }
+    body.append(row);
+  }
+  $('btnRecReset').textContent = recResetArmed ? 'Точно сбросить?' : 'Сбросить';
+}
+function openRecords(on) {
+  recResetArmed = false;
+  $('records').hidden = !on;
+  if (on) { renderRecords(); $('btnRecClose').focus(); } else { refreshRecords(); $('btnRecords').focus(); }
 }
 function updateBombBtn() {
   if (!G) return;
@@ -5364,10 +5475,11 @@ function onGameOver() {
   if (!G || G.ended) return;
   G.ended = true; state = 'over';
   sfx('lose'); keepAwake(false); Sound.music(null);
-  const b = saveBest(G.mode, G.score);
+  const rec = addRecord(G.mode, G.level, G.score, false, 0), b = rec.best;
+  $('overNew').hidden = !rec.isBest;
   $('overText').textContent = G.mode === 'duck' ? 'Утка Илона устала. Глоток кофе — и снова в небо!' : 'Карась Миша уплыл перекусить. Ещё попытка?';
   $('overScore').textContent = fmt(G.score);
-  $('overBest').textContent = 'Рекорд: ' + fmt(b);
+  $('overBest').textContent = 'Рекорд уровня ' + G.level + ': ' + fmt(b);
   lastCheckpoint = G.checkpoint ? Object.assign({ mode: G.mode, level: G.level }, G.checkpoint) : null;
   $('btnBossAgain').hidden = !lastCheckpoint;
   $('btnAgain').className = lastCheckpoint ? 'btn alt' : 'btn';
@@ -5379,8 +5491,9 @@ function onWin() {
   const bonus = G.hp * 1000;
   G.score += bonus;
   sfx('win'); keepAwake(false);
-  const b = saveBest(G.mode, G.score);
   const stars = G.hp >= 4 ? 3 : G.hp >= 2 ? 2 : 1;
+  const rec = addRecord(G.mode, G.level, G.score, true, stars), b = rec.best;
+  $('winNew').hidden = !rec.isBest;
   $('winText').textContent = {
     granny: 'Бабка на самокате улетела восвояси. Небо над городом снова спокойное!',
     pike: 'Злая рыба уплыла пузом кверху. Море снова тёплое и тихое!',
@@ -5398,7 +5511,7 @@ function onWin() {
   $('btnWinAgain').className = next ? 'btn alt' : 'btn';
   $('winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
   $('winScore').textContent = fmt(G.score);
-  $('winBest').textContent = 'Бонус за сердечки +' + fmt(bonus) + ' · Рекорд: ' + fmt(b);
+  $('winBest').textContent = 'Бонус за сердечки +' + fmt(bonus) + ' · Рекорд уровня: ' + fmt(b);
   show('win');
 }
 
@@ -5406,6 +5519,13 @@ function onWin() {
 for (const b of document.querySelectorAll('[data-level]')) b.addEventListener('click', () => tryStart(b.dataset.mode, false, +b.dataset.level));
 for (const cv of document.querySelectorAll('canvas.hero')) cv.addEventListener('click', () => tryStart(cv.dataset.mode, false, 1));
 $('btnSound').addEventListener('click', toggleMute);
+$('btnRecords').addEventListener('click', () => { sfx('click'); openRecords(true); });
+$('btnRecClose').addEventListener('click', () => openRecords(false));
+$('btnRecReset').addEventListener('click', () => {
+  if (!recResetArmed) { recResetArmed = true; renderRecords(); return; }
+  store.set(RKEY, {}); store.set('best.duck', 0); store.set('best.fish', 0); recResetArmed = false; renderRecords();
+});
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => { recTab = t.dataset.tab; recResetArmed = false; renderRecords(); });
 $('btnSound2').addEventListener('click', toggleMute);
 $('btnResume').addEventListener('click', resumeGame);
 $('btnRestart').addEventListener('click', () => { const m = G ? G.mode : 'duck', l = G ? G.level : 1; Sound.resume(); startGame(m, false, l); });
@@ -5441,6 +5561,8 @@ function updateSquidBtn() {
   const on = !!(G && G.squidUnlocked && !run && state !== 'menu');
   const p = !G ? 0 : Math.round(G.squidCharge || 0), act = !!G && G.squidT > 0;
   const key = on + '|' + p + '|' + act + '|' + run;
+  const bub = !!(G && !G.run && typeof sqActive === 'function' && sqActive());
+  if ($('btnBomb').classList.contains('bubbles') !== bub) $('btnBomb').classList.toggle('bubbles', bub);
   if (key === squidUi) return;
   squidUi = key;
   const b = $('btnSquid');
@@ -5492,6 +5614,8 @@ hooks.key = (code, e, onButton) => {
   } else if (state === 'paused') {
     if (code === 'Escape' || code === 'KeyP') resumeGame();
     else if (code === 'KeyM') toggleMute();
+  } else if (state === 'menu' && !$('records').hidden) {
+    if (code === 'Escape') openRecords(false);
   } else if (state === 'menu' && !onButton) {
     if (code === 'Digit1') tryStart('duck');
     else if (code === 'Digit2') tryStart('fish');

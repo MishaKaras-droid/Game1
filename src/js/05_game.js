@@ -51,6 +51,7 @@ function newGame(mode, level) {
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
     mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
+    lvlDiff: mode === 'fish' && level === 4 ? 1.3 : 1,
     evOff: 0, spd: level >= 3 ? 1.3 : 1, aqua: null, aquaWall: null, megaCameo: null, bright: false, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
     vert: false, turnK: 0, tunnel: null, slowT: 0, tickT: 0, charm: 0, charmT: 0, suck: null, heroSay: null, cameo: null,
     t: 0, bgT: 0, phase: 'intro', phaseT: 0, ev: 0,
@@ -67,7 +68,7 @@ const later = (dt, fn) => G.timers.push({ t: dt, fn });
 const heroHit = () => (G.mode === 'duck' ? { x: G.player.x, y: G.player.y - 3, r: 10 } : { x: G.player.x + 26, y: G.player.y, r: 12 });
 const aimAt = (x, y) => { const h = heroHit(); return Math.atan2(h.y - y, h.x - x); };
 function ebullet(x, y, ang, speed, o) {
-  speed *= DIFF;
+  speed *= DIFF * (G && G.lvlDiff > 1 ? 1.15 : 1);
   G.eb.push(Object.assign({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 6, type: 'orb', col: '#ff2d55', age: 0, rot: rand(0, TAU), spin: 0 }, o));
 }
 function spread(x, y, n, step, speed, o, base) {
@@ -89,7 +90,7 @@ function enemy(kind, x, y, o) {
   if (kind === 'grunt' && (G.t > 45 || G.level === 2) && Math.random() < 0.35) e.shoots = true;
   if (G.mode === 'fish' && kind === 'zig') { e.hp = 4; e.r = 20; e.speed = 150; e.score = 150; }
   if (G.mode === 'fish' && kind === 'lance') { e.hp = 3; e.r = 16; }
-  if (!e.invuln) e.hp = Math.round(e.hp * DIFF * 10) / 10;
+  if (!e.invuln) e.hp = Math.round(e.hp * DIFF * G.lvlDiff * 10) / 10;
   if (G.level === 3 && e.speed && e.kind !== 'lance') e.speed *= 1.15;
   e.maxHp = e.hp; e.baseY = y;
   G.enemies.push(e);
@@ -771,7 +772,7 @@ function spawnBoss(kindOpt) {
   const kind = kindOpt || G.LI.boss;
   G.phase = BOSS[kind].mini ? 'mini' : 'boss'; G.phaseT = 0;
   G.cameo = null;
-  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF), maxHp: Math.round(BOSS[kind].hp * DIFF), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
+  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff), maxHp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
   b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain }[kind](b);
   b.brain.next();
   G.boss = b;
