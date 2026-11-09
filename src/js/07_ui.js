@@ -103,11 +103,13 @@ function startGame(mode, fromBoss, level) {
     if (G.level === 3 && G.mode === 'fish') { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 4) { G.bright = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 5) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
+    if (G.level === 8) { G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
     if (G.level === 7) { G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
     if (G.level === 6) { G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
     if (G.level === 3 && G.mode === 'duck') startRunner(true);
   } else {
     if (G.level === 3 && G.mode === 'fish') { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    else if (G.level === 8) { banner('ЭТО БУДЕТ НЕЛЕГКО', 'Уровень 8 · озеро 67', 3.2, 'green'); sfx('drone'); G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
     else if (G.level === 7) { banner('АМАЗОНКА', 'УДАЧИ, БОЕЦ!', 3.2, 'green'); sfx('wave'); G.amazon = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
     else if (G.level === 6) { banner('УДАЧИ, ПОКА…', 'Уровень 6 · тёмные глубины', 3.2, 'red'); sfx('drone'); G.dark = true; G.deep = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
     else if (G.level === 5) { banner('УДАЧИ, БРАТ!', 'Уровень 5 · скорость ещё выше', 3); sfx('swoosh'); G.squidUnlocked = true; G.squidCharge = 50; }
@@ -168,6 +170,7 @@ function onWin() {
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
     mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
     kraken: 'Кракен повержен! Но где-то в темноте кто-то уже точит свой нос…',
+    anaconda: 'Большая анаконда повержена! Но в тёмной воде блеснули чьи-то длинные клыки…',
     gator: 'Чёрный аллигатор повержен! Но в зарослях Амазонки уже кто-то шевелится…',
     perch: 'Все боссы повержены, даже Босс-окунь! Карась Миша — настоящий боец. Впереди Амазонка…',
     swordfish: 'Рыба-меч повержена! «Да как так?!» — только и успела сказать она. Но глубина стала красной…',
@@ -382,7 +385,7 @@ window.__kb = {
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 8) { G.lake67 = false; G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

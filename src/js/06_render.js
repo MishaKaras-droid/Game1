@@ -159,7 +159,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -344,7 +344,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
-  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : G.shop ? 0.45 : G.amazon || G.lake67 ? 0.25 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake && !G.shop && !G.amazon && !G.lake67) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); drawShop(c, T); drawAmazon(c, T); return; }
+  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : G.shop ? 0.45 : G.amazon || G.lake67 || G.mangrove ? 0.25 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake && !G.shop && !G.amazon && !G.lake67 && !G.mangrove) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); drawShop(c, T); drawAmazon(c, T); drawMangrove(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
   c.save();

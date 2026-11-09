@@ -60,7 +60,7 @@ MOVES.croc = (e, dt) => {
   }
 };
 function updateLevel7(dt) {
-  if (G.level !== 7) return;
+  if (G.level !== 7 && G.level !== 8) return;
   for (const s of G.spearW) {
     s.t -= dt;
     if (s.t <= 0 && !s.done) { s.done = true; ebullet(s.x, -40, Math.PI / 2, 300, { type: 'spear', r: 9, spin: 0 }); sfx('throw'); }
