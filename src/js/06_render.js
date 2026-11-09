@@ -159,7 +159,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda, crocboss: drawCrocBoss, vampire: drawVampire };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -172,7 +172,7 @@ function drawBossEntity(c, b, t) {
   if (b.kind === 'car' && b.nose > 0.01) c.rotate(-b.nose * Math.PI / 2);
   if (b.dead) {
     if (b.kind === 'granny' || b.kind === 'car') c.rotate(b.rot);
-    else if (b.kind === 'squid' || b.kind === 'eel') { b.friendly = true; if (b.deadT > 1.4) c.scale(-1, 1); }
+    else if (b.kind === 'squid' || b.kind === 'eel' || b.kind === 'crocboss') { b.friendly = true; if (b.deadT > 1.4) c.scale(-1, 1); }
     else c.scale(1, Math.cos(b.rot));
   }
   const fn = BOSS_ART[b.kind];
@@ -344,7 +344,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
-  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : G.shop ? 0.45 : G.amazon || G.lake67 || G.mangrove ? 0.25 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake && !G.shop && !G.amazon && !G.lake67 && !G.mangrove) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); drawShop(c, T); drawAmazon(c, T); drawMangrove(c, T); return; }
+  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : G.shop ? 0.45 : G.amazon || G.lake67 || G.mangrove || G.rapids ? 0.25 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake && !G.shop && !G.amazon && !G.lake67 && !G.mangrove && !G.rapids) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); drawShop(c, T); drawAmazon(c, T); drawMangrove(c, T); drawRapids(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
   c.save();
@@ -391,6 +391,7 @@ function render() {
   drawPlayer(c, T);
   drawSquidAlly(c, T);
   drawEelAlly(c, T);
+  drawCrocAlly(c, T);
   drawParts(c);
   for (const b of G.eb) drawEB(c, b, T);
   drawBombFx(c, T);

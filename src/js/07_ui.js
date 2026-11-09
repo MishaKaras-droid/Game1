@@ -103,12 +103,14 @@ function startGame(mode, fromBoss, level) {
     if (G.level === 3 && G.mode === 'fish') { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 4) { G.bright = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 5) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
+    if (G.level === 9) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; }
     if (G.level === 8) { G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
     if (G.level === 7) { G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
     if (G.level === 6) { G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
     if (G.level === 3 && G.mode === 'duck') startRunner(true);
   } else {
     if (G.level === 3 && G.mode === 'fish') { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    else if (G.level === 9) { banner('ГОТОВЬСЯ, БОЕЦ!', 'Уровень 9 · бурная Амазонка', 3.2, 'green'); sfx('wave'); G.rapids = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
     else if (G.level === 8) { banner('ЭТО БУДЕТ НЕЛЕГКО', 'Уровень 8 · озеро 67', 3.2, 'green'); sfx('drone'); G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
     else if (G.level === 7) { banner('АМАЗОНКА', 'УДАЧИ, БОЕЦ!', 3.2, 'green'); sfx('wave'); G.amazon = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
     else if (G.level === 6) { banner('УДАЧИ, ПОКА…', 'Уровень 6 · тёмные глубины', 3.2, 'red'); sfx('drone'); G.dark = true; G.deep = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
@@ -170,6 +172,7 @@ function onWin() {
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
     mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
     kraken: 'Кракен повержен! Но где-то в темноте кто-то уже точит свой нос…',
+    vampire: 'Рыба-вампир повержена! Ты справился, боец. Впереди — русские реки…',
     anaconda: 'Большая анаконда повержена! Но в тёмной воде блеснули чьи-то длинные клыки…',
     gator: 'Чёрный аллигатор повержен! Но в зарослях Амазонки уже кто-то шевелится…',
     perch: 'Все боссы повержены, даже Босс-окунь! Карась Миша — настоящий боец. Впереди Амазонка…',
@@ -205,6 +208,19 @@ for (const id of ['btnMenu1', 'btnMenu2', 'btnMenu3']) $(id).addEventListener('c
 $('btnAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
 $('btnWinAgain').addEventListener('click', () => { tryStart(G ? G.mode : 'duck', false, G ? G.level : 1); });
 $('btnNext').addEventListener('click', (e) => { tryStart(G ? G.mode : 'duck', false, +e.currentTarget.dataset.level || 2); });
+let crocUi = '';
+function updateCrocBtn() {
+  const on = !!(G && G.crocUnlocked && !G.run && state !== 'menu');
+  const p = G ? Math.round(G.crocCharge || 0) : 0, act = !!G && G.crocT > 0, key = on + '|' + p + '|' + act;
+  if (key === crocUi) return;
+  crocUi = key;
+  const b = $('btnCroc');
+  b.hidden = !on; b.style.setProperty('--p', String(p));
+  b.classList.toggle('ready', p >= 100 && !act); b.classList.toggle('active', act);
+}
+$('btnCroc').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); useCroc(); });
+$('btnCroc').addEventListener('click', (e) => { if (e.detail === 0) useCroc(); e.currentTarget.blur(); });
+if (isTouch) $('crocKey').hidden = true;
 let eelUi = '';
 function updateEelBtn() {
   const on = !!(G && G.eelUnlocked && !G.run && state !== 'menu');
@@ -244,6 +260,7 @@ function updateSquidBtn() {
   const run = !!(G && G.run);
   updateRunCtl(run);
   updateEelBtn();
+  updateCrocBtn();
   const on = !!(G && G.squidUnlocked && !run && state !== 'menu');
   const p = !G ? 0 : Math.round(G.squidCharge || 0), act = !!G && G.squidT > 0;
   const key = on + '|' + p + '|' + act + '|' + run;
@@ -296,6 +313,7 @@ hooks.key = (code, e, onButton) => {
     if (code === 'Space' || code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
     else if (code === 'KeyQ' || code === 'KeyC') useSquid();
     else if (code === 'KeyE' || code === 'KeyV') useEel();
+    else if (code === 'KeyR') useCroc();
     else if (code === 'Escape' || code === 'KeyP') pauseGame();
     else if (code === 'KeyM') toggleMute();
   } else if (state === 'paused') {
@@ -379,13 +397,13 @@ function boot() {
 window.__kb = {
   get G() { return G; }, get state() { return state; },
   start: (m, fromBoss, level) => startGame(m, fromBoss, level),
-  eel: () => useEel(),
+  eel: () => useEel(), croc: () => useCroc(),
   tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), burst: () => doBurst(), squid: () => useSquid(),
   runAct: (a) => ({ jump: runJump, roll: runRoll, left: () => runLane(-1), right: () => runLane(1), boost: runBoost })[a](), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 8) { G.lake67 = false; G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 8) { G.lake67 = false; G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 9) { G.rapids = false; G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

@@ -224,6 +224,12 @@ function drawEB(c, b, t) {
       for (const s of [-1, 1]) { P(c); c.moveTo(x, y - 70); c.lineTo(x + s * 8, y - 86); c.lineTo(x, y - 80); c.closePath(); fs(c, '#e63946', 1.5); }
       break;
     }
+    case 'blackorb': {
+      P(c); circ(c, x, y, b.r + 2.5); c.fillStyle = '#ff3d5a'; c.fill();
+      P(c); circ(c, x, y, b.r); c.fillStyle = '#0d0608'; c.fill();
+      P(c); circ(c, x - b.r * 0.3, y - b.r * 0.3, b.r * 0.25); c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
+      break;
+    }
     case 'ball': {
       c.save(); c.translate(x, y); c.rotate(b.rot);
       P(c); circ(c, 0, 0, b.r); fs(c, '#fff', 2.5);

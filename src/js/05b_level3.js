@@ -94,6 +94,7 @@ function startMini(kind) {
   G.timers.length = 0; G.lair = true;
   for (const b of G.eb) { b.dead = true; puff(b.x, b.y); }
   if (kind === 'eel') banner('ВНИЗ, В НОРКУ!', 'Мини-босс: электрический угорь', 2.8);
+  else if (kind === 'crocboss') banner('НОРКА КРОКОДИЛА', 'Мини-босс!', 2.6);
   else banner('НОРКА КАЛЬМАРА', 'Мини-босс!', 2.6);
   sfx('siren');
   spawnBoss(kind);
@@ -102,7 +103,7 @@ function miniDie(b) {
   b.dead = true; b.hp = 0; b.deadT = 0; b.vul = false; b.dash = false; b.telegraph = 0; b.lash = null;
   G.phase = 'miniDead'; G.phaseT = 0;
   for (const x of G.eb) { x.dead = true; puff(x.x, x.y); }
-  say(b, b.kind === 'eel' ? 'Ладно, брат, сдаюсь! Теперь я с тобой!' : 'Ладно, сдаюсь! Теперь я за тебя!');
+  say(b, b.kind === 'crocboss' ? 'Ладно, боец! Теперь я твой друг!' : b.kind === 'eel' ? 'Ладно, брат, сдаюсь! Теперь я с тобой!' : 'Ладно, сдаюсь! Теперь я за тебя!');
   addScore(3000, b.x, b.y - 60);
   burst(b.x, b.y, 16, { type: 'star', col: '#ff8fc0', smin: 60, smax: 220, lmin: 0.6, lmax: 1.1, rmin: 4, rmax: 7 });
   sfx('charm');
@@ -111,6 +112,12 @@ function miniDie(b) {
 function endMini() {
   const kind = G.boss && G.boss.kind;
   G.boss = null; G.lair = false; G.phase = 'waves'; G.phaseT = 0;
+  if (kind === 'crocboss') {
+    G.crocUnlocked = true; G.crocCharge = 100;
+    banner('КРОКОДИЛ ТЕПЕРЬ ТВОЙ ДРУГ!', isTouch ? 'Копи силу и зови его кнопкой «Крокодил»' : 'Копи силу и зови его кнопкой «Крокодил» или клавишей R', 3.4);
+    startTunnel({ len: 900, speed: 230, noRampIn: true, gBase: 200, amp: 0.3, quiet: true });
+    return;
+  }
   if (kind === 'eel') {
     G.eelUnlocked = true; G.eelCharge = 100;
     banner('УГОРЬ ТЕПЕРЬ ТВОЙ ДРУГ!', isTouch ? 'Копи заряд и зови его кнопкой «Угорь»' : 'Копи заряд и зови его кнопкой «Угорь» или клавишей E', 3.4);
@@ -217,7 +224,7 @@ function updatePortal() {
     else if (P0.to === 'mangrove') { G.lake67 = false; G.amazon = false; G.mangrove = true; G.dark = false; banner('МАНГРОВАЯ РЕКА', '', 2.4); }
     else if (P0.to === 'lake67') { G.amazon = false; G.lake67 = true; G.dark = false; banner('ОЗЕРО 67', '', 2.6); }
     else if (P0.to === 'lake') { G.shop = false; G.dark = false; G.lake = true; banner('ОЗЕРО', '', 2, 'small'); }
-    else if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else { G.dark = true; G.lake = false; G.aqua = null; } G.flash = 0.9; G.flashColor = PORTAL_PAL[P0.style || 'green'].fx; sfx('bomb');
+    else if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else { G.dark = true; G.lake = false; G.aqua = null; G.rapids = false; } G.flash = 0.9; G.flashColor = PORTAL_PAL[P0.style || 'green'].fx; sfx('bomb');
     p.x = W * 0.2; p.y = H / 2;
   }
   if (k >= 2.4) { const e = clamp((k - 2.4) / 0.8, 0, 1); p.sc = Math.max(0.05, e); p.spin = (1 - e) * 8; }
@@ -314,7 +321,7 @@ function updateHelpers(dt) {
 function updateOutro(dt) {
   const o = G.outro; o.t += dt;
   if (o.t > 3.8 && o.s < 1) { o.s = 1; sfx('drone'); }
-  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else sfx('squelch'); G.shake = 14; }
+  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else if (o.kind === 'vampire') { sfx('wave'); } else sfx('squelch'); G.shake = 14; }
   if (o.t >= 12.4) onWin();
 }
 
@@ -505,7 +512,7 @@ function drawOutro(c) {
       for (let i = 0; i < ln.length; i++) {
         const ch = ln[i], wch = c.measureText(ch).width;
         const jx = Math.sin(k * 3 + i * 1.7 + li) * 1.5, jy = Math.sin(k * 2.3 + i * 0.9 + li * 2) * 3;
-        c.fillStyle = li === 2 ? (OUTRO[o.kind || 'mega'].end === 'red' ? '#ff6b6b' : '#c6ffb0') : '#a8d8a0';
+        c.fillStyle = OUTRO[o.kind || 'mega'].colors ? OUTRO[o.kind || 'mega'].colors[li] : li === 2 ? (OUTRO[o.kind || 'mega'].end === 'red' ? '#ff6b6b' : '#c6ffb0') : '#a8d8a0';
         c.fillText(ch, x + wch / 2 + jx, SH * 0.36 + li * 50 + jy);
         x += wch;
       }
@@ -517,6 +524,7 @@ function drawOutro(c) {
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'jungle') drawJungleEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'snake') drawAnacondaEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'vampire') drawVampireEnd(c, k);
+  else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'salmon') drawSalmonEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'tentacle') {
     const slam = easeOut(clamp((k - 8.6) / 0.35, 0, 1)), slide = easeInOut(clamp((k - 9.0) / 2.0, 0, 1)) * SH * 1.1;
     // the tentacle's spine as a curve from the top-right corner
