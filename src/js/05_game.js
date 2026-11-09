@@ -47,13 +47,13 @@ let G = null;
 let state = 'loading';  // loading | menu | rotate | play | paused | over | win
 
 function newGame(mode, level) {
-  level = [1, 2, 3, 4, 5].includes(level) ? level : 1;
+  level = [1, 2, 3, 4, 5, 6].includes(level) ? level : 1;
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
-    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 5 ? LEVEL5_FISH : level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 5 ? LEVEL5_LEN : level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
-    lvlDiff: mode === 'fish' && level === 5 ? 1.69 : mode === 'fish' && level === 4 ? 1.3 : 1,
+    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 6 ? LEVEL6_FISH : level === 5 ? LEVEL5_FISH : level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 6 ? LEVEL6_LEN : level === 5 ? LEVEL5_LEN : level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
+    lvlDiff: mode === 'fish' && level === 6 ? 1.5 : mode === 'fish' && level === 5 ? 1.69 : mode === 'fish' && level === 4 ? 1.3 : 1,
     eelUnlocked: false, eelCharge: 0, eelT: 0, eel: null, lake: false,
-    evOff: 0, spd: level === 5 ? 1.45 : level >= 3 ? 1.3 : 1, aqua: null, aquaWall: null, megaCameo: null, bright: false, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
+    evOff: 0, spd: level >= 5 ? 1.45 : level >= 3 ? 1.3 : 1, aqua: null, aquaWall: null, megaCameo: null, bright: false, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
     vert: false, turnK: 0, tunnel: null, slowT: 0, tickT: 0, charm: 0, charmT: 0, suck: null, heroSay: null, cameo: null,
     t: 0, bgT: 0, phase: 'intro', phaseT: 0, ev: 0,
     score: 0, hp: MAX_HP, bombs: 2, power: 1,
@@ -294,6 +294,7 @@ function tunnelC(x) { const a = tunAt(x); return a ? a.c : H / 2; }
 
 /* ---------- enemy behaviour */
 function shooterFire(e) {
+  if (e.kind === 'shawa') { spread(e.x - 14, e.y - 10, 5, 0.2, 200, { col: pick(['#fffaf0', '#e63946']), r: 7 }); sfx('throw'); return; }
   if (G.mode === 'duck') { spread(e.x - 14, e.y - 1, 3, 0.16, 235, { col: '#ff2d55', r: 6 }); sfx('hit'); }
   else ring(e.x, e.y, 8, 175, { type: 'spike', r: 5 }, rand(0, 1));
 }
@@ -765,17 +766,18 @@ function* pikeBrain(b) {
 function startWarning() {
   G.phase = 'warn'; G.phaseT = 0; G.timers.length = 0;
   G.checkpoint = { score: G.score, power: Math.max(G.power, 3) };
-  banner('ВНИМАНИЕ!', BOSS[G.LI.boss].name, 3.0, 'warn');
+  if (G.LI.boss === 'perch') { G.rush = { list: RUSH.slice(), i: 0 }; banner('ВСЕ БОССЫ ПРОТИВ ТЕБЯ!', 'Щука, Сом, Мегалодон, Кракен, Рыба-меч… и Окунь', 3.0, 'warn'); }
+  else banner('ВНИМАНИЕ!', BOSS[G.LI.boss].name, 3.0, 'warn');
   if (G.LI.boss === 'catfish') G.cameo = { x: W + 120, y: 120, t: 0 };
   if (G.LI.boss === 'kraken') G.megaCameo = { x: W + 160, y: 150, t: 0 };
   sfx('siren'); Sound.music(null);
 }
 function spawnBoss(kindOpt) {
-  const kind = kindOpt || G.LI.boss;
+  const kind = kindOpt || (G.rush ? G.rush.list[G.rush.i] : G.LI.boss);
   G.phase = BOSS[kind].mini ? 'mini' : 'boss'; G.phaseT = 0;
   G.cameo = null;
-  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff), maxHp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
-  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain, eel: eelBrain, swordfish: swordBrain }[kind](b);
+  const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff * (G.rush && kind !== 'perch' ? RUSH_HP : 1)), maxHp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff * (G.rush && kind !== 'perch' ? RUSH_HP : 1)), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
+  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain, eel: eelBrain, swordfish: swordBrain, perch: perchBrain }[kind](b);
   b.brain.next();
   G.boss = b;
   G.lastHealT = G.t; G.lastBombT = G.t;
@@ -789,7 +791,7 @@ function damageBoss(dmg) {
   if (G.eelUnlocked && !(G.eelT > 0)) G.eelCharge = Math.min(100, G.eelCharge + 0.2);
   if (!b.phase2 && b.hp < b.maxHp * 0.5) {
     b.phase2 = true; G.shake = Math.max(G.shake, 8);
-    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!', kraken: 'Ну всё, карась! На абордаж!', eel: 'Вот это напряжение!', swordfish: 'Сейчас я тебя нашинкую!' }[b.kind]);
+    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!', kraken: 'Ну всё, карась! На абордаж!', eel: 'Вот это напряжение!', swordfish: 'Сейчас я тебя нашинкую!', perch: 'Ты меня разозлил, карасишка!' }[b.kind]);
   }
   if (b.hp <= 0) bossDie();
 }
@@ -801,7 +803,7 @@ function bossDie() {
   for (const x of G.eb) { x.dead = true; puff(x.x, x.y); }
   for (const e of G.enemies) killEnemy(e, true);
   b.sucking = false; G.suck = null;
-  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…', kraken: 'Мои детки… мои щупальца…', swordfish: 'Мой меч… треснул…' }[b.kind]);
+  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…', kraken: 'Мои детки… мои щупальца…', swordfish: 'Мой меч… треснул…', perch: 'Не может быть… я же самый сильный…' }[b.kind]);
   b.vlash = null; b.lash = null;
   if (b.kind === 'car') later(1.0, () => { G.heroSay = { text: 'Я твою выхлопную трубу шатала!', t: 3.4 }; sfx('quack2'); });
   addScore(10000, b.x, b.y - 60);
@@ -960,7 +962,8 @@ function update(rdt) {
       break;
     case 'warn': if (G.phaseT >= 3.2) spawnBoss(); break;
     case 'bossDead':
-      if (G.boss && OUTRO[G.boss.kind]) { if (G.phaseT >= 2.6) { G.phase = 'outro'; G.phaseT = 0; G.outro = { t: 0, s: 0, kind: G.boss.kind }; } }
+      if (G.rush && G.boss && G.rush.i < G.rush.list.length - 1) { if (G.phaseT >= 2.6) { G.phase = 'boss'; G.phaseT = 0; rushNext(); } }
+      else if (G.boss && OUTRO[G.boss.kind]) { if (G.phaseT >= 2.6) { G.phase = 'outro'; G.phaseT = 0; G.outro = { t: 0, s: 0, kind: G.boss.kind }; } }
       else if (G.phaseT >= 4.4) onWin();
       break;
     case 'miniDead': if (G.phaseT >= 3.2) endMini(); break;
@@ -980,6 +983,7 @@ function update(rdt) {
   updateBoss(dt);
   updateSqueeze(dt);
   updateLevel4(dt);
+  updateLevel6(dt);
   updateSquid(rdt);
   updateEel(rdt);
   updateHelpers(dt);

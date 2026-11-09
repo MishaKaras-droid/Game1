@@ -120,14 +120,14 @@ function startTank(i) {
   sfx('wave');
 }
 function updateLevel4(dt) {
+  const B0 = G.boss;
+  if (B0 && B0.kind === 'kraken' && B0.vlash && B0.vlash.phase === 'hit') { const h = heroHit(); if (Math.abs(h.x - B0.vlash.x) < 30) hurtPlayer(); }
   if (G.level !== 4) return;
   const T = G.tunnel;
   if (T && T.sqFrom && !T.sqHint && sqActive()) { T.sqHint = true; banner('УЗКАЯ ТРУБА!', isTouch ? 'Жми по экрану — пузыри раздвинут стены' : 'Кликай или жми Пробел — пузыри раздвинут стены', 3); sfx('charge'); }
   if (G.aqua) G.aqua.t += dt;
   if (G.aquaWall) { G.aquaWall.x -= 300 * dt; if (G.aquaWall.x < -120) G.aquaWall = null; }
   if (G.megaCameo) { G.megaCameo.t += dt; G.megaCameo.x -= 260 * dt; }
-  const B = G.boss;
-  if (B && B.kind === 'kraken' && B.vlash && B.vlash.phase === 'hit') { const h = heroHit(); if (Math.abs(h.x - B.vlash.x) < 30) hurtPlayer(); }
 }
 
 /* ---------- kraken */
@@ -313,6 +313,7 @@ function drawMegaCameo(c, t) {
   drawMega(c, { mouth: 0.4 + Math.sin(t * 8) * 0.4 }, t); c.restore();
 }
 function drawL4World(c, t) {
+  if (G.boss && G.boss.vlash && G.level !== 4) drawVLash(c, G.boss, t);
   if (G.level !== 4) return;
   drawAquaWall(c);
   drawMegaCameo(c, t);
@@ -345,6 +346,7 @@ function drawPipeWalls(c, top, bot) {
 /* ---------- endings shared with level 3 */
 const OUTRO = {
   mega: { a: 'ТЫ ПРОСТО БОСС,', b: 'ТЫ ПРОСТО НАЧАЛЬНИК!', lines: ['Теперь угадайте,', 'кого вызовет на помощь', 'Мегалодон?'], end: 'tentacle' },
+  perch: { a: 'ВСЕ БОССЫ ПОВЕРЖЕНЫ!', b: 'ТЫ НАСТОЯЩИЙ БОЕЦ!', lines: ['Больше они не помешают…', 'А ты, боец,', 'отправляешься в Амазонку.'], end: 'jungle' },
   swordfish: { a: 'ДА КАК ТАК?', b: 'КАК ТЫ СМОГ?!', lines: ['Я думал, ты не справишься…', 'Как так?..', 'ТЕБЕ КОНЕЦ.'], end: 'red' },
   kraken: { a: 'ТЫ БОЛЬШОЙ МОЛОДЕЦ,', b: 'НО В СЛЕДУЮЩИЙ РАЗ ТЕБЕ НЕ ПОВЕЗЁТ!', lines: ['Зря ты тронул', 'моих детей…', 'Тебе несдобровать.'], end: 'sword' },
 };
