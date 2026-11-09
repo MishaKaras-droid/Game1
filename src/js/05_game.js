@@ -51,7 +51,7 @@ function newGame(mode, level) {
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
     mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 8 ? LEVEL8_FISH : level === 7 ? LEVEL7_FISH : level === 6 ? LEVEL6_FISH : level === 5 ? LEVEL5_FISH : level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 8 ? LEVEL8_LEN : level === 7 ? LEVEL7_LEN : level === 6 ? LEVEL6_LEN : level === 5 ? LEVEL5_LEN : level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
-    lvlDiff: mode === 'fish' && level === 8 ? 2.5 : mode === 'fish' && level === 7 ? 2.4 : mode === 'fish' && level === 6 ? 1.5 : mode === 'fish' && level === 5 ? 1.69 : mode === 'fish' && level === 4 ? 1.3 : 1,
+    lvlDiff: mode === 'fish' && level === 8 ? 2.0 : mode === 'fish' && level === 7 ? 2.4 : mode === 'fish' && level === 6 ? 1.5 : mode === 'fish' && level === 5 ? 1.69 : mode === 'fish' && level === 4 ? 1.3 : 1,
     spearW: [], amazon: false, lake67: false, mangrove: false,
     eelUnlocked: false, eelCharge: 0, eelT: 0, eel: null, lake: false,
     evOff: 0, spd: level >= 5 ? 1.45 : level >= 3 ? 1.3 : 1, aqua: null, aquaWall: null, megaCameo: null, bright: false, squidUnlocked: false, squidCharge: 0, squidT: 0, squid: null, lair: false, dark: false, portal: null, helper: null, outro: null, burstCd: 0,
