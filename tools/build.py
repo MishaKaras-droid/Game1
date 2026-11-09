@@ -21,6 +21,7 @@ IMAGES = {  # key in ASSETS.img -> file
     "squidFace": "squid_face.png",
     "eelFace": "eel_face.png",
     "anacondaFace": "anaconda_face.png",
+    "crocFace": "croc_face.png",
 }
 
 

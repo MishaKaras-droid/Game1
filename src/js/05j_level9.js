@@ -93,9 +93,18 @@ function drawCrocAlly(c, t) {
   const a = G.crocA; if (!a) return;
   glow(c, a.x, a.y, 60, 'rgba(120,255,120,A)', G.crocT < 3 && Math.floor(t * 8) % 2 ? 0.15 : 0.4);
   c.save(); c.translate(a.x, a.y); c.scale(-1.4, 1.4); ART.croc(c, { charge: a.chomp, seed: 1 }, t); c.restore();
+  crocFace(c, a.x + 34, a.y - 16, 17, false);
+}
+function crocFace(c, x, y, r, angry) {
+  if (!IMG.crocFace) return;
+  P(c); circ(c, x, y, r + 4); c.fillStyle = '#4fae3a'; c.fill();
+  photoFace(c, IMG.crocFace, x, y, r);
+  P(c); circ(c, x, y, r); c.lineWidth = Math.max(2, r * 0.11); c.strokeStyle = INK; c.stroke();
+  if (angry) { line(c, [x - r * 0.85, y - r * 0.85, x - r * 0.2, y - r * 0.6], r * 0.15); line(c, [x + r * 0.85, y - r * 0.85, x + r * 0.2, y - r * 0.6], r * 0.15); }
 }
 function drawCrocBoss(c, b, t) {
   c.save(); c.scale(3.2, 3.2); ART.croc(c, { charge: b.mouth || 0, seed: 2 }, t); c.restore();
+  crocFace(c, -80, -40, 34, !b.friendly);
   if (b.friendly) { P(c); heartPath(c, -40, -70, 12); fs(c, '#ff4d8d', 3); }
 }
 
