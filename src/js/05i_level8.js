@@ -109,13 +109,20 @@ function drawAnaconda(c, b, t) {
   c.fillStyle = '#fff'; for (const fx of [-56, -40]) { P(c); c.moveTo(fx, -2); c.lineTo(fx + 4, -12); c.lineTo(fx + 8, -2); c.closePath(); c.fill(); }
   c.restore();
   if (m > 0.05) { P(c); c.moveTo(6, 6); c.lineTo(-58, 2); c.lineTo(-56, 6 + m * 26); c.lineTo(6, 20); c.closePath(); c.fillStyle = '#7a1f2b'; c.fill(); }
-  P(c); c.moveTo(40, -26); c.quadraticCurveTo(-10, -44, -62, -18); c.quadraticCurveTo(-74, -4, -62, 6); c.quadraticCurveTo(-10, 16, 40, 22); c.closePath(); fs(c, skin, 4);
-  c.fillStyle = spot; for (const [sx, sy] of [[-6, -26], [18, -10], [-30, -14]]) { P(c); ell(c, sx, sy, 9, 6); c.fill(); }
+  P(c); c.moveTo(44, -40); c.quadraticCurveTo(-10, -58, -62, -20); c.quadraticCurveTo(-74, -4, -62, 6); c.quadraticCurveTo(-10, 22, 44, 26); c.quadraticCurveTo(60, -7, 44, -40); c.closePath(); c.fillStyle = skin; c.fill(); c.lineWidth = 4; c.strokeStyle = INK;
+  P(c); c.moveTo(44, -40); c.quadraticCurveTo(-10, -58, -62, -20); c.quadraticCurveTo(-74, -4, -62, 6); c.quadraticCurveTo(-10, 22, 44, 26); c.stroke();
+  if (!IMG.anacondaFace) { c.fillStyle = spot; for (const [sx, sy] of [[-6, -26], [18, -10], [-30, -14]]) { P(c); ell(c, sx, sy, 9, 6); c.fill(); } }
   c.fillStyle = '#fff'; for (const fx of [-58, -44]) { P(c); c.moveTo(fx, 4); c.lineTo(fx + 4, 14); c.lineTo(fx + 8, 4); c.closePath(); c.fill(); }
   P(c); circ(c, -58, -10, 2.5); c.fillStyle = INK; c.fill();
-  P(c); ell(c, -26, -20, 11, 9); fs(c, angry ? '#ff3d3d' : '#ffd43b', 3);
-  P(c); ell(c, -26, -20, 2.6, 8); c.fillStyle = '#000'; c.fill();
-  line(c, [-42, -32, -14, -30], 5);
+  if (IMG.anacondaFace) {
+    photoFace(c, IMG.anacondaFace, -14, -12, 28);
+    P(c); circ(c, -14, -12, 28); c.lineWidth = 4; c.strokeStyle = INK; c.stroke();
+    line(c, [-38, -36, -20, -30], 5); line(c, [10, -36, -8, -30], 5);
+  } else {
+    P(c); ell(c, -26, -20, 11, 9); fs(c, angry ? '#ff3d3d' : '#ffd43b', 3);
+    P(c); ell(c, -26, -20, 2.6, 8); c.fillStyle = '#000'; c.fill();
+    line(c, [-42, -32, -14, -30], 5);
+  }
   if (Math.sin(t * 9) > 0.3) { line(c, [-66, 4, -96, 4], 3.5, '#e63946'); line(c, [-96, 4, -106, -4], 3, '#e63946'); line(c, [-96, 4, -106, 12], 3, '#e63946'); }
   c.restore();
 }
