@@ -3,7 +3,7 @@ LEVEL_INFO[5] = { duck: null, fish: { name: 'Удачи, брат', boss: 'sword
 const LEVEL5_LEN = 97;
 Object.assign(BOSS, {
   eel: { name: 'Электрический угорь', label: 'ЭЛЕКТРИЧЕСКИЙ УГОРЬ', hp: 300, restX: 230, y: [120, 120], head: [-60, -40], mini: true },
-  swordfish: { name: 'Рыба-меч', label: 'РЫБА-МЕЧ', hp: 660, restX: 270, y: [140, 130], head: [-150, -60] },
+  swordfish: { name: 'Рыба-меч', label: 'РЫБА-МЕЧ', hp: 792, restX: 270, y: [140, 130], head: [-150, -60] },
 });
 Object.assign(BOSS_HIT, {
   eel: [[-60, 0, 40], [10, 0, 26], [80, 0, 22], [150, 0, 18]],
@@ -165,7 +165,7 @@ const SWA = {
   *minis(b) {
     say(b, 'Карась, лови меч!');
     const h = heroHit();
-    for (let k = 0; k < (b.phase2 ? 5 : 3); k++) { enemy('lance', b.x - 160, k === 0 ? clamp(h.y, 60, H - 60) : rand(60, H - 60)); yield* wait(0.32); }
+    for (let k = 0; k < (b.phase2 ? 6 : 4); k++) { enemy('lance', b.x - 160, k === 0 ? clamp(h.y, 60, H - 60) : rand(60, H - 60)); yield* wait(0.32); }
     yield* wait(0.6);
   },
   *thrust(b) {
@@ -195,7 +195,7 @@ function* swordBrain(b) {
     yield* moveTo(b, W - rand(250, 290), bossY(b), b.phase2 ? 0.7 : 1.0);
     yield* SWA[list[i++ % list.length]](b);
     if (Math.random() < 0.35) say(b, 'Карась, лови меч!');
-    yield* wait((b.phase2 ? 0.45 : 0.8) / G.lvlDiff);
+    yield* wait((b.phase2 ? 0.45 : 0.8) / (G.lvlDiff * 1.2));
   }
 }
 
