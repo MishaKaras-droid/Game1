@@ -159,7 +159,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -311,6 +311,9 @@ function drawBanners(c, t) {
       P(c); rr(c, -w / 2 + 6, -36, w, 80, 12); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fill();
       P(c); rr(c, -w / 2, -42, w, 80, 12); fs(c, '#ffffff', 7);
       c.fillStyle = INK; c.fillText(b.text, 0, 0);
+    } else if (b.style === 'green') {
+      c.font = '56px ' + FONT_DISPLAY; otext(c, b.text, 0, -12, '#7cff4f', 10);
+      if (b.sub) { c.font = '900 26px ' + FONT_UI; otext(c, b.sub, 0, 40, '#e8ffd0', 6); }
     } else if (b.style === 'red') {
       c.font = '56px ' + FONT_DISPLAY; otext(c, b.text, 0, -12, '#ff2d3d', 10);
       if (b.sub) { c.font = '900 24px ' + FONT_UI; otext(c, b.sub, 0, 40, '#ffd0d0', 6); }
@@ -341,7 +344,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
-  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : G.shop ? 0.45 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake && !G.shop) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); drawShop(c, T); return; }
+  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : G.shop ? 0.45 : G.amazon || G.lake67 ? 0.25 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake && !G.shop && !G.amazon && !G.lake67) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); drawShop(c, T); drawAmazon(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
   c.save();
@@ -370,6 +373,7 @@ function render() {
   drawLandGround(c);
   drawFriendsBg(c, T);
   drawL6Bg(c, T);
+  drawSpearW(c, T);
   drawTunnel(c, T);
   drawPortal(c, T);
   for (const k of G.pickups) drawPickup(c, k, T);

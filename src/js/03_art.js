@@ -218,6 +218,12 @@ function drawEB(c, b, t) {
       P(c); heartPath(c, x, y + 1, 6); c.fillStyle = '#ff4d8d'; c.fill();
       break;
     }
+    case 'spear': {
+      line(c, [x, y - 10, x, y - 80], 7, INK); line(c, [x, y - 10, x, y - 80], 4, '#9a6b3a');
+      P(c); c.moveTo(x, y + 6); c.lineTo(x - 7, y - 12); c.lineTo(x + 7, y - 12); c.closePath(); fs(c, '#6b6f7a', 2);
+      for (const s of [-1, 1]) { P(c); c.moveTo(x, y - 70); c.lineTo(x + s * 8, y - 86); c.lineTo(x, y - 80); c.closePath(); fs(c, '#e63946', 1.5); }
+      break;
+    }
     case 'ball': {
       c.save(); c.translate(x, y); c.rotate(b.rot);
       P(c); circ(c, 0, 0, b.r); fs(c, '#fff', 2.5);

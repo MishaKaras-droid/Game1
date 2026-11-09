@@ -106,6 +106,7 @@ const Sound = (() => {
     slowOn: (t) => { osc('sine', 900, 180, 0.7, 0.18, t); noise(0.6, 0.1, 'lowpass', 1500, 200, t); },
     don: (t) => { osc('sine', 75, 38, 0.4, 0.6, t); noise(0.25, 0.25, 'lowpass', 400, 80, t); osc('sine', 75, 38, 0.45, 0.6, t + 0.34); noise(0.25, 0.25, 'lowpass', 400, 80, t + 0.34); },
     drone: (t) => { osc('sawtooth', 55, 52, 4.5, 0.12, t, undefined, 1.2); osc('sine', 41, 40, 4.5, 0.25, t, undefined, 1.2); osc('triangle', 220, 196, 4, 0.03, t + 0.5, undefined, 1.5); },
+    hiss: (t) => { noise(1.4, 0.3, 'highpass', 4200, 2600, t, 0.8); noise(1.2, 0.12, 'bandpass', 6000, 5000, t + 0.3, 2); },
     squelch: (t) => { noise(0.7, 0.45, 'bandpass', 250, 1400, t, 3); osc('sawtooth', 90, 45, 0.6, 0.15, t); noise(1.2, 0.2, 'lowpass', 600, 120, t + 0.4); },
     win: (t) => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => osc('square', f, f, i === 5 ? 0.6 : 0.14, 0.09, t + i * 0.13)),
     lose: (t) => [392, 330, 262, 196].forEach((f, i) => osc('triangle', f, f * 0.98, 0.32, 0.17, t + i * 0.22)),
