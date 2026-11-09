@@ -1,7 +1,7 @@
 /* ============================================================ level 7 (carp): the Amazon, lake 67, black alligator */
 LEVEL_INFO[7] = { duck: null, fish: { name: 'Амазонка', boss: 'gator', song: 'sea3' } };
 const LEVEL7_LEN = 76;
-Object.assign(BOSS, { gator: { name: 'Чёрный аллигатор', label: 'ЧЁРНЫЙ АЛЛИГАТОР', hp: 760, restX: 250, y: [130, 120], head: [-190, -50] } });
+Object.assign(BOSS, { gator: { name: 'Чёрный аллигатор', label: 'ЧЁРНЫЙ АЛЛИГАТОР', hp: 608, restX: 250, y: [130, 120], head: [-190, -50] } });
 Object.assign(BOSS_HIT, { gator: [[-180, 0, 40], [-70, 0, 50], [50, 0, 50], [170, 0, 32]] });
 Object.assign(KINDS, {
   snake:   { hp: 4, r: 16, score: 140, speed: 170, move: 'sine', art: { duck: 'snake', fish: 'snake' } },
@@ -109,7 +109,7 @@ function* gatorBrain(b) {
   for (;;) {
     yield* moveTo(b, W - rand(230, 270), bossY(b), b.phase2 ? 0.7 : 1.0);
     yield* GTA[list[i++ % list.length]](b);
-    yield* wait((b.phase2 ? 0.45 : 0.8) / G.lvlDiff);
+    yield* wait((b.phase2 ? 0.45 : 0.8) / (G.lvlDiff * 0.8));
   }
 }
 
