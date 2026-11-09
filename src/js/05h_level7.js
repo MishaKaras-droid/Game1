@@ -13,7 +13,7 @@ Object.assign(F, {
   redtails(ys) { ys.forEach((yf, i) => later(i * 0.55, () => enemy('redtail', W + 50, yf * H))); },
   crocs(ys) { ys.forEach((yf, i) => later(i * 0.8, () => enemy('croc', W + 70, yf * H))); },
   // spears fall from above, each warned by a red marker first
-  spears(n) { for (let i = 0; i < n; i++) later(i * 0.35, () => { const h = heroHit(); G.spearW.push({ x: i === 0 ? clamp(h.x + rand(-30, 30), 40, W - 40) : rand(60, W - 60), t: 0.8 }); sfx('charge'); }); },
+  spears(n) { n = Math.round(n * 1.5); for (let i = 0; i < n; i++) later(i * 0.35, () => { const h = heroHit(); G.spearW.push({ x: i === 0 ? clamp(h.x + rand(-30, 30), 40, W - 40) : rand(60, W - 60), t: 0.8 }); sfx('charge'); }); },
 });
 const LEVEL7_FISH = [
   [2.0, () => F.line('grunt', 6, 0.3, 0.25)],
