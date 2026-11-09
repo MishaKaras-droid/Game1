@@ -159,7 +159,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -172,7 +172,7 @@ function drawBossEntity(c, b, t) {
   if (b.kind === 'car' && b.nose > 0.01) c.rotate(-b.nose * Math.PI / 2);
   if (b.dead) {
     if (b.kind === 'granny' || b.kind === 'car') c.rotate(b.rot);
-    else if (b.kind === 'squid') { b.friendly = true; if (b.deadT > 1.4) c.scale(-1, 1); }
+    else if (b.kind === 'squid' || b.kind === 'eel') { b.friendly = true; if (b.deadT > 1.4) c.scale(-1, 1); }
     else c.scale(1, Math.cos(b.rot));
   }
   const fn = BOSS_ART[b.kind];
@@ -303,6 +303,7 @@ function drawBanners(c, t) {
     const appear = easeOut(Math.min(1, b.t * 4)), a = clamp(Math.min(appear, (b.life - b.t) * 3), 0, 1);
     c.save(); c.globalAlpha = a;
     c.translate(W / 2, G.run ? H * 0.2 : H * 0.42); const s = 0.6 + 0.4 * appear; c.scale(s, s); c.rotate(-0.04);
+    { c.font = (b.style === 'small' ? '34px ' : '58px ') + FONT_DISPLAY; const fw = c.measureText(b.text).width + 40; if (fw > W * 0.94) { const f = (W * 0.94) / fw; c.scale(f, f); } }
     c.textAlign = 'center'; c.textBaseline = 'middle';
     if (b.style === 'sign') {
       c.font = '54px ' + FONT_HAND;
@@ -337,7 +338,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
-  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua ? 0.2 : p); if (G.level >= 2 && !G.bright && !G.aqua) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); return; }
+  if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
   c.save();
@@ -381,6 +382,7 @@ function render() {
   }
   drawPlayer(c, T);
   drawSquidAlly(c, T);
+  drawEelAlly(c, T);
   drawParts(c);
   for (const b of G.eb) drawEB(c, b, T);
   drawBombFx(c, T);
@@ -389,6 +391,11 @@ function render() {
   drawWarns(c, T);
   if (G.boss && G.boss.speech) drawSpeech(c, G.boss);
   if (G.cameo && G.cameo.t < 3) { const q = toScreen(G.cameo.x, G.cameo.y); speechAt(c, 'Сом, помоги! Меня обижают!', q.x - 40, q.y - 20, 3 - G.cameo.t, 3, -1); }
+  if (G.LI.boss === 'swordfish' && G.phase === 'warn') {
+    const a = toScreen(W * 0.22, 160), b = toScreen(W * 0.64, H - 60);
+    if (G.phaseT > 0.3 && G.phaseT < 1.8) speechAt(c, 'Рыба-меч, приди! ДОН-ДОН!', a.x + 60, a.y - 40, 1.8 - G.phaseT, 1.5, 1);
+    if (G.phaseT > 1.7 && G.phaseT < 3.2) speechAt(c, 'На абордаж! Отомсти за нас!', b.x - 20, b.y - 90, 3.2 - G.phaseT, 1.5, -1);
+  }
   if (G.LI.boss === 'mega' && G.phase === 'warn') {
     const a = toScreen(W * 0.6, H - 96), b = toScreen(W * 0.42, 118);
     if (G.phaseT > 0.3 && G.phaseT < 1.8) speechAt(c, 'Мегалодон, приди!', a.x - 70, a.y - 30, 1.8 - G.phaseT, 1.5, -1);

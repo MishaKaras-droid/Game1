@@ -345,6 +345,7 @@ function drawPipeWalls(c, top, bot) {
 /* ---------- endings shared with level 3 */
 const OUTRO = {
   mega: { a: 'ТЫ ПРОСТО БОСС,', b: 'ТЫ ПРОСТО НАЧАЛЬНИК!', lines: ['Теперь угадайте,', 'кого вызовет на помощь', 'Мегалодон?'], end: 'tentacle' },
+  swordfish: { a: 'ДА КАК ТАК?', b: 'КАК ТЫ СМОГ?!', lines: ['Я думал, ты не справишься…', 'Как так?..', 'ТЕБЕ КОНЕЦ.'], end: 'red' },
   kraken: { a: 'ТЫ БОЛЬШОЙ МОЛОДЕЦ,', b: 'НО В СЛЕДУЮЩИЙ РАЗ ТЕБЕ НЕ ПОВЕЗЁТ!', lines: ['Зря ты тронул', 'моих детей…', 'Тебе несдобровать.'], end: 'sword' },
 };
 // the swordfish's bill pierces the darkness, the screen cracks, an eye lights up

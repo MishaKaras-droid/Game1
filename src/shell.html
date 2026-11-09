@@ -186,6 +186,17 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 }
 #btnSquid .sq-label { background: rgba(34,29,46,.75); border-radius: 8px; padding: 4px 5px; }
 #btnSquid .key { position: absolute; bottom: -18px; font: 900 10px var(--font-ui); color: var(--paper); opacity: .8; }
+#btnEel {
+  --p: 0;
+  position: absolute; right: 24px; bottom: 196px; width: 66px; height: 66px; border-radius: 50%; padding: 0;
+  border: 4px solid var(--ink); color: var(--paper); box-shadow: 0 4px 0 var(--ink);
+  background: conic-gradient(#ffe14d calc(var(--p) * 1%), #2a3a55 0);
+  display: grid; place-items: center; font: 900 11px var(--font-ui); letter-spacing: .03em; line-height: 1;
+}
+#btnEel .sq-label { background: rgba(34,29,46,.75); border-radius: 8px; padding: 4px 5px; }
+#btnEel .key { position: absolute; bottom: -18px; font: 900 10px var(--font-ui); color: var(--paper); opacity: .8; }
+#btnEel.ready { animation: squidReady 0.9s ease-in-out infinite; }
+#btnEel.active { background: radial-gradient(circle, #fff8a0, #3aa6e8); }
 #btnSquid.ready { animation: squidReady 0.9s ease-in-out infinite; }
 #btnSquid.active { background: radial-gradient(circle, #ff8fc0, #b23c72); }
 @keyframes squidReady { 50% { box-shadow: 0 4px 0 var(--ink), 0 0 0 8px rgba(214,90,160,.45); } }
@@ -315,6 +326,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   #btnBomb svg { width: 28px; height: 28px; }
   #btnPause { width: 40px; height: 40px; top: 6px; right: 8px; }
   #btnSquid { width: 56px; height: 56px; right: 19px; bottom: 90px; }
+  #btnEel { width: 56px; height: 56px; right: 19px; bottom: 164px; }
   #btnJump { width: 84px; height: 84px; bottom: 12px; }
   #dashBar { height: 48px; bottom: 12px; }
   #hud.runner.touch #btnBomb { bottom: 108px; right: 28px; width: 56px; height: 56px; }
@@ -342,6 +354,10 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       <span class="dash-fill" id="dashFill"></span>
       <span class="dash-lbl">РЫВОК</span>
       <span class="dash-key" id="dashKey">SHIFT</span>
+    </button>
+    <button id="btnEel" type="button" aria-label="Позвать угря" hidden>
+      <span class="sq-label">УГОРЬ</span>
+      <span class="key" id="eelKey">E</span>
     </button>
     <button id="btnSquid" type="button" aria-label="Позвать кальмара" hidden>
       <span class="sq-label">КАЛЬ&#173;МАР</span>
@@ -376,6 +392,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
           <button class="chip" type="button" data-mode="fish" data-level="2"><span class="lv">Уровень </span>2 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="3"><span class="lv">Уровень </span>3 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="4"><span class="lv">Уровень </span>4 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="5"><span class="lv">Уровень </span>5 ▸</button>
         </span>
       </div>
     </div>

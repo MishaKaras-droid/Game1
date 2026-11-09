@@ -89,25 +89,34 @@ MOVES.pup = (e, dt) => {
 };
 
 /* ---------- mini-boss: the squid in its burrow, then it joins the carp */
-function startMini() {
+function startMini(kind) {
+  kind = kind || 'squid';
   G.timers.length = 0; G.lair = true;
   for (const b of G.eb) { b.dead = true; puff(b.x, b.y); }
-  banner('НОРКА КАЛЬМАРА', 'Мини-босс!', 2.6);
+  if (kind === 'eel') banner('ВНИЗ, В НОРКУ!', 'Мини-босс: электрический угорь', 2.8);
+  else banner('НОРКА КАЛЬМАРА', 'Мини-босс!', 2.6);
   sfx('siren');
-  spawnBoss('squid');
+  spawnBoss(kind);
 }
 function miniDie(b) {
   b.dead = true; b.hp = 0; b.deadT = 0; b.vul = false; b.dash = false; b.telegraph = 0; b.lash = null;
   G.phase = 'miniDead'; G.phaseT = 0;
   for (const x of G.eb) { x.dead = true; puff(x.x, x.y); }
-  say(b, 'Ладно, сдаюсь! Теперь я за тебя!');
+  say(b, b.kind === 'eel' ? 'Ладно, брат, сдаюсь! Теперь я с тобой!' : 'Ладно, сдаюсь! Теперь я за тебя!');
   addScore(3000, b.x, b.y - 60);
   burst(b.x, b.y, 16, { type: 'star', col: '#ff8fc0', smin: 60, smax: 220, lmin: 0.6, lmax: 1.1, rmin: 4, rmax: 7 });
   sfx('charm');
   Sound.music(G.LI.song);
 }
 function endMini() {
+  const kind = G.boss && G.boss.kind;
   G.boss = null; G.lair = false; G.phase = 'waves'; G.phaseT = 0;
+  if (kind === 'eel') {
+    G.eelUnlocked = true; G.eelCharge = 100;
+    banner('УГОРЬ ТЕПЕРЬ ТВОЙ ДРУГ!', isTouch ? 'Копи заряд и зови его кнопкой «Угорь»' : 'Копи заряд и зови его кнопкой «Угорь» или клавишей E', 3.4);
+    startTunnel({ len: 900, speed: 230, noRampIn: true, gBase: 200, amp: 0.3, quiet: true });
+    return;
+  }
   G.squidUnlocked = true; G.squidCharge = 100;
   banner('КАЛЬМАР ТЕПЕРЬ ТВОЙ ДРУГ!', isTouch ? 'Копи силу и зови его кнопкой «Кальмар»' : 'Копи силу и зови его кнопкой «Кальмар» или клавишей Q', 3.4);
   startTunnel({ len: 900, speed: 230, noRampIn: true, gBase: 200, amp: 0.3, quiet: true });
@@ -202,7 +211,7 @@ function updatePortal() {
     p.sc = 1 - e * 0.95; p.spin = e * 12;
     if (Math.random() < 0.7) { const a = rand(0, TAU), r = rand(140, 260); part({ type: 'dot', x: P0.x + Math.cos(a) * r, y: P0.y + Math.sin(a) * r, vx: -Math.cos(a) * r * 2.5, vy: -Math.sin(a) * r * 2.5, r: rand(2, 4), life: 0.4, col: '#9dff6a' }); }
   } else if (!P0.done) {
-    P0.done = true; if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else G.dark = true; G.flash = 0.9; G.flashColor = '#7CFF4F'; sfx('bomb');
+    P0.done = true; if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else { G.dark = true; G.lake = false; G.aqua = null; } G.flash = 0.9; G.flashColor = '#7CFF4F'; sfx('bomb');
     p.x = W * 0.2; p.y = H / 2;
   }
   if (k >= 2.4) { const e = clamp((k - 2.4) / 0.8, 0, 1); p.sc = Math.max(0.05, e); p.spin = (1 - e) * 8; }
@@ -258,6 +267,7 @@ function updateHelpers(dt) {
     const h = heroHit(), kind = list[(G.helperN - 1) % list.length];
     if (kind === 'pike') G.helper = { kind: 'pike', t: 0, tx: h.x, ty: h.y };
     else if (kind === 'mega') G.helper = { kind: 'mega', t: 0, x: W + 320, y: clamp(h.y, 80, H - 80) };
+    else if (kind === 'kraken') G.helper = { kind: 'kraken', t: 0, x: clamp(h.x, 60, W * 0.7), top: Math.random() < 0.5 };
     else { const top = h.y > H / 2; G.helper = { kind: 'catfish', t: 0, x: clamp(h.x + 260, 300, W * 0.6), y: top ? 95 : H - 80 }; }
     sfx('charge');
   }
@@ -268,6 +278,11 @@ function updateHelpers(dt) {
     if (k.t < 0.65) { k.tx = lerp(k.tx, h.x, Math.min(1, dt * 6)); k.ty = lerp(k.ty, h.y, Math.min(1, dt * 6)); }
     if (k.t >= 1.0 && !k.bit) { k.bit = true; sfx('swoosh'); G.shake = Math.max(G.shake, 6); if (d2(h.x, h.y, k.tx, k.ty) < 64 * 64) hurtPlayer(); ringFx(k.tx, k.ty, 10, 70, '#ff3d5a', 0.3); }
     if (k.t > 1.7) G.helper = null;
+  } else if (k.kind === 'kraken') {
+    if (k.t < 0.6) k.x = lerp(k.x, clamp(h.x, 60, W * 0.7), Math.min(1, dt * 6));
+    if (k.t >= 0.9 && !k.hit) { k.hit = true; sfx('swoosh'); G.shake = Math.max(G.shake, 8); floatText(k.x, k.top ? 90 : H - 90, 'НА АБОРДАЖ!', '#9dff6a', 20); }
+    if (k.t >= 0.9 && k.t < 1.35 && Math.abs(h.x - k.x) < 30) hurtPlayer();
+    if (k.t > 1.6) G.helper = null;
   } else if (k.kind === 'mega') {
     // the megalodon charges across the screen along a warned line
     if (k.t < 0.8) k.y = lerp(k.y, clamp(h.y, 80, H - 80), Math.min(1, dt * 5));
@@ -293,7 +308,7 @@ function updateHelpers(dt) {
 function updateOutro(dt) {
   const o = G.outro; o.t += dt;
   if (o.t > 3.8 && o.s < 1) { o.s = 1; sfx('drone'); }
-  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else sfx('squelch'); G.shake = 14; }
+  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else sfx('squelch'); G.shake = 14; }
   if (o.t >= 12.4) onWin();
 }
 
@@ -371,9 +386,10 @@ function drawFriendsBg(c, t) {
   if (!list || !(G.phase === 'warn' || G.phase === 'boss' || G.phase === 'dead')) return;
   const k = G.phase === 'warn' ? clamp(G.phaseT / 1.2, 0, 1) : 1, hk = G.helper && G.helper.kind;
   c.save(); c.globalAlpha = 0.3 * k;
-  if (list.includes('mega') && hk !== 'mega' && G.phase !== 'warn') { c.save(); c.translate(W * 0.22, 160 + Math.sin(t * 0.9) * 10); c.scale(0.42, 0.42); drawMega(c, { mouth: 0.2 }, t); c.restore(); }
-  if (hk !== 'pike') { c.save(); c.translate(W * 0.42, 118 + Math.sin(t * 1.3) * 8); c.scale(0.55, 0.55); drawPike(c, { mouth: 0.2 }, t); c.restore(); }
-  if (hk !== 'catfish') { c.save(); c.translate(W * 0.6, H - 96 + Math.sin(t * 1.1 + 1) * 8); c.scale(0.5, 0.5); drawCatfish(c, { mouth: 0.2 }, t); c.restore(); }
+  if (list.includes('kraken') && hk !== 'kraken') { c.save(); c.translate(W * 0.64, H - 40 + Math.sin(t * 0.8) * 8); c.scale(0.36, 0.36); drawKraken(c, { mouth: 0.2 }, t); c.restore(); }
+  if (list.includes('mega') && hk !== 'mega' && (G.phase !== 'warn' || G.LI.boss !== 'kraken')) { c.save(); c.translate(W * 0.22, 160 + Math.sin(t * 0.9) * 10); c.scale(0.42, 0.42); drawMega(c, { mouth: 0.2 }, t); c.restore(); }
+  if (list.includes('pike') && hk !== 'pike') { c.save(); c.translate(W * 0.42, 118 + Math.sin(t * 1.3) * 8); c.scale(0.55, 0.55); drawPike(c, { mouth: 0.2 }, t); c.restore(); }
+  if (list.includes('catfish') && hk !== 'catfish') { c.save(); c.translate(W * 0.6, H - 96 + Math.sin(t * 1.1 + 1) * 8); c.scale(0.5, 0.5); drawCatfish(c, { mouth: 0.2 }, t); c.restore(); }
   c.restore();
 }
 function drawHelpers(c, t) {
@@ -384,6 +400,8 @@ function drawHelpers(c, t) {
     const s = lerp(0.2, 0.62, easeOut(grow)) * (1 - out * 0.6), lunge = k.t > 1.0 ? Math.min(1, (k.t - 1.0) / 0.12) : 0;
     c.save(); c.globalAlpha = Math.min(1, 0.3 + grow) * (1 - out); c.translate(k.tx + 150 * s / 0.62 - lunge * 60, k.ty - 8); c.scale(s, s);
     drawPike(c, { mouth: k.t > 0.8 && k.t < 1.15 ? 1 : 0.3, phase2: true }, t); c.restore();
+  } else if (k.kind === 'kraken') {
+    drawKrakenHelper(c, k, t);
   } else if (k.kind === 'mega') {
     if (k.t < 1.1) {
       c.save(); c.globalAlpha = 0.35 + 0.35 * Math.sin(t * 28); c.strokeStyle = '#ff3d5a'; c.setLineDash([20, 12]); c.lineWidth = 8;
@@ -409,6 +427,7 @@ function drawSquidAlly(c, t) {
 }
 function drawLash(c, b, t) {
   const L = b.lash; if (!L) return;
+  if (L.phase === 'hit' && b.kind === 'eel') { drawLightningLash(c, b, t); return; }
   if (L.phase === 'warn') { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([16, 10]); c.lineWidth = 6; P(c); c.moveTo(0, L.y); c.lineTo(b.x - 80, L.y); c.stroke(); c.restore(); return; }
   const pts = []; for (let x = b.x - 60; x >= -20; x -= 30) pts.push(x, L.y + Math.sin(x * 0.05 + t * 20) * 5);
   tube(c, pts, 14, b.kind === 'kraken' ? '#3d9a52' : '#e0558f');
@@ -464,7 +483,7 @@ function drawOutro(c) {
     c.fill('evenodd');
   }
   if (k >= 3.9) {
-    const a = clamp((k - 3.9) / 1.4, 0, 1) * (1 - clamp((k - 10.6) / 0.6, 0, 1));
+    const a = clamp((k - 3.9) / 1.4, 0, 1) * (1 - clamp((k - (OUTRO[o.kind || 'mega'].end === 'red' ? 8.9 : 10.6)) / 0.6, 0, 1));
     c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.font = 'italic 700 34px "Old Standard TT", Georgia, "Times New Roman", serif';
     const lines = OUTRO[o.kind || 'mega'].lines;
@@ -474,7 +493,7 @@ function drawOutro(c) {
       for (let i = 0; i < ln.length; i++) {
         const ch = ln[i], wch = c.measureText(ch).width;
         const jx = Math.sin(k * 3 + i * 1.7 + li) * 1.5, jy = Math.sin(k * 2.3 + i * 0.9 + li * 2) * 3;
-        c.fillStyle = li === 2 ? '#c6ffb0' : '#a8d8a0';
+        c.fillStyle = li === 2 ? (OUTRO[o.kind || 'mega'].end === 'red' ? '#ff6b6b' : '#c6ffb0') : '#a8d8a0';
         c.fillText(ch, x + wch / 2 + jx, SH * 0.36 + li * 50 + jy);
         x += wch;
       }
@@ -482,6 +501,7 @@ function drawOutro(c) {
     c.shadowBlur = 0; c.globalAlpha = 1;
   }
   if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'sword') drawSwordEnd(c, k);
+  else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'red') drawRedEnd(c, k);
   else if (k >= 8.6) {
     const slam = easeOut(clamp((k - 8.6) / 0.35, 0, 1)), slide = easeInOut(clamp((k - 9.0) / 2.0, 0, 1)) * SH * 1.1;
     // the tentacle's spine as a curve from the top-right corner
@@ -509,6 +529,6 @@ function drawOutro(c) {
     c.fillStyle = '#d9e8c8';
     for (let i = 3; i < pts.length - 2; i += 2) { const [x, y, w] = pts[i]; P(c); ell(c, x - w * 0.18, y + slide + w * 0.22, w * 0.13 + 2, w * 0.09 + 2); c.fill(); c.lineWidth = 2; c.strokeStyle = '#1b2a1d'; c.stroke(); }
   }
-  if (k >= 11.0) { c.globalAlpha = clamp((k - 11.0) / 1.0, 0, 1); c.fillStyle = '#000'; c.fillRect(0, 0, SW, SH); }
+  if (k >= 11.0 && OUTRO[o.kind || 'mega'].end !== 'red') { c.globalAlpha = clamp((k - 11.0) / 1.0, 0, 1); c.fillStyle = '#000'; c.fillRect(0, 0, SW, SH); }
   c.restore();
 }
