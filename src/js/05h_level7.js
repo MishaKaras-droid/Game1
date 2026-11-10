@@ -197,7 +197,7 @@ function drawAmazon(c, t) {
     const sx = W - ((t * 40) % (W + 400)) + 200;
     line(c, [sx, H - 40, sx, H - 170], 8, '#6b4a2a');
     P(c); rr(c, sx - 95, H - 230, 190, 64, 8); fs(c, '#8a5a2b', 3);
-    c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff6e5'; c.fillText('ОЗЕРО 67', sx, H - 198);
+    c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff6e5'; c.fillText(G.lakeSign || 'ОЗЕРО 67', sx, H - 198);
   }
   c.restore();
 }

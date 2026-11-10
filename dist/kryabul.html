@@ -76,7 +76,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   color: var(--ink);
 }
 .half.sea {
-  padding-block: var(--title-gap) 26px;
+  padding-block: var(--title-gap) 40px;
   background:
     repeating-linear-gradient(100deg, rgba(255, 255, 255, .06) 0 40px, rgba(255, 255, 255, 0) 40px 120px),
     linear-gradient(var(--sea-hi), var(--sea-lo));
@@ -307,14 +307,17 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .chip .lv { display: none; }
 .chip { padding: clamp(4px, 0.9vh, 8px) clamp(10px, 1.8vh, 16px); font-size: clamp(12px, 2.2vh, 17px); }
 .chips { gap: 6px; }
+.sea .chips { max-width: min(520px, 46vw); }
 @media (max-height: 460px) and (orientation: landscape) {
   .who .desc { display: none; }
   .controls-hint { display: none; }
   .half.sea { padding-top: calc(var(--title-gap) * 1.25); }
+  .sea .chips { max-width: none; }
 }
 @media (orientation: portrait) {
   .chips::before { font-size: clamp(12px, 3.6vw, 17px); }
   .sea .chips::before { flex-basis: 100%; text-align: center; }
+  .sea .chips { max-width: none; }
   .chip { font-size: clamp(11px, 3.4vw, 16px); padding: 5px clamp(8px, 2.6vw, 14px); }
   .half { --title-gap: clamp(26px, 7.5vw, 64px); flex-direction: column; text-align: center; gap: clamp(4px, 1.2vh, 12px); }
   .half.sky { padding-block: clamp(36px, 5vh, 56px) calc(var(--title-gap) * 1.7); }
@@ -425,6 +428,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
           <button class="chip" type="button" data-mode="fish" data-level="8"><span class="lv">Уровень </span>8 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="9"><span class="lv">Уровень </span>9 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="10"><span class="lv">Уровень </span>10 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="11"><span class="lv">Уровень </span>11 ▸</button>
         </span>
       </div>
     </div>
@@ -2048,11 +2052,11 @@ let G = null;
 let state = 'loading';  // loading | menu | rotate | play | paused | over | win
 
 function newGame(mode, level) {
-  level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(level) ? level : 1;
+  level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(level) ? level : 1;
   if (!LEVEL_INFO[level][mode]) level = 1;
   return {
-    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 10 ? LEVEL10_FISH : level === 9 ? LEVEL9_FISH : level === 8 ? LEVEL8_FISH : level === 7 ? LEVEL7_FISH : level === 6 ? LEVEL6_FISH : level === 5 ? LEVEL5_FISH : level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 10 ? LEVEL10_LEN : level === 9 ? LEVEL9_LEN : level === 8 ? LEVEL8_LEN : level === 7 ? LEVEL7_LEN : level === 6 ? LEVEL6_LEN : level === 5 ? LEVEL5_LEN : level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
-    lvlDiff: mode === 'fish' && level === 10 ? 2.6 : mode === 'fish' && level === 9 ? 1.68 : mode === 'fish' && level === 8 ? 2.0 : mode === 'fish' && level === 7 ? 2.4 : mode === 'fish' && level === 6 ? 1.5 : mode === 'fish' && level === 5 ? 1.69 : mode === 'fish' && level === 4 ? 1.3 : 1,
+    mode, M: MODE[mode], level, LI: LEVEL_INFO[level][mode], L: level === 11 ? LEVEL11_FISH : level === 10 ? LEVEL10_FISH : level === 9 ? LEVEL9_FISH : level === 8 ? LEVEL8_FISH : level === 7 ? LEVEL7_FISH : level === 6 ? LEVEL6_FISH : level === 5 ? LEVEL5_FISH : level === 4 ? LEVEL4_FISH : level === 3 ? (mode === 'duck' ? LEVEL3_DUCK : LEVEL3_FISH) : level === 2 ? (mode === 'duck' ? LEVEL2_DUCK : LEVEL2_FISH) : LEVEL, len: level === 11 ? LEVEL11_LEN : level === 10 ? LEVEL10_LEN : level === 9 ? LEVEL9_LEN : level === 8 ? LEVEL8_LEN : level === 7 ? LEVEL7_LEN : level === 6 ? LEVEL6_LEN : level === 5 ? LEVEL5_LEN : level === 4 ? LEVEL4_LEN : level === 3 ? (mode === 'duck' ? 999 : LEVEL3_LEN) : LEVEL_LEN, run: null,
+    lvlDiff: mode === 'fish' && level === 11 ? 2.7 : mode === 'fish' && level === 10 ? 2.6 : mode === 'fish' && level === 9 ? 1.68 : mode === 'fish' && level === 8 ? 2.0 : mode === 'fish' && level === 7 ? 2.4 : mode === 'fish' && level === 6 ? 1.5 : mode === 'fish' && level === 5 ? 1.69 : mode === 'fish' && level === 4 ? 1.3 : 1,
     spearW: [], amazon: false, lake67: false, mangrove: false,
     eelUnlocked: false, eelCharge: 0, eelT: 0, eel: null, lake: false,
     crocUnlocked: false, crocCharge: 0, crocT: 0, crocA: null, rapids: false, rivers: false, cave: false,
@@ -2781,7 +2785,7 @@ function spawnBoss(kindOpt) {
   G.phase = BOSS[kind].mini ? 'mini' : 'boss'; G.phaseT = 0;
   G.cameo = null;
   const b = { kind, x: W + 280, y: H / 2, oy: 0, hp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff * (G.rush && kind !== 'perch' ? RUSH_HP : 1)), maxHp: Math.round(BOSS[kind].hp * DIFF * G.lvlDiff * (G.rush && kind !== 'perch' ? RUSH_HP : 1)), nose: 0, lights: 0, exh: 0, sucking: false, flash: 0, phase2: false, vul: false, mouth: 0, swing: 0, speech: null, t: 0, dash: false, telegraph: 0, dead: false, deadT: 0, rot: 0, shown: 0 };
-  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain, eel: eelBrain, swordfish: swordBrain, perch: perchBrain, gator: gatorBrain, anaconda: anacondaBrain, crocboss: crocBossBrain, vampire: vampireBrain, salmon: salmonBrain }[kind](b);
+  b.brain = { granny: grannyBrain, pike: pikeBrain, car: carBrain, catfish: catfishBrain, squid: squidBrain, mega: megaBrain, kraken: krakenBrain, eel: eelBrain, swordfish: swordBrain, perch: perchBrain, gator: gatorBrain, anaconda: anacondaBrain, crocboss: crocBossBrain, vampire: vampireBrain, salmon: salmonBrain, crayboss: crayBrain }[kind](b);
   b.brain.next();
   G.boss = b;
   G.lastHealT = G.t; G.lastBombT = G.t;
@@ -2796,7 +2800,7 @@ function damageBoss(dmg) {
   if (G.crocUnlocked && !(G.crocT > 0)) G.crocCharge = Math.min(100, G.crocCharge + 0.2);
   if (!b.phase2 && b.hp < b.maxHp * 0.5) {
     b.phase2 = true; G.shake = Math.max(G.shake, 8);
-    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!', kraken: 'Ну всё, карась! На абордаж!', eel: 'Вот это напряжение!', swordfish: 'Сейчас я тебя нашинкую!', perch: 'Ты меня разозлил, карасишка!', gator: 'Теперь я по-настоящему голоден!', anaconda: 'Ядом по плавникам! Кусь-кусь-кусь!', crocboss: 'Ну всё, щёлк-щёлк!', vampire: 'Теперь я голоден по-настоящему!', salmon: 'Ну всё, карась, держись!' }[b.kind]);
+    say(b, { granny: 'Ах так?! Ну держись!', pike: 'Ты меня разозлил!', car: 'Включаю турбо!', catfish: 'Ну всё, карасик, держись!', squid: 'Восемь рук против одного!', mega: 'ДОН-ДОН-ДОН!!!', kraken: 'Ну всё, карась! На абордаж!', eel: 'Вот это напряжение!', swordfish: 'Сейчас я тебя нашинкую!', perch: 'Ты меня разозлил, карасишка!', gator: 'Теперь я по-настоящему голоден!', anaconda: 'Ядом по плавникам! Кусь-кусь-кусь!', crocboss: 'Ну всё, щёлк-щёлк!', vampire: 'Теперь я голоден по-настоящему!', salmon: 'Ну всё, карась, держись!', crayboss: 'Щёлк-щёлк! Сейчас ущипну по-настоящему!' }[b.kind]);
   }
   if (b.hp <= 0) bossDie();
 }
@@ -2808,7 +2812,8 @@ function bossDie() {
   for (const x of G.eb) { x.dead = true; puff(x.x, x.y); }
   for (const e of G.enemies) killEnemy(e, true);
   b.sucking = false; G.suck = null;
-  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…', kraken: 'Мои детки… мои щупальца…', swordfish: 'Мой меч… треснул…', perch: 'Не может быть… я же самый сильный…', gator: 'Ш-ш-ш… ты ещё пожалеешь…', anaconda: 'Ш-ш-ш… не может быть…', vampire: 'Мои клыки… мои детки…', salmon: 'Уплываю… на нерест…' }[b.kind]);
+  say(b, { granny: 'Ой-ой-ой! Внукам пожалуюсь!', pike: 'Буль… я ещё вернусь…', car: 'Пш-ш-ш… заглохла…', catfish: 'Ой, усы мои, усы…', mega: 'Дон… дон…', kraken: 'Мои детки… мои щупальца…', swordfish: 'Мой меч… треснул…', perch: 'Не может быть… я же самый сильный…', gator: 'Ш-ш-ш… ты ещё пожалеешь…', anaconda: 'Ш-ш-ш… не может быть…', vampire: 'Мои клыки… мои детки…', salmon: 'Уплываю… на нерест…', crayboss: 'Мои клешни… покраснели от стыда…' }[b.kind]);
+  b.lash2 = null;
   b.vlash = null; b.lash = null;
   if (b.kind === 'car') later(1.0, () => { G.heroSay = { text: 'Я твою выхлопную трубу шатала!', t: 3.4 }; sfx('quack2'); });
   addScore(10000, b.x, b.y - 60);
@@ -2991,6 +2996,7 @@ function update(rdt) {
   updateLevel6(dt);
   updateLevel7(dt);
   updateLevel10();
+  updateLevel11();
   updateSquid(rdt);
   updateEel(rdt);
   updateCrocAlly(rdt);
@@ -3211,8 +3217,9 @@ function startPortal(to) {
   for (const e of G.enemies) killEnemy(e, true);
   for (const b of G.eb) { b.dead = true; puff(b.x, b.y); }
   G.pickups.length = 0; G.tunnel = null;
-  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y }, to: to || 'dark', style: to === 'shop' ? 'red' : to === 'lake' ? 'sink' : 'green' };
+  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y }, to: to || 'dark', style: to === 'shop' ? 'red' : to === 'lake' ? 'sink' : to === 'lake228' ? 'vortex' : 'green' };
   if (to === 'lake') banner('СЛИВ!', 'Карася затягивает в раковину!', 2.2);
+  else if (to === 'lake228') banner('ВОРОНКА!', 'Карася засасывает!', 2.2);
   else banner('ПОРТАЛ!', 'Держись, карась!', 2.2);
   sfx('suck');
 }
@@ -3228,6 +3235,7 @@ function updatePortal() {
     P0.done = true; G.cam6 = null;
     if (P0.to === 'shop') { G.deep = false; G.dark = false; G.shop = true; banner('ЗАТОПЛЕННАЯ ШАУРМЕЧНАЯ', 'Берегись вилок и ножей!', 2.6); }
     else if (P0.to === 'mangrove') { G.lake67 = false; G.amazon = false; G.mangrove = true; G.dark = false; banner('МАНГРОВАЯ РЕКА', '', 2.4); }
+    else if (P0.to === 'lake228') { G.rivers = false; G.lake67 = true; G.lakeSign = 'ОЗЕРО 228'; G.dark = false; banner('ОЗЕРО 228', '', 2.6); }
     else if (P0.to === 'lake67') { G.amazon = false; G.lake67 = true; G.dark = false; banner('ОЗЕРО 67', '', 2.6); }
     else if (P0.to === 'lake') { G.shop = false; G.dark = false; G.lake = true; banner('ОЗЕРО', '', 2, 'small'); }
     else if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else { G.dark = true; G.lake = false; G.aqua = null; G.rapids = false; } G.flash = 0.9; G.flashColor = PORTAL_PAL[P0.style || 'green'].fx; sfx('bomb');
@@ -3327,7 +3335,7 @@ function updateHelpers(dt) {
 function updateOutro(dt) {
   const o = G.outro; o.t += dt;
   if (o.t > 3.8 && o.s < 1) { o.s = 1; sfx('drone'); }
-  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else if (o.kind === 'vampire') { sfx('wave'); } else if (o.kind === 'salmon') { sfx('drone'); sfx('clink'); } else sfx('squelch'); G.shake = 14; }
+  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else if (o.kind === 'vampire') { sfx('wave'); } else if (o.kind === 'salmon') { sfx('drone'); sfx('clink'); } else if (o.kind === 'crayboss') { sfx('drone'); sfx('wave'); } else sfx('squelch'); G.shake = 14; }
   if (o.t >= 12.4) onWin();
 }
 
@@ -3446,6 +3454,7 @@ function drawSquidAlly(c, t) {
 }
 function drawLash(c, b, t) {
   const L = b.lash; if (!L) return;
+  if (b.kind === 'crayboss') { drawClawLash(c, b, t); return; }
   if (L.phase === 'hit' && b.kind === 'eel') { drawLightningLash(c, b, t); return; }
   if (L.phase === 'warn') { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([16, 10]); c.lineWidth = 6; P(c); c.moveTo(0, L.y); c.lineTo(b.x - 80, L.y); c.stroke(); c.restore(); return; }
   const pts = []; for (let x = b.x - 60; x >= -20; x -= 30) pts.push(x, L.y + Math.sin(x * 0.05 + t * 20) * 5);
@@ -3455,6 +3464,7 @@ function drawLash(c, b, t) {
 const PORTAL_PAL = {
   green: { glow: 'rgba(120,255,80,A)', fill: '#1f6b18', s1: '#9dff6a', s2: '#d8ff9e', rim: '#c6ff6a', fx: '#7CFF4F' },
   red: { glow: 'rgba(255,30,40,A)', fill: '#120006', s1: '#ff2d3d', s2: '#3a0008', rim: '#ff4d4d', fx: '#ff2d3d' },
+  vortex: { glow: 'rgba(90,170,255,A)', fill: '#0a2a5a', s1: '#5fb6ff', s2: '#e6f6ff', rim: '#8fd0ff', fx: '#bfe6ff' },
   sink: { glow: 'rgba(190,225,255,A)', fill: '#1a2a3a', s1: '#bfe6ff', s2: '#eaf6ff', rim: '#c0c8d4', fx: '#d8f0ff' },
 };
 function drawPortal(c, t) {
@@ -3532,6 +3542,7 @@ function drawOutro(c) {
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'vampire') drawVampireEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'salmon') drawSalmonEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'crayfish') drawCrayfishEnd(c, k);
+  else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'koi') drawKoiEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'tentacle') {
     const slam = easeOut(clamp((k - 8.6) / 0.35, 0, 1)), slide = easeInOut(clamp((k - 9.0) / 2.0, 0, 1)) * SH * 1.1;
     // the tentacle's spine as a curve from the top-right corner
@@ -4572,6 +4583,7 @@ function drawPipeWalls(c, top, bot) {
 /* ---------- endings shared with level 3 */
 const OUTRO = {
   mega: { a: 'ТЫ ПРОСТО БОСС,', b: 'ТЫ ПРОСТО НАЧАЛЬНИК!', lines: ['Теперь угадайте,', 'кого вызовет на помощь', 'Мегалодон?'], end: 'tentacle' },
+  crayboss: { a: null, b: null, lines: ['СЛЕДУЮЩИЙ БОСС', 'ОЧЕНЬ', 'СИЛЬНЫЙ!'], colors: ['#ff4040', '#3fbf3f', '#0b0b0b'], end: 'koi' },
   salmon: { a: null, b: null, lines: ['СЛЕДУЮЩИЙ БОСС', 'УЩИПНЕТ', 'ТЕБЯ'], colors: ['#0b0b0b', '#3fbf3f', '#0b0b0b'], end: 'crayfish' },
   vampire: { a: null, b: null, lines: ['ТЫ СПРАВИЛСЯ, БОЕЦ!', 'ТЫ ОТПРАВЛЯЕШЬСЯ', 'В РУССКИЕ РЕКИ. УДАЧИ!'], colors: ['#ff5a5a', '#8dff6a', '#ff5a5a'], end: 'salmon' },
   anaconda: { a: null, b: null, lines: ['Следующий босс', 'тебе', 'не по плавникам…'], end: 'vampire' },
@@ -5803,7 +5815,7 @@ function drawAmazon(c, t) {
     const sx = W - ((t * 40) % (W + 400)) + 200;
     line(c, [sx, H - 40, sx, H - 170], 8, '#6b4a2a');
     P(c); rr(c, sx - 95, H - 230, 190, 64, 8); fs(c, '#8a5a2b', 3);
-    c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff6e5'; c.fillText('ОЗЕРО 67', sx, H - 198);
+    c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff6e5'; c.fillText(G.lakeSign || 'ОЗЕРО 67', sx, H - 198);
   }
   c.restore();
 }
@@ -6406,6 +6418,124 @@ function drawCrayfishEnd(c, k) {
   if (open < 0.05 && e > 0.66 && e < 0.72) { c.fillStyle = 'rgba(255,60,40,0.18)'; c.fillRect(0, 0, SW, SH); }
 }
 
+/* ============================================================ level 11 (carp): rivers, whirlpool, lake 228, crayfish boss */
+LEVEL_INFO[11] = { duck: null, fish: { name: 'Озеро 228', boss: 'crayboss', song: 'sea3' } };
+const LEVEL11_LEN = 66;
+Object.assign(BOSS, { crayboss: { name: 'Красный рак', label: 'КРАСНЫЙ РАК', hp: 780, restX: 260, y: [150, 150], head: [-150, -70] } });
+Object.assign(BOSS_HIT, { crayboss: [[-150, -55, 40], [-150, 55, 40], [-20, 0, 54], [110, 0, 44], [200, 0, 30]] });
+const LEVEL11_FISH = [
+  [2.0, () => F.herrings(10, 0.35)],
+  [4.0, () => F.pikelets([0.7])],
+  [5.5, () => F.crayfish(3)],
+  [7.5, () => F.carrier('power', 0.5)],
+  [8.5, () => F.herrings(12, 0.65)],
+  [10.5, () => F.smallcats([0.3, 0.7])],
+  [13.0, () => { F.pikelets([0.25, 0.75]); F.crayfish(2); }],
+  [15.5, () => F.health(0.5)],
+  [16.5, () => { F.herrings(12, 0.5); F.smallcats([0.8]); }],
+  [19.5, () => { F.crayfish(3); F.pikelets([0.4]); }],
+  [22.0, () => F.carrier('charm', 0.4)],
+  [23.5, () => F.herrings(14, 0.3)],
+  [26.0, () => startPortal('lake228')],
+  [31.0, () => F.perches([0.3, 0.7])],
+  [33.5, () => { F.crayfish(3); F.crucians(6, 0.5); }],
+  [36.0, () => F.pikelets([0.25, 0.75])],
+  [38.5, () => { F.perches([0.2, 0.5, 0.8]); F.health(0.5); }],
+  [41.0, () => F.crucians(8, 0.35)],
+  [43.0, () => { F.crayfish(4); F.smallcats([0.5]); }],
+  [46.0, () => F.carrier('power', 0.4)],
+  [47.5, () => { F.perches([0.3, 0.7]); F.pikelets([0.5]); }],
+  [50.5, () => F.crucians(8, 0.65)],
+  [53.0, () => { F.crayfish(3); F.perches([0.25, 0.75]); }],
+  [56.0, () => { F.health(0.5); F.carrier('charm', 0.3); }],
+  [58.0, () => { F.pikelets([0.2, 0.5, 0.8]); F.crucians(6, 0.4); }],
+  [61.5, () => { F.carrier('bomb', 0.5); F.health(0.3); }],
+];
+
+/* ---------- red crayfish boss */
+const CRA = {
+  *perches(b) {
+    say(b, pick(['Окуни, ко мне!', 'Полосатые, в атаку!']));
+    for (let k = 0; k < (b.phase2 ? 5 : 3); k++) { later(k * 0.25, () => enemy('perch', W + 40, H * (0.18 + k * 0.16), { amp: 45, freq: 2.6, phase: k })); }
+    yield* wait(1.3);
+  },
+  *pinch(b) {
+    say(b, pick(['Ущипну!', 'Клешнёй тебя!']));
+    yield* moveTo(b, b.x, clamp(heroHit().y, 150, H - 150), 0.5);
+    b.mouth = 1; yield* dash(b, 1000);
+  },
+  *shells(b) {
+    say(b, 'Панцирная шрапнель!');
+    for (let v = 0; v < (b.phase2 ? 4 : 3); v++) { for (const s of [-1, 1]) { const q = bp(b, -190, s * 55); spread(q.x, q.y, 3, 0.2, 240, { col: '#e8452c', r: 7 }); } sfx('throw'); yield* wait(0.45); }
+  },
+  *scissor(b) {
+    say(b, 'Клешни-ножницы!');
+    for (let k = 0; k < (b.phase2 ? 2 : 1); k++) {
+      const y = clamp(heroHit().y, 70, H - 70);
+      b.lash = { y: y - 46, phase: 'warn' }; b.lash2 = { y: y + 46, phase: 'warn' }; sfx('charge');
+      yield* wait(0.75);
+      b.lash.phase = 'hit'; b.lash2.phase = 'hit'; sfx('clink'); G.shake = Math.max(G.shake, 7);
+      // the claws close towards the middle line
+      for (let t = 0; t < 0.45;) { const dt = yield; t += dt; b.lash.y = lerp(y - 46, y - 10, t / 0.45); b.lash2.y = lerp(y + 46, y + 10, t / 0.45); }
+      b.lash = null; b.lash2 = null; yield* wait(0.3);
+    }
+  },
+  *ring(b) {
+    say(b, 'Рачий вихрь!');
+    for (let k = 0; k < (b.phase2 ? 3 : 2); k++) { const q = bp(b, -40, 0); ring(q.x, q.y, 16, 185, { col: '#e8452c', r: 7 }, k * 0.2); sfx('bubble'); yield* wait(0.5); }
+  },
+};
+function* crayBrain(b) {
+  yield* moveTo(b, W - 260, H * 0.5, 2.6);
+  b.vul = true;
+  say(b, 'Щёлк-щёлк! Добро пожаловать в озеро 228!');
+  yield* wait(1.2);
+  const list = ['shells', 'perches', 'pinch', 'scissor', 'ring'];
+  let i = 0;
+  for (;;) {
+    yield* moveTo(b, W - rand(240, 280), bossY(b), b.phase2 ? 0.7 : 1.0);
+    yield* CRA[list[i++ % list.length]](b);
+    yield* wait((b.phase2 ? 0.45 : 0.8) / G.lvlDiff);
+  }
+}
+function updateLevel11() {
+  const B = G.boss;
+  if (B && B.kind === 'crayboss' && B.lash2 && B.lash2.phase === 'hit') { const h = heroHit(); if (Math.abs(h.y - B.lash2.y) < 22 && h.x < B.x) hurtPlayer(); }
+}
+
+/* ============================================================ art */
+function drawCrayBoss(c, b, t) {
+  c.save(); c.scale(4.6, 4.6); ART.crayfish(c, { seed: 3 }, t * (b.dash ? 2 : 1)); c.restore();
+  const angry = b.phase2;
+  // big angry eyes on stalks
+  for (const s of [-1, 1]) { tube(c, [-60, s * 14, -82, s * 30], 4, '#8a3a22'); P(c); circ(c, -84, s * 32, 11); fs(c, '#fff', 3); P(c); circ(c, -88, s * 32, 5.5); c.fillStyle = angry ? '#e63946' : INK; c.fill(); }
+  line(c, [-100, -46, -70, -36], 5); line(c, [-100, 46, -70, 36], 5);
+}
+function drawClawLash(c, b, t) {
+  for (const L of [b.lash, b.lash2]) {
+    if (!L) continue;
+    if (L.phase === 'warn') { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([16, 10]); c.lineWidth = 6; P(c); c.moveTo(0, L.y); c.lineTo(b.x - 80, L.y); c.stroke(); c.restore(); continue; }
+    tube(c, [b.x - 100, L.y, -20, L.y], 16, '#c4532f');
+    c.fillStyle = '#e8794f'; for (let x = b.x - 120; x > 0; x -= 40) { P(c); ell(c, x, L.y, 10, 6); c.fill(); }
+  }
+}
+// ending hint: a pale fish with orange-red patches glides through the dark, long fins trailing
+function drawKoiEnd(c, k) {
+  const e = clamp((k - 8.8) / 2.4, 0, 1); if (e <= 0 || e >= 1) return;
+  const vis = Math.sin(e * Math.PI), x = lerp(-200, SW + 200, e), y = SH * 0.78 + Math.sin(e * 9) * 10;
+  c.save(); c.globalAlpha = 0.17 * vis; c.translate(x, y); c.scale(-1, 1);
+  const sw = Math.sin(k * 6) * 0.25;
+  c.save(); c.translate(60, 0); c.rotate(sw);
+  P(c); c.moveTo(0, 0); c.quadraticCurveTo(50, -40, 90, -30); c.quadraticCurveTo(60, 0, 90, 30); c.quadraticCurveTo(50, 40, 0, 0); c.closePath(); c.fillStyle = 'rgba(240,235,225,0.8)'; c.fill(); c.restore();
+  P(c); ell(c, 0, 0, 70, 26); c.fillStyle = '#efe8dc'; c.fill();
+  c.fillStyle = '#e8562c'; for (const [px, py, r] of [[-30, -8, 14], [10, 6, 12], [36, -10, 10]]) { P(c); ell(c, px, py, r, r * 0.7); c.fill(); }
+  c.fillStyle = '#ffcf4a'; P(c); ell(c, -50, -4, 6, 4); c.fill();
+  c.restore();
+  // a faint ripple where it passed
+  const rk = clamp((e - 0.5) / 0.5, 0, 1);
+  if (rk > 0) { P(c); ell(c, SW * 0.5, SH * 0.78, 40 + rk * 160, 10 + rk * 30); c.lineWidth = 2; c.strokeStyle = 'rgba(255,190,120,' + (0.3 * (1 - rk)).toFixed(2) + ')'; c.stroke(); }
+}
+
 /* ============================================================ particles & effects */
 const FONT_DISPLAY = '"Dela Gothic One", "Arial Black", Impact, sans-serif';
 const FONT_UI = '"Nunito", "Segoe UI", Roboto, Arial, sans-serif';
@@ -6567,7 +6697,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda, crocboss: drawCrocBoss, vampire: drawVampire, salmon: drawSalmon };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda, crocboss: drawCrocBoss, vampire: drawVampire, salmon: drawSalmon, crayboss: drawCrayBoss };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -6937,6 +7067,7 @@ function startGame(mode, fromBoss, level) {
     if (G.level === 3 && G.mode === 'fish') { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 4) { G.bright = true; G.squidUnlocked = true; G.squidCharge = 100; }
     if (G.level === 5) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
+    if (G.level === 11) { G.lake67 = true; G.lakeSign = 'ОЗЕРО 228'; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; }
     if (G.level === 10) { G.rivers = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; }
     if (G.level === 9) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; }
     if (G.level === 8) { G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
@@ -6945,6 +7076,7 @@ function startGame(mode, fromBoss, level) {
     if (G.level === 3 && G.mode === 'duck') startRunner(true);
   } else {
     if (G.level === 3 && G.mode === 'fish') { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
+    else if (G.level === 11) { banner('УРОВЕНЬ 11', 'Бурные реки', 3, 'green'); sfx('swoosh'); G.rivers = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; G.crocUnlocked = true; G.crocCharge = 50; }
     else if (G.level === 10) { banner('ГАЗУЕМ!', 'Уровень 10 · русские реки', 3.2, 'green'); sfx('swoosh'); G.rivers = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; G.crocUnlocked = true; G.crocCharge = 50; }
     else if (G.level === 9) { banner('ГОТОВЬСЯ, БОЕЦ!', 'Уровень 9 · бурная Амазонка', 3.2, 'green'); sfx('wave'); G.rapids = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
     else if (G.level === 8) { banner('ЭТО БУДЕТ НЕЛЕГКО', 'Уровень 8 · озеро 67', 3.2, 'green'); sfx('drone'); G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
@@ -7008,6 +7140,7 @@ function onWin() {
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
     mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
     kraken: 'Кракен повержен! Но где-то в темноте кто-то уже точит свой нос…',
+    crayboss: 'Красный рак повержен! Но говорят, следующий босс очень сильный…',
     salmon: 'Красный лосось повержен! Но под камнями кто-то уже щёлкает клешнями…',
     vampire: 'Рыба-вампир повержена! Ты справился, боец. Впереди — русские реки…',
     anaconda: 'Большая анаконда повержена! Но в тёмной воде блеснули чьи-то длинные клыки…',
@@ -7240,7 +7373,7 @@ window.__kb = {
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 8) { G.lake67 = false; G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 9) { G.rapids = false; G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } if (G.level === 10) { G.rivers = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if (G.level === 3 && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 8) { G.lake67 = false; G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 9) { G.rapids = false; G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } if (G.level === 10) { G.rivers = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } if (G.level === 11) { G.rivers = false; G.lake67 = true; G.lakeSign = 'ОЗЕРО 228'; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

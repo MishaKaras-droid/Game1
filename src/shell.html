@@ -76,7 +76,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   color: var(--ink);
 }
 .half.sea {
-  padding-block: var(--title-gap) 26px;
+  padding-block: var(--title-gap) 40px;
   background:
     repeating-linear-gradient(100deg, rgba(255, 255, 255, .06) 0 40px, rgba(255, 255, 255, 0) 40px 120px),
     linear-gradient(var(--sea-hi), var(--sea-lo));
@@ -307,14 +307,17 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .chip .lv { display: none; }
 .chip { padding: clamp(4px, 0.9vh, 8px) clamp(10px, 1.8vh, 16px); font-size: clamp(12px, 2.2vh, 17px); }
 .chips { gap: 6px; }
+.sea .chips { max-width: min(520px, 46vw); }
 @media (max-height: 460px) and (orientation: landscape) {
   .who .desc { display: none; }
   .controls-hint { display: none; }
   .half.sea { padding-top: calc(var(--title-gap) * 1.25); }
+  .sea .chips { max-width: none; }
 }
 @media (orientation: portrait) {
   .chips::before { font-size: clamp(12px, 3.6vw, 17px); }
   .sea .chips::before { flex-basis: 100%; text-align: center; }
+  .sea .chips { max-width: none; }
   .chip { font-size: clamp(11px, 3.4vw, 16px); padding: 5px clamp(8px, 2.6vw, 14px); }
   .half { --title-gap: clamp(26px, 7.5vw, 64px); flex-direction: column; text-align: center; gap: clamp(4px, 1.2vh, 12px); }
   .half.sky { padding-block: clamp(36px, 5vh, 56px) calc(var(--title-gap) * 1.7); }
@@ -425,6 +428,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
           <button class="chip" type="button" data-mode="fish" data-level="8"><span class="lv">Уровень </span>8 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="9"><span class="lv">Уровень </span>9 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="10"><span class="lv">Уровень </span>10 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="11"><span class="lv">Уровень </span>11 ▸</button>
         </span>
       </div>
     </div>

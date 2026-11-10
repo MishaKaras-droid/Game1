@@ -205,8 +205,9 @@ function startPortal(to) {
   for (const e of G.enemies) killEnemy(e, true);
   for (const b of G.eb) { b.dead = true; puff(b.x, b.y); }
   G.pickups.length = 0; G.tunnel = null;
-  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y }, to: to || 'dark', style: to === 'shop' ? 'red' : to === 'lake' ? 'sink' : 'green' };
+  G.portal = { x: W * 0.74, y: H / 2, from: { x: G.player.x, y: G.player.y }, to: to || 'dark', style: to === 'shop' ? 'red' : to === 'lake' ? 'sink' : to === 'lake228' ? 'vortex' : 'green' };
   if (to === 'lake') banner('СЛИВ!', 'Карася затягивает в раковину!', 2.2);
+  else if (to === 'lake228') banner('ВОРОНКА!', 'Карася засасывает!', 2.2);
   else banner('ПОРТАЛ!', 'Держись, карась!', 2.2);
   sfx('suck');
 }
@@ -222,6 +223,7 @@ function updatePortal() {
     P0.done = true; G.cam6 = null;
     if (P0.to === 'shop') { G.deep = false; G.dark = false; G.shop = true; banner('ЗАТОПЛЕННАЯ ШАУРМЕЧНАЯ', 'Берегись вилок и ножей!', 2.6); }
     else if (P0.to === 'mangrove') { G.lake67 = false; G.amazon = false; G.mangrove = true; G.dark = false; banner('МАНГРОВАЯ РЕКА', '', 2.4); }
+    else if (P0.to === 'lake228') { G.rivers = false; G.lake67 = true; G.lakeSign = 'ОЗЕРО 228'; G.dark = false; banner('ОЗЕРО 228', '', 2.6); }
     else if (P0.to === 'lake67') { G.amazon = false; G.lake67 = true; G.dark = false; banner('ОЗЕРО 67', '', 2.6); }
     else if (P0.to === 'lake') { G.shop = false; G.dark = false; G.lake = true; banner('ОЗЕРО', '', 2, 'small'); }
     else if (P0.to === 'ocean') { G.aqua = null; G.aquaWall = null; G.dark = false; G.bright = true; banner('ОТКРЫТЫЙ ОКЕАН', '', 2.2, 'small'); } else { G.dark = true; G.lake = false; G.aqua = null; G.rapids = false; } G.flash = 0.9; G.flashColor = PORTAL_PAL[P0.style || 'green'].fx; sfx('bomb');
@@ -321,7 +323,7 @@ function updateHelpers(dt) {
 function updateOutro(dt) {
   const o = G.outro; o.t += dt;
   if (o.t > 3.8 && o.s < 1) { o.s = 1; sfx('drone'); }
-  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else if (o.kind === 'vampire') { sfx('wave'); } else if (o.kind === 'salmon') { sfx('drone'); sfx('clink'); } else sfx('squelch'); G.shake = 14; }
+  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else if (o.kind === 'vampire') { sfx('wave'); } else if (o.kind === 'salmon') { sfx('drone'); sfx('clink'); } else if (o.kind === 'crayboss') { sfx('drone'); sfx('wave'); } else sfx('squelch'); G.shake = 14; }
   if (o.t >= 12.4) onWin();
 }
 
@@ -440,6 +442,7 @@ function drawSquidAlly(c, t) {
 }
 function drawLash(c, b, t) {
   const L = b.lash; if (!L) return;
+  if (b.kind === 'crayboss') { drawClawLash(c, b, t); return; }
   if (L.phase === 'hit' && b.kind === 'eel') { drawLightningLash(c, b, t); return; }
   if (L.phase === 'warn') { c.save(); c.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); c.strokeStyle = '#ff3d5a'; c.setLineDash([16, 10]); c.lineWidth = 6; P(c); c.moveTo(0, L.y); c.lineTo(b.x - 80, L.y); c.stroke(); c.restore(); return; }
   const pts = []; for (let x = b.x - 60; x >= -20; x -= 30) pts.push(x, L.y + Math.sin(x * 0.05 + t * 20) * 5);
@@ -449,6 +452,7 @@ function drawLash(c, b, t) {
 const PORTAL_PAL = {
   green: { glow: 'rgba(120,255,80,A)', fill: '#1f6b18', s1: '#9dff6a', s2: '#d8ff9e', rim: '#c6ff6a', fx: '#7CFF4F' },
   red: { glow: 'rgba(255,30,40,A)', fill: '#120006', s1: '#ff2d3d', s2: '#3a0008', rim: '#ff4d4d', fx: '#ff2d3d' },
+  vortex: { glow: 'rgba(90,170,255,A)', fill: '#0a2a5a', s1: '#5fb6ff', s2: '#e6f6ff', rim: '#8fd0ff', fx: '#bfe6ff' },
   sink: { glow: 'rgba(190,225,255,A)', fill: '#1a2a3a', s1: '#bfe6ff', s2: '#eaf6ff', rim: '#c0c8d4', fx: '#d8f0ff' },
 };
 function drawPortal(c, t) {
@@ -526,6 +530,7 @@ function drawOutro(c) {
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'vampire') drawVampireEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'salmon') drawSalmonEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'crayfish') drawCrayfishEnd(c, k);
+  else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'koi') drawKoiEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'tentacle') {
     const slam = easeOut(clamp((k - 8.6) / 0.35, 0, 1)), slide = easeInOut(clamp((k - 9.0) / 2.0, 0, 1)) * SH * 1.1;
     // the tentacle's spine as a curve from the top-right corner
