@@ -53,7 +53,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 #game { position: absolute; left: 0; top: 0; display: block; background: #0b2f57; }
 
 /* ---------- menu ---------- */
-#menu { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr 1fr; z-index: 5; }
+#menu { --split: 50%; position: absolute; inset: 0; display: grid; grid-template-rows: var(--split) 1fr; z-index: 5; }
 .half {
   --title-gap: clamp(30px, 9.5vh, 104px);
   position: relative;
@@ -114,13 +114,13 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .chip + .chip { opacity: .97; }
 
 .waterline {
-  position: absolute; left: 0; right: 0; top: 50%; height: 26px; margin-top: -14px;
+  position: absolute; left: 0; right: 0; top: var(--split); height: 26px; margin-top: -14px;
   pointer-events: none; z-index: 1; overflow: hidden;
 }
 .waterline svg { width: 200%; height: 100%; display: block; animation: drift 9s linear infinite; }
 @keyframes drift { to { transform: translateX(-50%); } }
 .title {
-  position: absolute; left: 50%; top: 50%; z-index: 2; margin: 0;
+  position: absolute; left: 50%; top: var(--split); z-index: 2; margin: 0;
   transform: translate(-50%, -54%) rotate(-3deg);
   font-family: var(--font-display); font-weight: 400;
   font-size: clamp(30px, 10vh, 112px); line-height: 1; white-space: nowrap;
@@ -305,18 +305,29 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .chips { align-items: center; gap: 8px; }
 .chips::before { content: 'Уровень'; font-weight: 900; font-size: clamp(12px, 2.5vh, 18px); letter-spacing: .04em; text-transform: uppercase; }
 .chip .lv { display: none; }
-.chip { padding-inline: clamp(13px, 2.4vh, 20px); }
+.chip { padding: clamp(4px, 0.9vh, 8px) clamp(10px, 1.8vh, 16px); font-size: clamp(12px, 2.2vh, 17px); }
+.chips { gap: 6px; }
+@media (max-height: 460px) and (orientation: landscape) {
+  .who .desc { display: none; }
+  .controls-hint { display: none; }
+  .half.sea { padding-top: calc(var(--title-gap) * 1.25); }
+}
 @media (orientation: portrait) {
   .chips::before { font-size: clamp(12px, 3.6vw, 17px); }
+  .sea .chips::before { flex-basis: 100%; text-align: center; }
+  .chip { font-size: clamp(11px, 3.4vw, 16px); padding: 5px clamp(8px, 2.6vw, 14px); }
   .half { --title-gap: clamp(26px, 7.5vw, 64px); flex-direction: column; text-align: center; gap: clamp(4px, 1.2vh, 12px); }
   .half.sky { padding-block: clamp(36px, 5vh, 56px) calc(var(--title-gap) * 1.7); }
   .half.sea { padding-block: calc(var(--title-gap) * 1.4) 14px; }
   .who { justify-items: center; max-width: min(92vw, 40ch); }
   .chips { justify-self: center; justify-content: center; }
   .chip { font-size: clamp(12px, 3.8vw, 18px); }
-  .hero.duck { width: min(52vw, 24vh, 320px); }
-  .hero.fish { width: min(68vw, 31vh, 380px); }
-  .title { font-size: clamp(28px, 12.5vw, 96px); }
+  #menu { --split: 46%; }
+  .fs-prompt { max-width: calc(100% - 200px); font-size: 11px; padding: 6px 10px; }
+  .fs-prompt .fs-long { display: none; }
+  .hero.duck { width: min(48vw, 20vh, 300px); }
+  .hero.fish { width: min(62vw, 24vh, 360px); }
+  .title { font-size: clamp(28px, min(12.5vw, 7.5vh), 96px); }
   .who .name { font-size: clamp(22px, 7.4vw, 46px); }
   .who .desc { font-size: clamp(12px, 3.7vw, 18px); }
   .who .rec { font-size: clamp(11px, 3.2vw, 15px); }
@@ -413,6 +424,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
           <button class="chip" type="button" data-mode="fish" data-level="7"><span class="lv">Уровень </span>7 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="8"><span class="lv">Уровень </span>8 ▸</button>
           <button class="chip" type="button" data-mode="fish" data-level="9"><span class="lv">Уровень </span>9 ▸</button>
+          <button class="chip" type="button" data-mode="fish" data-level="10"><span class="lv">Уровень </span>10 ▸</button>
         </span>
       </div>
     </div>
@@ -432,7 +444,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
     <p class="controls-hint" id="controlsHint"></p>
     <button class="fs-prompt" id="fsPrompt" type="button" hidden>
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>
-      Разверни на весь экран
+      <span>На весь<span class="fs-long"> экран</span></span>
     </button>
   </section>
 

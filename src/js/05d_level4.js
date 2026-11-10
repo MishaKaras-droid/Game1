@@ -346,6 +346,7 @@ function drawPipeWalls(c, top, bot) {
 /* ---------- endings shared with level 3 */
 const OUTRO = {
   mega: { a: 'ТЫ ПРОСТО БОСС,', b: 'ТЫ ПРОСТО НАЧАЛЬНИК!', lines: ['Теперь угадайте,', 'кого вызовет на помощь', 'Мегалодон?'], end: 'tentacle' },
+  salmon: { a: null, b: null, lines: ['СЛЕДУЮЩИЙ БОСС', 'УЩИПНЕТ', 'ТЕБЯ'], colors: ['#0b0b0b', '#3fbf3f', '#0b0b0b'], end: 'crayfish' },
   vampire: { a: null, b: null, lines: ['ТЫ СПРАВИЛСЯ, БОЕЦ!', 'ТЫ ОТПРАВЛЯЕШЬСЯ', 'В РУССКИЕ РЕКИ. УДАЧИ!'], colors: ['#ff5a5a', '#8dff6a', '#ff5a5a'], end: 'salmon' },
   anaconda: { a: null, b: null, lines: ['Следующий босс', 'тебе', 'не по плавникам…'], end: 'vampire' },
   gator: { a: null, b: null, lines: ['Как думаете,', 'кто следующий', 'БОСС?'], end: 'snake' },
