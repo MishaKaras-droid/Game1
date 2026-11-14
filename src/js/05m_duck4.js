@@ -320,7 +320,7 @@ function r3Toonify(obj, outline) {
       m.material = tm;
     }
     m.castShadow = !m.material.isMeshBasicMaterial; m.receiveShadow = true;
-    if (outline && !m.material.transparent) { const o = new THREE.Mesh(m.geometry, R3E.outline); o.scale.setScalar(1.08); o.userData.isOutline = true; o.castShadow = false; m.add(o); }
+    if (outline && !m.material.transparent && !m.userData.noOutline) { const o = new THREE.Mesh(m.geometry, R3E.outline); o.scale.setScalar(1.08); o.userData.isOutline = true; o.castShadow = false; m.add(o); }
   });
 }
 function r3EvoSetup(on) {
@@ -460,6 +460,79 @@ function makeObj4(o, g, add) {
     }
   }
 }
+/* ---------- the low-poly 3D duck (Meshy model -> tools/duck_model.py -> DUCK_PACK) */
+function gzB64(b64) {
+  const raw = atob(b64), bin = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+  return new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+}
+const DUCK3 = { state: 'idle' };
+(function duckDecode() {
+  if (typeof DUCK_PACK === 'undefined' || typeof DecompressionStream === 'undefined') { DUCK3.state = 'none'; return; }
+  DUCK3.state = 'loading';
+  try { gzB64(DUCK_PACK.gz).then((buf) => { DUCK3.buf = buf; DUCK3.state = 'raw'; }).catch(() => { DUCK3.state = 'none'; }); } catch (e) { DUCK3.state = 'none'; }
+})();
+function duckParts() {
+  if (DUCK3.parts) return DUCK3.parts;
+  if (DUCK3.state !== 'raw') return null;
+  const h = DUCK_PACK.head, buf = DUCK3.buf, nv = h.nv, nt = h.nt;
+  const Q = new Int16Array(buf, 0, nv * 3), I = new Uint16Array(buf, h.ioff, nt * 3), C = new Uint8Array(buf, h.coff, nt * 3);
+  const P = new Float32Array(nv * 3); for (let i = 0; i < nv * 3; i++) P[i] = Q[i] / h.q + h.lo[i % 3];
+  const H = h.size[1], footTop = H * 0.115, cy = (f) => (P[I[f * 3] * 3 + 1] + P[I[f * 3 + 1] * 3 + 1] + P[I[f * 3 + 2] * 3 + 1]) / 3;
+  const cxyz = (f, a) => (P[I[f * 3] * 3 + a] + P[I[f * 3 + 1] * 3 + a] + P[I[f * 3 + 2] * 3 + a]) / 3;
+  // split: two feet (they step while running) and everything else
+  const parts = { body: [], footL: [], footR: [] };
+  for (let f = 0; f < nt; f++) parts[cy(f) >= footTop ? 'body' : cxyz(f, 0) < 0 ? 'footL' : 'footR'].push(f);
+  // centre the duck between its feet
+  let mx = 0, mz = 0; const feet = parts.footL.concat(parts.footR);
+  for (const f of feet) { mx += cxyz(f, 0); mz += cxyz(f, 2); }
+  mx /= feet.length || 1; mz /= feet.length || 1;
+  for (let v = 0; v < nv; v++) { P[v * 3] -= mx; P[v * 3 + 2] -= mz; }
+  // smooth vertex normals: used to puff the ink-outline shell evenly
+  const VN = new Float32Array(nv * 3), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let f = 0; f < nt; f++) {
+    const i0 = I[f * 3], i1 = I[f * 3 + 1], i2 = I[f * 3 + 2];
+    a.fromArray(P, i0 * 3); b.fromArray(P, i1 * 3).sub(a); c.fromArray(P, i2 * 3).sub(a); b.cross(c);
+    for (const v of [i0, i1, i2]) { VN[v * 3] += b.x; VN[v * 3 + 1] += b.y; VN[v * 3 + 2] += b.z; }
+  }
+  for (let v = 0; v < nv; v++) { a.fromArray(VN, v * 3).normalize().toArray(VN, v * 3); }
+  const OUT = H * 0.012;
+  const build = (list, pivot) => {
+    const n = list.length * 3, pos = new Float32Array(n * 3), opos = new Float32Array(n * 3), col = new Uint8Array(n * 3);
+    list.forEach((f, j) => {
+      for (let k = 0; k < 3; k++) { const v = I[f * 3 + k], o = (j * 3 + k) * 3; for (let ax = 0; ax < 3; ax++) { pos[o + ax] = P[v * 3 + ax] - pivot[ax]; opos[o + ax] = pos[o + ax] + VN[v * 3 + ax] * OUT; col[o + ax] = C[f * 3 + ax]; } }
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true)); geo.computeVertexNormals();
+    const ogeo = new THREE.BufferGeometry(); ogeo.setAttribute('position', new THREE.BufferAttribute(opos, 3));
+    return { geo, ogeo, pivot };
+  };
+  const pivotOf = (list) => { let x = 0, z = 0; for (const f of list) { x += cxyz(f, 0) - mx; z += cxyz(f, 2) - mz; } return [x / (list.length || 1), footTop, z / (list.length || 1)]; };
+  DUCK3.parts = { mat: new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: R3E.grad }), H,
+    body: build(parts.body, [0, 0, 0]), footL: build(parts.footL, pivotOf(parts.footL)), footR: build(parts.footR, pivotOf(parts.footR)) };
+  DUCK3.buf = null;
+  return DUCK3.parts;
+}
+// swap the sphere duck for the model (level 4+); the energy ball for rolls and Boost stays
+function duckModelInstall(D) {
+  const M = duckParts(); if (!M) return false;
+  while (D.body.children.length) D.body.remove(D.body.children[0]);
+  const g = new THREE.Group(); g.scale.setScalar(1.5 / M.H); g.rotation.y = Math.PI;
+  const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.outline); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
+  mk(M.body); const feet = [mk(M.footL), mk(M.footR)];
+  const lean = new THREE.Group(); lean.add(g); D.body.add(lean);
+  D.model = { g, lean, feet };
+  return true;
+}
+function duckModelPose(D, R, t) {
+  const m = D.model; if (!m) return;
+  const air = R.y > 0.01, run = air ? 0 : Math.sin(t * (14 + R.speed * 0.25));
+  m.feet[0].rotation.x = air ? -0.5 : run * 0.7; m.feet[1].rotation.x = air ? -0.5 : -run * 0.7;
+  m.feet[0].position.y = m.feet[0].userData.y0 === undefined ? (m.feet[0].userData.y0 = m.feet[0].position.y) : m.feet[0].userData.y0 + Math.max(0, run) * 0.08;
+  m.feet[1].position.y = m.feet[1].userData.y0 === undefined ? (m.feet[1].userData.y0 = m.feet[1].position.y) : m.feet[1].userData.y0 + Math.max(0, -run) * 0.08;
+  m.lean.rotation.z = run * 0.08 + (air ? Math.sin(t * 9) * 0.06 : 0);
+  m.lean.rotation.x = air ? -0.05 : -0.14;
+  const land = R.landT > 0 ? R.landT : 0; m.lean.scale.set(1 + land * 0.25, 1 - land * 0.3, 1 + land * 0.25);
+}
 function r3EvoFrame(dt, t, F) {
   const R = G.run, D = R3.duck, p = D.root.position;
   // weak device: if frames stay slow for a few seconds, drop the real-time shadows once
@@ -472,6 +545,7 @@ function r3EvoFrame(dt, t, F) {
   }
   for (const s of R3E.trail) if (s.visible) { s.userData.life -= dt; s.material.opacity = Math.max(0, s.userData.life / 0.22) * 0.6; s.scale.multiplyScalar(1 - dt * 1.5); if (s.userData.life <= 0) s.visible = false; }
   D.aura.material.color.set(R.boost > 0 ? '#8fe8ff' : '#ffe066');
+  duckModelPose(D, R, t);
 }
 function drawBoostOverlay(c, t) {
   const R = G.run; if (!(R.boost > 0)) return;

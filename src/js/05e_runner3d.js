@@ -354,7 +354,7 @@ function r3Reset() {
   buildDuck();
   const evo = runCfg().evo >= 2;
   if (evo || R3.evoOn) r3EvoSetup(evo);
-  if (evo) r3Toonify(R3.duck.root, true);
+  if (evo) { duckModelInstall(R3.duck); r3Toonify(R3.duck.root, true); }
 }
 function r3Show(on) {
   if (!R3.renderer || R3.shown === on) return;
