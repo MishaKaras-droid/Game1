@@ -219,6 +219,22 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 }
 #btnJump svg { width: 38px; height: 38px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
 #btnJump:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+#btnKnife {
+  position: absolute; right: 18px; bottom: 18px; width: 82px; height: 82px; border-radius: 50%; padding: 0;
+  border: 4px solid var(--ink); background: radial-gradient(circle at 35% 30%, #f3d9ff, #a970d6 60%, #6b3fa0); color: #fff;
+  box-shadow: 0 5px 0 var(--ink); display: grid; place-items: center; align-content: center; gap: 0;
+  font: 900 12px var(--font-ui); letter-spacing: .05em; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+#btnKnife svg { width: 34px; height: 34px; }
+#btnKnife .key { position: absolute; bottom: -18px; font: 900 10px var(--font-ui); color: #fff; opacity: .8; }
+#btnKnife:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+#hud.touch #btnKnife { right: max(140px, calc(env(safe-area-inset-right, 0px) + 124px)); bottom: 26px; }
+#hud.runner #btnBomb { display: none !important; }
+#dashBar[data-evo="true"] .dash-lbl { font-size: 16px; letter-spacing: .02em; }
+#dashBar[data-evo="true"] .dash-key { display: none; }
+#dashBar[data-evo="true"] .dash-fill { background: linear-gradient(#e9c08f, #9a5b2a); }
+#dashBar[data-evo="true"].full .dash-fill { background: linear-gradient(#ffe0a8, #ff9a1f); }
+#dashBar[data-evo="true"].active .dash-fill { background: linear-gradient(#fff2a0, #ff6a1a 55%, #e0301a); }
 #dashBar {
   position: absolute; left: max(18px, env(safe-area-inset-left, 0px)); bottom: 18px; width: min(320px, 42vw); height: 56px; padding: 0; overflow: hidden;
   border: 4px solid var(--ink); border-radius: 16px; background: rgba(20, 30, 70, .78); box-shadow: 0 5px 0 var(--ink);
@@ -371,6 +387,10 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       <span class="cnt" id="bombCount">2</span>
       <span class="key" id="bombKey">ПРОБЕЛ</span>
       <span class="bub-lbl">ПУЗЫ&#173;РИ</span>
+    </button>
+    <button id="btnKnife" type="button" aria-label="Удар ножом" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l3-1 11-11a2.2 2.2 0 0 0-3-3L4 16z" fill="#eef2f7" stroke="#221d2e" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 21l3.2-3.2" stroke="#7e4fa0" stroke-width="3.4" stroke-linecap="round"/></svg>
+      <span class="kn-lbl">НОЖ</span><span class="key" id="knifeKey">F</span>
     </button>
     <button id="btnJump" type="button" aria-label="Прыжок" hidden>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 9h-5v8H9v-8H4z" fill="currentColor"/></svg>

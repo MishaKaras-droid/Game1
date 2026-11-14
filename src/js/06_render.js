@@ -292,7 +292,7 @@ function drawHUD(c, t) {
     const a = clamp(Math.min((G.t - 1) * 2, (6.5 - G.t) * 2), 0, 1);
     if (a > 0) {
       c.globalAlpha = a; c.font = '800 17px ' + FONT_UI; c.textAlign = 'center';
-      const msg = isTouch ? 'Веди пальцем по экрану — герой повторит движение. Стреляет сам!' : 'Стрелки / WASD или тяни мышью · стреляет сам · Пробел — суперудар';
+      const msg = isTouch ? 'Веди пальцем по экрану — герой повторит движение. Стреляет сам!' : 'Стрелки / WASD или просто веди мышью · стреляет сам · Пробел — суперудар';
       otext(c, msg, W / 2, H - 26, '#fff6e5', 5);
       c.globalAlpha = 1;
     }

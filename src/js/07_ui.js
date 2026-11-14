@@ -246,19 +246,23 @@ let runUi = '';
 function updateRunCtl(run) {
   const show = run && !G.run.end && state !== 'menu';
   const p = show ? Math.round(G.run.meter) : 0, act = show && G.run.boost > 0;
-  const key = show + '|' + p + '|' + act;
+  const key = show + '|' + p + '|' + act + '|' + (show && G.run.fever > 0);
   if (key === runUi) return;
   runUi = key;
   $('hud').classList.toggle('runner', show);
-  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch);
+  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch); $('btnKnife').hidden = !(show && runCfg().evo >= 2);
   $('dashFill').style.width = (act ? 100 : p) + '%';
   const evo = show && runCfg().evo >= 2;
-  if ($('dashBar').dataset.evo !== String(evo)) { $('dashBar').dataset.evo = String(evo); $('dashBar').querySelector('.dash-lbl').textContent = evo ? 'BOOST' : 'РЫВОК'; $('dashBar').setAttribute('aria-label', evo ? 'Boost' : 'Рывок'); }
-  if (evo) { $('dashFill').style.width = p + '%'; $('dashBar').classList.toggle('full', p >= 20 && !act); $('dashBar').classList.toggle('active', act); return; }
+  if ($('dashBar').dataset.evo !== String(evo)) { $('dashBar').dataset.evo = String(evo); $('dashBar').querySelector('.dash-lbl').textContent = evo ? 'КОФЕЙНЫЙ ПЕРЕДОЗ' : 'РЫВОК'; $('dashBar').setAttribute('aria-label', evo ? 'Кофейный передоз' : 'Рывок'); }
+  if (evo) { const fv = G.run.fever > 0; $('dashFill').style.width = p + '%'; $('dashBar').classList.toggle('full', p >= 100 && !fv); $('dashBar').classList.toggle('active', fv); return; }
   $('dashBar').classList.toggle('full', p >= 100 && !act);
   $('dashBar').classList.toggle('active', act);
 }
 $('btnJump').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runJump(); });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('btnJump').addEventListener(ev, () => runJumpUp());
+$('btnKnife').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runKnife(); });
+$('btnKnife').addEventListener('click', (e) => { if (e.detail === 0) runKnife(); e.currentTarget.blur(); });
+if (isTouch) $('knifeKey').hidden = true;
 $('dashBar').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runBoost(); });
 $('dashBar').addEventListener('click', (e) => { if (e.detail === 0) runBoost(); e.currentTarget.blur(); });
 if (isTouch) $('hud').classList.add('touch');
@@ -296,7 +300,7 @@ $('btnBomb').addEventListener('click', (e) => { if (e.detail === 0) useBomb(); e
 if (isTouch) $('bombKey').hidden = true;
 $('controlsHint').textContent = isTouch
   ? 'Веди пальцем по экрану — герой повторит движение. Стреляет сам. Кнопка со звездой — суперудар.'
-  : 'Стрелки / WASD или тяни мышью · стреляет сам · Пробел — суперудар · P — пауза';
+  : 'Стрелки / WASD или просто веди мышью (без нажатия) · стреляет сам · Пробел — суперудар · P — пауза';
 const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 if (!fsOk) $('btnFull').hidden = true;
 const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
@@ -338,7 +342,8 @@ hooks.key = (code, e, onButton) => {
   }
 };
 hooks.blur = () => { if (state === 'play') pauseGame(); };
-hooks.tap = () => { if (state === 'play' && G && !G.run) doBurst(); };
+hooks.tap = (e) => { if (state !== 'play' || !G) return; if (!G.run) doBurst(); else if (e && e.pointerType === 'mouse' && runCfg().evo >= 2) runKnife(); };
+hooks.keyUp = (code) => { if (state === 'play' && G && G.run) runnerKeyUp(code); };
 hooks.swipe = (dir) => { if (state !== 'play' || !G || !G.run) return; if (dir === 'down') runRoll(); else if (dir !== 'up') runLane(dir === 'left' ? -1 : 1); };
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (state === 'play') pauseGame(); Sound.suspend(); }
@@ -411,7 +416,7 @@ window.__kb = {
   eel: () => useEel(), croc: () => useCroc(),
   tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), burst: () => doBurst(), squid: () => useSquid(),
   x: { get R3() { return R3; }, planRanges, get BOSS4_AT() { return BOSS4_AT; } },
-  runAct: (a) => ({ jump: runJump, roll: runRoll, left: () => runLane(-1), right: () => runLane(1), boost: runBoost })[a](), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
+  runAct: (a) => ({ jump: runJump, jumpUp: runJumpUp, knife: runKnife, roll: runRoll, left: () => runLane(-1), right: () => runLane(1), boost: runBoost })[a](), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },

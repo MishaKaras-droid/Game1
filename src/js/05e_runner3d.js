@@ -387,7 +387,7 @@ function r3Frame(t) {
   if (R3.evoOn) r3EvoFrame(dt, t, F);
   // camera behind the duck, following the road's up vector (it rolls through loops)
   const intro = R.phase === 'intro' ? easeInOut(clamp(R.t / 1.5, 0, 1)) : 1;
-  const back = lerp(18, 6.6, intro), upH = lerp(14, 2.9, intro);
+  const fk = R3.feverK || 0, back = lerp(18, 6.6 + fk * 3, intro), upH = lerp(14, 2.9 + fk * 1.8, intro);
   const C = frameAt(R.s - back), L = frameAt(R.s + 7);
   R3.camUp = (R3.camUp || C.u.clone()).lerp(C.u, Math.min(1, dt * 6)).normalize();
   cam.position.copy(C.p).addScaledVector(C.r, R.camX * 0.85).addScaledVector(C.u, upH);
@@ -426,7 +426,7 @@ function renderRunner3D(c) {
   r3Frame(t);
   c.setTransform(view.px, 0, 0, view.px, 0, 0);
   c.clearRect(0, 0, SW, SH);
-  if (R3.evoOn) drawBoostOverlay(c, t);
+  if (R3.evoOn && runCfg().overlay) runCfg().overlay(c, t);
   drawSpeedLines(c, t);
   if (R.target && !R.target.boss) { const o = R.target, q = runProj3(o.x, o.h + 0.5, o.d - R.s + RUN.PZ); drawReticle(c, q.sx, q.sy, Math.max(14, q.k * 0.7), t); }
   const B = R.boss;

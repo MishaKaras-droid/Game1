@@ -66,9 +66,9 @@ function resize() {
 
 /* ============================================================ input */
 const keys = Object.create(null);
-const input = { dx: 0, dy: 0, dragging: false };
+const input = { dx: 0, dy: 0, dragging: false, mouse: { x: 0, y: 0, on: false } };
 let dragPtr = null;
-const hooks = { key: null, blur: null, tap: null, swipe: null, tapUp: null };   // set by the UI layer
+const hooks = { key: null, keyUp: null, blur: null, tap: null, swipe: null, tapUp: null };   // set by the UI layer
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -76,9 +76,11 @@ window.addEventListener('keydown', (e) => {
   const onButton = tag === 'BUTTON';
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) || (e.code === 'Space' && !onButton)) e.preventDefault();
   keys[e.code] = true;
+  // the keyboard takes over from the mouse until the mouse moves again
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) input.mouse.on = false;
   if (!e.repeat && hooks.key) hooks.key(e.code, e, onButton);
 });
-window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; if (hooks.keyUp) hooks.keyUp(e.code); });
 window.addEventListener('blur', () => {
   for (const k in keys) keys[k] = false;
   dragPtr = null; input.dragging = false;
@@ -87,7 +89,7 @@ window.addEventListener('blur', () => {
 
 stage.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, .overlay, #menu')) return;
-  if (hooks.tap) hooks.tap();          // every finger counts (bubbles in the squeezing pipe)
+  if (hooks.tap) hooks.tap(e);         // every finger counts (bubbles in the squeezing pipe)
   if (dragPtr) { e.preventDefault(); return; }
   dragPtr = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), fired: false };
   input.dragging = true;
@@ -95,10 +97,16 @@ stage.addEventListener('pointerdown', (e) => {
   e.preventDefault();
 });
 stage.addEventListener('pointermove', (e) => {
+  // mouse: the hero follows the cursor itself (no button needed), so the screen edge never stops it
+  if (e.pointerType === 'mouse') {
+    const r = canvas.getBoundingClientRect();
+    if (r.width > 0) { input.mouse.x = clamp(((e.clientX - r.left) / r.width) * SW, 0, SW); input.mouse.y = clamp(((e.clientY - r.top) / r.height) * SH, 0, SH); input.mouse.on = true; }
+  }
   if (!dragPtr || e.pointerId !== dragPtr.id) return;
-  const sens = e.pointerType === 'mouse' ? 1 : 1.3;
-  input.dx += ((e.clientX - dragPtr.x) / view.scale) * sens;
-  input.dy += ((e.clientY - dragPtr.y) / view.scale) * sens;
+  if (e.pointerType !== 'mouse') {
+    input.dx += ((e.clientX - dragPtr.x) / view.scale) * 1.3;
+    input.dy += ((e.clientY - dragPtr.y) / view.scale) * 1.3;
+  }
   dragPtr.x = e.clientX; dragPtr.y = e.clientY;
   // quick strokes are swipes (used by the running level)
   if (!dragPtr.fired && hooks.swipe) {

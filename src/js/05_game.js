@@ -520,6 +520,13 @@ function updatePlayer(dt) {
     if (DEBUG.bot) { const m = DEBUG.bot(G, W, H); ax = m.ax; ay = m.ay; }
     if (ax || ay) { const l = Math.max(1, Math.hypot(ax, ay)); const sp = 340 * G.spd; p.x += (ax / l) * sp * dt; p.y += (ay / l) * sp * dt; }
     p.x += ddx; p.y += ddy;
+    // mouse: fly / swim towards the cursor (absolute position, works right up to the screen edge)
+    if (input.mouse.on && !ax && !ay && !DEBUG.bot) {
+      let mx = input.mouse.x, my = input.mouse.y;
+      if (G.vert) { const wx = SH - my; my = mx; mx = wx; }
+      const ddx2 = mx - p.x, ddy2 = my - p.y, dist = Math.hypot(ddx2, ddy2);
+      if (dist > 0.5) { const mv = Math.min(dist, Math.max(dist * Math.min(1, dt * 11), 0), 900 * G.spd * dt); p.x += (ddx2 / dist) * mv; p.y += (ddy2 / dist) * mv; }
+    }
     // the catfish sucks the carp towards its mouth
     const B0 = G.boss;
     if (G.suck) {

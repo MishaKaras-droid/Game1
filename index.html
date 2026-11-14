@@ -223,6 +223,22 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 }
 #btnJump svg { width: 38px; height: 38px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
 #btnJump:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+#btnKnife {
+  position: absolute; right: 18px; bottom: 18px; width: 82px; height: 82px; border-radius: 50%; padding: 0;
+  border: 4px solid var(--ink); background: radial-gradient(circle at 35% 30%, #f3d9ff, #a970d6 60%, #6b3fa0); color: #fff;
+  box-shadow: 0 5px 0 var(--ink); display: grid; place-items: center; align-content: center; gap: 0;
+  font: 900 12px var(--font-ui); letter-spacing: .05em; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+#btnKnife svg { width: 34px; height: 34px; }
+#btnKnife .key { position: absolute; bottom: -18px; font: 900 10px var(--font-ui); color: #fff; opacity: .8; }
+#btnKnife:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+#hud.touch #btnKnife { right: max(140px, calc(env(safe-area-inset-right, 0px) + 124px)); bottom: 26px; }
+#hud.runner #btnBomb { display: none !important; }
+#dashBar[data-evo="true"] .dash-lbl { font-size: 16px; letter-spacing: .02em; }
+#dashBar[data-evo="true"] .dash-key { display: none; }
+#dashBar[data-evo="true"] .dash-fill { background: linear-gradient(#e9c08f, #9a5b2a); }
+#dashBar[data-evo="true"].full .dash-fill { background: linear-gradient(#ffe0a8, #ff9a1f); }
+#dashBar[data-evo="true"].active .dash-fill { background: linear-gradient(#fff2a0, #ff6a1a 55%, #e0301a); }
 #dashBar {
   position: absolute; left: max(18px, env(safe-area-inset-left, 0px)); bottom: 18px; width: min(320px, 42vw); height: 56px; padding: 0; overflow: hidden;
   border: 4px solid var(--ink); border-radius: 16px; background: rgba(20, 30, 70, .78); box-shadow: 0 5px 0 var(--ink);
@@ -378,6 +394,10 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       <span class="cnt" id="bombCount">2</span>
       <span class="key" id="bombKey">ПРОБЕЛ</span>
       <span class="bub-lbl">ПУЗЫ&#173;РИ</span>
+    </button>
+    <button id="btnKnife" type="button" aria-label="Удар ножом" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l3-1 11-11a2.2 2.2 0 0 0-3-3L4 16z" fill="#eef2f7" stroke="#221d2e" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 21l3.2-3.2" stroke="#7e4fa0" stroke-width="3.4" stroke-linecap="round"/></svg>
+      <span class="kn-lbl">НОЖ</span><span class="key" id="knifeKey">F</span>
     </button>
     <button id="btnJump" type="button" aria-label="Прыжок" hidden>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 9h-5v8H9v-8H4z" fill="currentColor"/></svg>
@@ -616,9 +636,9 @@ function resize() {
 
 /* ============================================================ input */
 const keys = Object.create(null);
-const input = { dx: 0, dy: 0, dragging: false };
+const input = { dx: 0, dy: 0, dragging: false, mouse: { x: 0, y: 0, on: false } };
 let dragPtr = null;
-const hooks = { key: null, blur: null, tap: null, swipe: null, tapUp: null };   // set by the UI layer
+const hooks = { key: null, keyUp: null, blur: null, tap: null, swipe: null, tapUp: null };   // set by the UI layer
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -626,9 +646,11 @@ window.addEventListener('keydown', (e) => {
   const onButton = tag === 'BUTTON';
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) || (e.code === 'Space' && !onButton)) e.preventDefault();
   keys[e.code] = true;
+  // the keyboard takes over from the mouse until the mouse moves again
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) input.mouse.on = false;
   if (!e.repeat && hooks.key) hooks.key(e.code, e, onButton);
 });
-window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; if (hooks.keyUp) hooks.keyUp(e.code); });
 window.addEventListener('blur', () => {
   for (const k in keys) keys[k] = false;
   dragPtr = null; input.dragging = false;
@@ -637,7 +659,7 @@ window.addEventListener('blur', () => {
 
 stage.addEventListener('pointerdown', (e) => {
   if (e.target.closest('button, .overlay, #menu')) return;
-  if (hooks.tap) hooks.tap();          // every finger counts (bubbles in the squeezing pipe)
+  if (hooks.tap) hooks.tap(e);         // every finger counts (bubbles in the squeezing pipe)
   if (dragPtr) { e.preventDefault(); return; }
   dragPtr = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), fired: false };
   input.dragging = true;
@@ -645,10 +667,16 @@ stage.addEventListener('pointerdown', (e) => {
   e.preventDefault();
 });
 stage.addEventListener('pointermove', (e) => {
+  // mouse: the hero follows the cursor itself (no button needed), so the screen edge never stops it
+  if (e.pointerType === 'mouse') {
+    const r = canvas.getBoundingClientRect();
+    if (r.width > 0) { input.mouse.x = clamp(((e.clientX - r.left) / r.width) * SW, 0, SW); input.mouse.y = clamp(((e.clientY - r.top) / r.height) * SH, 0, SH); input.mouse.on = true; }
+  }
   if (!dragPtr || e.pointerId !== dragPtr.id) return;
-  const sens = e.pointerType === 'mouse' ? 1 : 1.3;
-  input.dx += ((e.clientX - dragPtr.x) / view.scale) * sens;
-  input.dy += ((e.clientY - dragPtr.y) / view.scale) * sens;
+  if (e.pointerType !== 'mouse') {
+    input.dx += ((e.clientX - dragPtr.x) / view.scale) * 1.3;
+    input.dy += ((e.clientY - dragPtr.y) / view.scale) * 1.3;
+  }
   dragPtr.x = e.clientX; dragPtr.y = e.clientY;
   // quick strokes are swipes (used by the running level)
   if (!dragPtr.fired && hooks.swipe) {
@@ -2535,6 +2563,13 @@ function updatePlayer(dt) {
     if (DEBUG.bot) { const m = DEBUG.bot(G, W, H); ax = m.ax; ay = m.ay; }
     if (ax || ay) { const l = Math.max(1, Math.hypot(ax, ay)); const sp = 340 * G.spd; p.x += (ax / l) * sp * dt; p.y += (ay / l) * sp * dt; }
     p.x += ddx; p.y += ddy;
+    // mouse: fly / swim towards the cursor (absolute position, works right up to the screen edge)
+    if (input.mouse.on && !ax && !ay && !DEBUG.bot) {
+      let mx = input.mouse.x, my = input.mouse.y;
+      if (G.vert) { const wx = SH - my; my = mx; mx = wx; }
+      const ddx2 = mx - p.x, ddy2 = my - p.y, dist = Math.hypot(ddx2, ddy2);
+      if (dist > 0.5) { const mv = Math.min(dist, Math.max(dist * Math.min(1, dt * 11), 0), 900 * G.spd * dt); p.x += (ddx2 / dist) * mv; p.y += (ddy2 / dist) * mv; }
+    }
     // the catfish sucks the carp towards its mouth
     const B0 = G.boss;
     if (G.suck) {
@@ -3679,10 +3714,10 @@ function startRunner(atBoss) {
   planRanges.cache = null;
   const R = {
     s: 0, speed: atBoss ? RUN.BASE : 8, x: 0, vx: 0, lane: 1, y: 0, vy: 0, roll: 0, slam: false, boost: 0, inv: 0,
-    coffee: 0, cupsTotal: 0, meter: RCF.evo >= 2 ? 60 : 40, objs: RCF.build(), i: 0, phase: 'intro', t: 0,
+    coffee: 0, cupsTotal: 0, meter: RCF.evo >= 2 ? 20 : 40, objs: RCF.build(), i: 0, phase: 'intro', t: 0,
     camH: 9, hor: SH * 0.1, camX: 0, curve: 0, fade: 1, hints: {}, streak: null, target: null, boss: null, end: null, surf: 'road',
   };
-  if (atBoss) { R.s = RCF.bossAt - 25; R.objs = []; R.meter = 100; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, boostE: 1, grass: 1, sand: 1, ice: 1, road: 1, city: 1 }; }
+  if (atBoss) { R.s = RCF.bossAt - 25; R.objs = []; R.meter = RCF.evo >= 2 ? 50 : 100; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, boostE: 1, grass: 1, sand: 1, ice: 1, road: 1, city: 1 }; }
   R.surf = surfaceAt(R.s);
   R.three = r3Init();
   G.run = R; G.phase = 'run'; G.phaseT = 0;
@@ -3699,12 +3734,17 @@ function runProj2D(x, h, z) {
 function runPlayerScreen() { const R = G.run; return runProj(R.x, R.y, RUN.PZ); }
 function runJump() {
   const R = G.run; if (!R || G.phase !== 'run' || R.phase === 'end' || !G.player.alive) return;
+  R.jumpHeld = true;
   if (R.target && (R.y > 0.25 || R.target.boss)) return runHoming();
-  if (R.y <= 0.01 && R.vy <= 0) { R.vy = RUN.JUMP; R.y = 0.01; R.roll = 0; sfx('swoosh'); }
+  const C = runCfg();
+  if (R.y <= 0.01 && R.vy <= 0) { R.vy = C.jump || RUN.JUMP; R.y = 0.01; R.roll = 0; R.dj = false; sfx('swoosh'); return; }
+  if (C.evo >= 2 && !R.dj && R.y > 0.15) { R.dj = true; R.vy = Math.max(R.vy, 11.5); R.slam = false; R.flap = 0.4; sfx('swoosh'); sfx('quack'); return; }
+  if (R.vy < 0 && R.y < 1.3) R.jumpBuf = 0.2;
 }
+function runJumpUp() { if (G && G.run) G.run.jumpHeld = false; }
 function runRoll() {
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
-  if (R.y > 0.05) { R.vy = -30; R.slam = true; } else R.roll = 0.75;
+  if (R.y > 0.05) { R.vy = -30; R.slam = true; R.jumpHeld = false; } else R.roll = 0.75;
   sfx('throw');
 }
 function runLane(dir) {
@@ -3715,7 +3755,7 @@ function runLane(dir) {
 }
 function runBoost() {
   const R = G.run; if (!R || !G.player.alive || R.end || R.phase === 'intro') return;
-  if (runCfg().evo >= 2) return runBoostDrain();
+  if (runCfg().evo >= 2) return runFeverBtn();
   if (R.boost > 0) return;
   if (R.meter < 100) { if (!R.boostNag || R.t - R.boostNag > 1.5) { R.boostNag = R.t; floatText(SW / 2, SH * 0.7, 'Шкала «Рывок» ещё не полная — собирай кофе!', '#ffe9a0', 18); sfx('click'); } return; }
   R.boost = 4; R.meter = 0; banner('РЫВОК!', '', 1.2, 'small'); sfx('power'); sfx('quack'); sfx('swoosh'); G.shake = 6;
@@ -3728,7 +3768,7 @@ function runHoming() {
   const R = G.run, T = R.target; if (!T) return;
   const a = runPlayerScreen();
   if (T.boss) {
-    const B = R.boss, q = runProj(B.x, B.h + 2.2, B.z + RUN.PZ);
+    const B = R.boss, open = B.state === 'open', q = runProj(open ? laneX(B.tLane) : B.x, B.h + (open ? 4.5 : 2.2), B.z + RUN.PZ);
     R.streak = { x0: a.sx, y0: a.sy - a.k * 0.6, x1: q.sx, y1: q.sy, t: 0.25 };
     runBossHit();
   } else {
@@ -3743,7 +3783,7 @@ function runHoming() {
 function runDestroy(o, q) {
   o.dead = true; o.smashed = 0.5;
   q = q || runProj(o.x, o.h + 0.3, o.d - G.run.s + RUN.PZ);
-  const enemyHit = runCfg().targets.includes(o.type), meme = enemyHit && o.type !== 'pigeon' && o.type !== 'crow', paper = o.type === 'sheet' || o.type === 'cite';
+  const enemyHit = runCfg().targets.includes(o.type), meme = enemyHit && o.type !== 'pigeon' && o.type !== 'crow', paper = ['sheet', 'cite', 'two', 'clip', 'edit', 'stack', 'books'].includes(o.type);
   addScore(enemyHit ? 150 : 50, q.sx, q.sy);
   if (G.run.boostDrain && G.run.boost > 0) boostChain(G.run, q);
   if (meme || paper) { burst(q.sx, q.sy, 12, { type: 'star', col: paper ? '#fffaf0' : '#ffd43b', smin: 80, smax: 260, lmin: 0.5, lmax: 0.9, rmin: 5, rmax: 9 }); sfx('pop'); return; }
@@ -3752,7 +3792,7 @@ function runDestroy(o, q) {
 }
 function runHit() {
   const R = G.run;
-  if (R.inv > 0 || R.boost > 0 || !G.player.alive || DEBUG.god) return;
+  if (R.inv > 0 || R.boost > 0 || R.fever > 0 || !G.player.alive || DEBUG.god) return;
   const a = runPlayerScreen();
   G.shake = 10; sfx('hurt'); sfx('quack');
   if (R.coffee > 0) {
@@ -3773,7 +3813,7 @@ function runCollide(o) {
   switch (o.type) {
     case 'cup':
       if (Math.abs(o.h - R.y) < 1.4) {
-        o.dead = true; R.coffee++; R.cupsTotal++; R.meter = Math.min(100, R.meter + 4); addScore(10);
+        o.dead = true; R.coffee++; R.cupsTotal++; if (!(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 5 : 4)); addScore(10);
         const q = runProj(o.x, o.h, RUN.PZ + 0.3); burst(q.sx, q.sy, 4, { type: 'star', col: '#ffe066', smin: 40, smax: 120, lmin: 0.3, lmax: 0.5, rmin: 4, rmax: 6 });
         sfx('heal');
         if (R.cupsTotal % 30 === 0 && G.hp < MAX_HP) { G.hp++; floatText(q.sx, q.sy - 40, '+1 ♥', '#ff8fa3', 24); }
@@ -3783,13 +3823,15 @@ function runCollide(o) {
     case 'dash': if (!o.used && R.y < 0.4) { o.used = true; R.boost = Math.max(R.boost, 1.6); sfx('swoosh'); } return;
   }
   if (o.hitDone) return;
+  if (R.fever > 0) { feverSmash(o); return; }
   if (R.boost > 0) { runDestroy(o); return; }
   if (runCfg().collide) { const r = runCfg().collide(o, R); if (r !== undefined) { if (!r) { o.hitDone = true; runHit(); } return; } }
   const air = R.y, rolling = R.roll > 0 && R.y < 0.5;
   let ok = false;
   switch (o.type) {
-    case 'barrier': case 'cone': ok = air > 0.95; break;
-    case 'spikes': ok = air > 0.6; break;
+    case 'barrier': ok = air > 0.7; break;
+    case 'cone': ok = air > 0.6; break;
+    case 'spikes': ok = air > 0.5; break;
     case 'hole': case 'puddle': ok = air > 0.3; break;
     case 'pepper': ok = Math.abs(air - o.h) > 1.0; break;
     case 'bar': case 'red': ok = rolling || air > 2.6; break;
@@ -3803,7 +3845,7 @@ function runCollide(o) {
 function startRunBoss() {
   const R = G.run;
   R.phase = 'boss';
-  R.boss = { hp: 5, max: 5, state: 'enter', t: 0, z: 70, x: 0, h: 0, round: 0, vol: 0, mouth: 0, flash: 0, speech: null, atkT: 0 };
+  R.boss = { hp: runCfg().bossHp || 5, max: runCfg().bossHp || 5, tLane: 1, state: 'enter', t: 0, z: 70, x: 0, h: 0, round: 0, vol: 0, mouth: 0, flash: 0, speech: null, atkT: 0 };
   G.checkpoint = { score: G.score, power: G.power };
   R.objs = R.objs.filter((o) => o.d > R.s - 10); R.i = 0;
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
@@ -3814,7 +3856,7 @@ function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
   if (B.speech) { B.speech.t -= dt; if (B.speech.t <= 0) B.speech = null; }
-  B.x = Math.sin(B.t * 0.9) * 1.4 * (B.state === 'tired' ? 0.2 : 1);
+  if (B.state !== 'open') B.x = Math.sin(B.t * 0.9) * 1.4 * (B.state === 'tired' ? 0.2 : 1);
   if (B.state === 'enter') {
     B.z = lerp(B.z, 28, Math.min(1, dt * 1.5)); B.h = lerp(B.h, 0.6, Math.min(1, dt * 2));
     if (B.t > 2.6) { B.state = 'attack'; B.t = 0; B.vol = 0; B.atkT = 0.6; if (B.round === 0) shawSay(runCfg().lines.intro); }
@@ -3823,9 +3865,12 @@ function updateRunBoss(dt) {
     B.atkT -= dt; B.mouth = Math.max(0, B.mouth - dt * 2);
     if (B.atkT <= 0) {
       const vols = B.hp <= 2 ? 5 : 4;
-      if (B.vol >= vols) { B.state = 'tired'; B.t = 0; shawSay(pick(runCfg().lines.tired)); sfx('charge'); }
+      if (B.vol >= vols && runCfg().openPhase) runCfg().openPhase(B);
+      else if (B.vol >= vols) { B.state = 'tired'; B.t = 0; shawSay(pick(runCfg().lines.tired)); sfx('charge'); }
       else { runCfg().attack(B); B.vol++; B.atkT = B.hp <= 2 ? 1.05 : 1.35; }
     }
+  } else if (B.state === 'open') {
+    runCfg().updOpen(B, dt);
   } else if (B.state === 'tired') {
     B.z = lerp(B.z, 9, Math.min(1, dt * 2.5)); B.h = lerp(B.h, 0.1, Math.min(1, dt * 3));
     if (B.t > 2.8) { B.state = 'enter'; B.t = 1.2; B.round++; shawSay(pick(runCfg().lines.back)); }
@@ -3887,26 +3932,33 @@ function updateRunner(dt) {
     R.camH = lerp(9, 2.2, e); R.hor = lerp(SH * 0.1, SH * 0.36, e);
     if (R.t >= 1.5) R.phase = R.boss ? 'boss' : 'run';
   }
+  R.dtLast = dt;
   if (runCfg().tick) runCfg().tick(R);
   const surf = surfaceAt(R.s);
   if (surf !== R.surf) { R.surf = surf; if (!R.hints[surf] && R.s > 50) { R.hints[surf] = 1; banner(SURF_NAME[surf][0], SURF_NAME[surf][1], 2.2, 'small'); } }
   let target = Math.min(RUN.MAXS, RUN.BASE + R.s * 0.004);
   if (surf === 'sand') target *= 0.78;
   if (R.boost > 0) target *= runCfg().evo >= 2 ? 1.65 : 1.8;
-  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0)) R.meter = Math.min(100, R.meter + 2.2 * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
+  if (R.fever > 0) target *= 1.3;
+  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0) && !(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 0.5 : 2.2) * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
   R.speed = lerp(R.speed, target, Math.min(1, dt * 2.5));
   R.s += R.speed * dt;
   R.curve = Math.sin(R.s / 230) * 0.0026 + Math.sin(R.s / 97) * 0.0009;
   // lanes: ice makes the duck slide
   const tx = laneX(R.lane);
   if (surf === 'ice') { R.vx += (tx - R.x) * 32 * dt; R.vx *= 1 - 2.4 * dt; R.x += R.vx * dt; }
-  else { R.x = lerp(R.x, tx, Math.min(1, dt * 14)); R.vx = 0; }
-  R.camX = lerp(R.camX, R.x * 0.6, Math.min(1, dt * 6));
+  else { R.x = lerp(R.x, tx, Math.min(1, dt * 20)); R.vx = 0; }
+  R.camX = lerp(R.camX, R.x * 0.6, Math.min(1, dt * 8));
+  // glide: holding jump on the way down (level 4+) — the duck flaps and sinks slowly
+  const CF = runCfg();
+  R.gliding = CF.evo >= 2 && R.jumpHeld && R.vy < 0 && R.y > 0.25 && !R.slam && G.player.alive;
   if (R.y > 0 || R.vy > 0) {
-    R.vy -= RUN.G * dt; R.y += R.vy * dt;
-    if (R.y <= 0) { R.y = 0; R.vy = 0; if (R.slam) { R.roll = 0.6; R.slam = false; } const a = runPlayerScreen(); burst(a.sx, a.sy, 5, { type: 'smoke', col: surf === 'ice' ? 'rgba(220,240,255,A)' : 'rgba(230,215,190,A)', r: 4, r1: 14, smin: 30, smax: 90, lmin: 0.3, lmax: 0.5 }); }
+    R.vy -= (CF.grav || RUN.G) * dt * (R.gliding ? 0.22 : 1); if (R.gliding) R.vy = Math.max(R.vy, -2.2);
+    R.y += R.vy * dt;
+    if (R.y <= 0) { R.y = 0; R.vy = 0; R.dj = false; if (R.jumpBuf > 0) { R.jumpBuf = 0; R.vy = CF.jump || RUN.JUMP; R.y = 0.01; sfx('swoosh'); } if (R.slam) { R.roll = 0.6; R.slam = false; } const a = runPlayerScreen(); burst(a.sx, a.sy, 5, { type: 'smoke', col: surf === 'ice' ? 'rgba(220,240,255,A)' : 'rgba(230,215,190,A)', r: 4, r1: 14, smin: 30, smax: 90, lmin: 0.3, lmax: 0.5 }); }
   }
   if (R.boostDrain) { R.meter -= 22 * dt; R.boost = Math.max(R.boost, 0.12); if (R.meter <= 0 || R.phase === 'intro') { R.meter = Math.max(0, R.meter); R.boostDrain = false; } }
+  R.jumpBuf = Math.max(0, (R.jumpBuf || 0) - dt); R.knifeCd = Math.max(0, (R.knifeCd || 0) - dt); R.slash = Math.max(0, (R.slash || 0) - dt); R.flap = Math.max(0, (R.flap || 0) - dt);
   R.roll = Math.max(0, R.roll - dt); R.boost = Math.max(0, R.boost - dt); R.inv = Math.max(0, R.inv - dt);
   if (surf === 'sand' && Math.random() < dt * 12 && R.y === 0) { const a = runPlayerScreen(); part({ type: 'smoke', x: a.sx + rand(-20, 20), y: a.sy, r: 3, r1: 12, col: 'rgba(240,220,170,A)', life: 0.4, vx: rand(-40, 40), vy: rand(-40, 0) }); }
   // hints for the controls
@@ -3922,7 +3974,7 @@ function updateRunner(dt) {
     if (o.dead) continue;
     if (o.v && (R.boss || o.d - R.s < 55)) o.d += o.v * dt;
     if (o.fall !== undefined && o.ft < 1) o.ft = Math.min(1, o.ft + dt * 2.2);
-    if (o.type === 'pepper' || runCfg().bounce.includes(o.type)) { o.ph += dt * 5; o.h = Math.abs(Math.sin(o.ph)) * 1.9; }
+    if (o.type === 'pepper' || runCfg().bounce.includes(o.type)) { o.ph += dt * 5; o.h = Math.abs(Math.sin(o.ph)) * ((runCfg().bounceH || {})[o.type] || 1.9); }
   }
   if (R.boss || runCfg().evo >= 2) { R.objs.sort((a, b) => a.d - b.d); R.i = 0; }
   // collisions near the duck
@@ -3930,13 +3982,14 @@ function updateRunner(dt) {
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j];
     if (o.d > R.s + 2) break;
-    if (o.dead || Math.abs(o.d - R.s) > 0.9 || Math.abs(o.x - R.x) > 1.0) continue;
+    if (o.dead || o.reflect || Math.abs(o.d - R.s) > 0.9 || Math.abs(o.x - R.x) > 1.0) continue;
     if (o.fall !== undefined && o.ft < 1) continue;
     runCollide(o);
   }
   // homing target: nearest enemy ahead while in the air, or the dizzy boss
   R.target = null;
   if (R.boss && R.boss.state === 'tired') R.target = { boss: true };
+  else if (R.boss && R.boss.state === 'open') { if (R.y > 0.25 && R.lane === R.boss.tLane) R.target = { boss: true }; }
   else if (R.y > 0.25) {
     for (let j = R.i; j < R.objs.length; j++) {
       const o = R.objs[j], dz = o.d - R.s;
@@ -4263,10 +4316,11 @@ function runnerKey(code) {
   else if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') runJump();
   else if (code === 'ArrowDown' || code === 'KeyS') runRoll();
   else if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyQ' || code === 'KeyC') runBoost();
-  else if (code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
+  else if (code === 'KeyF' || code === 'KeyJ' || code === 'KeyE' || code === 'Enter') runKnife();
   else return false;
   return true;
 }
+function runnerKeyUp(code) { if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') runJumpUp(); }
 
 /* ============================================================ level 4 (carp): pipes, oceanarium, kraken */
 LEVEL_INFO[4] = { duck: null, fish: { name: 'Ожидается каточка', boss: 'kraken', song: 'sea3' } };
@@ -5050,7 +5104,7 @@ function r3Frame(t) {
   if (R3.evoOn) r3EvoFrame(dt, t, F);
   // camera behind the duck, following the road's up vector (it rolls through loops)
   const intro = R.phase === 'intro' ? easeInOut(clamp(R.t / 1.5, 0, 1)) : 1;
-  const back = lerp(18, 6.6, intro), upH = lerp(14, 2.9, intro);
+  const fk = R3.feverK || 0, back = lerp(18, 6.6 + fk * 3, intro), upH = lerp(14, 2.9 + fk * 1.8, intro);
   const C = frameAt(R.s - back), L = frameAt(R.s + 7);
   R3.camUp = (R3.camUp || C.u.clone()).lerp(C.u, Math.min(1, dt * 6)).normalize();
   cam.position.copy(C.p).addScaledVector(C.r, R.camX * 0.85).addScaledVector(C.u, upH);
@@ -5089,7 +5143,7 @@ function renderRunner3D(c) {
   r3Frame(t);
   c.setTransform(view.px, 0, 0, view.px, 0, 0);
   c.clearRect(0, 0, SW, SH);
-  if (R3.evoOn) drawBoostOverlay(c, t);
+  if (R3.evoOn && runCfg().overlay) runCfg().overlay(c, t);
   drawSpeedLines(c, t);
   if (R.target && !R.target.boss) { const o = R.target, q = runProj3(o.x, o.h + 0.5, o.d - R.s + RUN.PZ); drawReticle(c, q.sx, q.sy, Math.max(14, q.k * 0.7), t); }
   const B = R.boss;
@@ -6601,7 +6655,7 @@ function buildTrack4() {
   while (d < BOSS4_AT - 70) {
     const lr = planRanges().find(([a, b, ty]) => ty === 'loop' && d > a - 22 && d < b + 10);
     if (lr) { if (!loopsDone.has(lr[0])) { loopsDone.add(lr[0]); cups(lr[0] - 6, 1, Math.floor((lr[1] - lr[0] + 6) / 3), 3, 0.5); } d = lr[1] + 14; continue; }
-    const pool = d < 220 ? ['capy', 'line', 'jump'] : d < 450 ? ['capy', 'floppa', 'roll', 'line', 'bonk'] : ['capy', 'floppa', 'bonk', 'car', 'traffic', 'dash', 'spring', 'roll', 'mix'];
+    const pool = d < 220 ? ['capy', 'line', 'jump', 'books'] : d < 450 ? ['capy', 'floppa', 'roll', 'line', 'bonk', 'clock', 'books'] : ['capy', 'floppa', 'bonk', 'car', 'traffic', 'dash', 'spring', 'roll', 'mix', 'clock', 'study', 'books'];
     const pat = pool[Math.floor(Rn() * pool.length)], L = Math.floor(Rn() * 3), L2 = (L + 1 + Math.floor(Rn() * 2)) % 3, L3 = 3 - L - L2;
     switch (pat) {
       case 'line': cups(d, L, 9, 2.6, 0.5); add({ type: 'dash', d: d - 5, x: laneX(L) }); break;
@@ -6614,6 +6668,9 @@ function buildTrack4() {
       case 'traffic': for (let k = 0; k < 3; k++) add({ type: 'car', d: d + 6, x: laneX(k) }); add({ type: 'dash', d: d - 10, x: laneX(L) }); add({ type: 'spring', d: d - 4, x: laneX(L2) }); cups(d - 2, L2, 6, 3.2, 1.5, 4); break;
       case 'dash': add({ type: 'dash', d, x: laneX(L) }); cups(d + 4, L, 8, 3.5, 0.5); for (let k = 0; k < 3; k++) if (k !== L) add({ type: 'cone', d: d + 14, x: laneX(k) }); break;
       case 'spring': add({ type: 'spring', d, x: laneX(L) }); cups(d + 5, L, 8, 3.2, 1.5, 4.2); add({ type: 'car', d: d + 14, x: laneX(L) }); break;
+      case 'clock': add({ type: 'clock', d: d + 6, x: laneX(L), v: -4, ph: Rn() * 3 }); add({ type: 'clock', d: d + 14, x: laneX(L2), v: -4, ph: Rn() * 3 }); cups(d - 6, L3, 6, 3, 0.5); break;
+      case 'books': add({ type: 'books', d, x: laneX(L) }); add({ type: 'books', d: d + 8, x: laneX(L2) }); cups(d - 8, L, 6, 2.6, 0.5, 2.4); break;
+      case 'study': add({ type: 'books', d, x: laneX(L) }); add({ type: 'clock', d: d + 10, x: laneX(L2), v: -3.5, ph: 1 }); add({ type: 'bar', d: d + 4, x: laneX(L3) }); cups(d - 6, L3, 4, 2.5, 0.35); break;
       case 'mix': add({ type: 'floppa', d, x: laneX(L) }); add({ type: 'capy', d: d + 12, x: laneX(L2), v: -3 }); add({ type: 'bonk', d: d + 6, x: laneX(L3), ph: 1 }); break;
     }
     d += 34 - (d / BOSS4_AT) * 8 + Rn() * 10;
@@ -6623,14 +6680,18 @@ function buildTrack4() {
 function collide4(o, R) {
   const air = R.y, rolling = R.roll > 0 && R.y < 0.5;
   switch (o.type) {
-    case 'capy': return air > 0.9;
-    case 'floppa': if (air > 0.8) { runDestroy(o); R.vy = 12; return true; } return false;
+    case 'capy': return air > 0.7;
+    case 'floppa': if (air > 0.6) { runDestroy(o); R.vy = 12; return true; } return false;
     case 'bonk': return Math.abs(air - o.h) > 1.0;
-    case 'car': return air > 1.6;
+    case 'car': return air > 1.15;
+    case 'clock': if (air > 0.55) { runDestroy(o); R.vy = Math.max(R.vy, 11); return true; } return false;
+    case 'books': case 'stack': return air > 0.8;
+    case 'two': case 'edit': return rolling || air > 2.3;
+    case 'clip': return Math.abs(air - o.h) > 0.9;
     case 'sheet': return air > 0.3;
     case 'pen': return rolling || air > 2.6;
     case 'cite': return Math.abs(air - o.h) > 1.0;
-    case 'laser': return air > 0.7;
+    case 'laser': return air > 0.55;
   }
   return undefined;
 }
@@ -6657,13 +6718,18 @@ const THESIS_LINES = {
   dead: 'Я… защищена…',
 };
 function thesisAttack(B) {
-  const R = G.run, kind = ['sheet', 'pen', 'cite', 'laser'][(B.vol + B.round) % 4];
+  const R = G.run, kind = ['two', 'clip', 'edit', 'sheet', 'two', 'edit', 'laser'][(B.vol + B.round * 2) % 7];
   const lanes = [0, 1, 2].sort(() => Math.random() - 0.5), n = B.hp <= 2 ? 2 : (Math.random() < 0.5 ? 1 : 2);
   B.mouth = 1;
   const d = R.s + B.z;
-  if (kind === 'sheet') { shawSay(pick(['Листы рецензии!', 'Получай черновик!'])); for (let i = 0; i < n; i++) R.objs.push({ type: 'sheet', d: d - 2, x: laneX(lanes[i]), h: 0, fall: B.h + 3, ft: 0 }); }
-  else if (kind === 'pen') { shawSay('Красная ручка научрука!'); for (let i = 0; i < n; i++) R.objs.push({ type: 'pen', d: d - 2, x: laneX(lanes[i]), h: 1.3, v: -10 }); }
-  else if (kind === 'cite') { shawSay(pick(['Сноска на сноске!', 'Где список литературы?!'])); for (let i = 0; i < n + 1; i++) R.objs.push({ type: 'cite', d: d - 2 - i * 3, x: laneX(lanes[i % 3]), h: 0, ph: rand(0, 3) }); }
+  if (kind === 'two') { shawSay(pick(['Двойка тебе!', 'Неуд! Неуд!', 'Пересдача!'])); for (let i = 0; i < n; i++) R.objs.push({ type: 'two', d: d - 2 - i * 2, x: laneX(lanes[i]), h: 1.3, v: -10, parry: Math.random() < 0.35 }); }
+  else if (kind === 'clip') { shawSay(pick(['Скрепки, в атаку!', 'Скреплю тебя!'])); for (let i = 0; i < n + 1; i++) R.objs.push({ type: 'clip', d: d - 2 - i * 3, x: laneX(lanes[i % 3]), h: 0, ph: rand(0, 3) }); }
+  else if (kind === 'edit') {
+    shawSay(pick(['Правки научного руководителя!', 'Перепиши всё к утру!', 'Красной ручкой по тексту!']));
+    for (let i = 0; i < n; i++) R.objs.push({ type: 'edit', d: d - 2 - i * 4, x: laneX(lanes[i]), h: 1.3, v: -8.5, parry: true });
+    if (!R.hints.parry) { R.hints.parry = 1; banner('РОЗОВЫЕ ПРАВКИ', isTouch ? 'Ударь ножом в момент подлёта — отобьёшь в босса!' : 'Нож (F) в момент подлёта — отобьёшь в босса!', 2.8, 'small'); }
+  }
+  else if (kind === 'sheet') { shawSay(pick(['Листы рецензии!', 'Получай черновик!'])); for (let i = 0; i < n; i++) R.objs.push({ type: 'sheet', d: d - 2, x: laneX(lanes[i]), h: 0, fall: B.h + 3, ft: 0 }); }
   else { shawSay('АНТИПЛАГИАТ! Оригинальность 12%!'); for (let i = 0; i < 2; i++) R.objs.push({ type: 'laser', d: d - 2, x: laneX(lanes[i]), h: 0, v: -9 }); }
   R.objs.sort((a, b) => a.d - b.d); R.i = 0;
   sfx('throw');
@@ -6674,15 +6740,19 @@ const MEME_HINT = {
   capy: ['КАПИБАРА', 'Идёт навстречу — перепрыгни или атакуй в прыжке'],
   floppa: ['ШЛЁПА', 'Большой кот! Обойди или прыгни ему на голову'],
   bonk: ['БОНК-ПЁС', 'Скачет с битой — лови момент'],
-  car: ['ТАКСИ', 'Объезжай или пробей насквозь на BOOST'],
+  car: ['ТАКСИ', 'Объезжай, перепрыгни или снеси в «Кофейном передозе»'],
+  clock: ['ЗЛОЙ БУДИЛЬНИК', 'Звенит и скачет навстречу — прыгни сверху или руби ножом'],
+  books: ['СТОПКА УЧЕБНИКОВ', 'Перепрыгни или разруби ножом'],
 };
 function tick4(R) {
+  updateFever(R, R.dtLast || 0);
+  thesisReflect(R);
   if (R.cards === undefined) R.cards = R.s > 100 ? 2 : 0;
   // the title card goes first; the control hints wait until it is gone
-  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('ГОРОД', 'Эволюция графики: тени · мультяшный свет · BOOST', 2.6, 'green'); sfx('power'); }
+  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('ГОРОД', 'Эволюция графики: тени · мультяшный свет · 3D-утка', 2.6, 'green'); sfx('power'); }
   if (R.cards === 1 && R.t > 2.9) { R.cards = 2; banner('ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел', 2.4, 'small'); }
   if (R.cards < 2) return;
-  if (!R.hints.boostE && R.s > 140 && R.phase === 'run') { R.hints.boostE = 1; banner('BOOST', isTouch ? 'Жми шкалу BOOST — утка сносит всё, пока шкала не пуста' : 'Shift — BOOST: сносишь всё, пока шкала не пуста', 2.8, 'small'); }
+  tick4b(R);
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j], dz = o.d - R.s; if (dz > 45) break;
     if (dz > 20 && MEME_HINT[o.type] && !R.hints['m_' + o.type]) { R.hints['m_' + o.type] = 1; banner(MEME_HINT[o.type][0], MEME_HINT[o.type][1], 2.4, 'small'); break; }
@@ -6735,12 +6805,15 @@ function sprCite(c) {
   c.font = '34px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK; c.fillText('[1]', 0, -36);
 }
 const SPR4 = { capy: sprCapy, floppa: sprFloppa, bonk: sprBonk, cite: sprCite };
+// sprite height in metres for the whole 240 px canvas, and the anchor (0.04 = stands on the road, 0.5 = flies)
+const SPR4CFG = { capy: [2.0, 0.04], floppa: [2.4, 0.04], bonk: [2.0, 0.04], cite: [1.3, 0.04], clock: [2.3, 0.04], books: [2.5, 0.04], two: [2.6, 0.5], clip: [2.4, 0.04], edit: [2.8, 0.5] };
 function drawRun2D4(c, o, base, k, t) {
   const f = SPR4[o.type]; if (!f) return;
   const q = runProj(o.x, o.h || 0, o.d - G.run.s + RUN.PZ);
   c.save(); c.translate(q.sx, q.sy); c.scale(k / 90, k / 90); f(c, t); c.restore();
 }
 function drawThesis(c, x, y, S, t, B) {
+  if (B.state === 'open') return drawThesisOpen(c, x, y, S, t, B);
   c.save(); c.translate(x, y); const s = S / 200; c.scale(s, s);
   const angry = B.hp <= 2, tired = B.state === 'tired' || B.state === 'hurt', m = B.mouth || 0;
   if (B.flash > 0 && Math.floor(B.flash * 20) % 2) c.globalAlpha = 0.6;
@@ -7004,11 +7077,17 @@ function makeObj4(o, g, add) {
   const G3 = R3.geo, M = R3.mat;
   const shadowDisc = (r) => { const d = new THREE.Mesh(G3.disc, M.shadow); d.rotation.x = -Math.PI / 2; d.scale.setScalar(r); d.position.y = 0.03; d.userData.isOutline = true; g.add(d); };
   switch (o.type) {
-    case 'capy': case 'floppa': case 'bonk': case 'cite': {
-      const key = o.type, tex = R3.tex['spr4_' + key] || (R3.tex['spr4_' + key] = spriteTex(220, 240, (c) => { c.translate(110, 230); SPR4[key](c, 0.3); }));
-      const sz = key === 'floppa' ? 2.4 : key === 'cite' ? 1.3 : 2.0;
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex })); sp.center.set(0.5, 0.04); sp.scale.set(sz * 220 / 240, sz, 1); g.add(sp); g.userData.sprite = sp;
-      shadowDisc(key === 'floppa' ? 0.9 : 0.7);
+    case 'capy': case 'floppa': case 'bonk': case 'cite': case 'clock': case 'books': case 'stack': case 'two': case 'clip': case 'edit': {
+      const key = o.type === 'stack' ? 'books' : o.type, cfg = SPR4CFG[key] || [2.0, 0.04], mid = cfg[1] > 0.3;
+      const tex = R3.tex['spr4_' + key] || (R3.tex['spr4_' + key] = spriteTex(220, 240, (c) => { c.translate(110, mid ? 120 : 230); SPR4[key](c, 0.3); }));
+      const sz = cfg[0];
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex })); sp.center.set(0.5, cfg[1]); sp.scale.set(sz * 220 / 240, sz, 1); g.add(sp); g.userData.sprite = sp;
+      if (!mid) shadowDisc(key === 'floppa' ? 0.9 : 0.7);
+      if (o.parry) { const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: R3E.lampGlow.map, color: '#ff5fb4', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.set(2.6, 2.6, 1); g.add(gl); g.userData.glow = gl; }
+      if (o.type === 'stack') {
+        const ring = new THREE.Mesh(G3.disc, new THREE.MeshBasicMaterial({ color: '#ff3040', transparent: true, opacity: 0.45, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; ring.userData.isOutline = true; g.add(ring);
+        g.userData.upd = (oo) => { const k = oo.ft === undefined ? 1 : oo.ft; sp.position.y = lerp(oo.fall || 0, 0, k); ring.visible = k < 1; ring.scale.setScalar(0.4 + k * 0.6); };
+      } else if (o.parry || o.reflect !== undefined) g.userData.upd = (oo, t) => { if (g.userData.glow) { g.userData.glow.visible = !!oo.parry || !!oo.reflect; g.userData.glow.material.color.set(oo.reflect ? '#fff27a' : '#ff5fb4'); g.userData.glow.material.opacity = 0.55 + Math.sin(t * 14) * 0.35; } };
       break;
     }
     case 'car': {
@@ -7101,7 +7180,14 @@ function duckModelInstall(D) {
   const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.outline); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
   mk(M.body); const feet = [mk(M.footL), mk(M.footR)];
   const lean = new THREE.Group(); lean.add(g); D.body.add(lean);
-  D.model = { g, lean, feet };
+  const wm = new THREE.MeshToonMaterial({ color: '#f6d64a', gradientMap: R3E.grad }), wings = [];
+  for (const sd of [-1, 1]) {
+    const piv = new THREE.Group(); piv.position.set(sd * 0.3, 0.9, 0.12);
+    const w = new THREE.Mesh(R3.geo.sphere, wm); w.scale.set(0.42, 0.08, 0.22); w.position.set(sd * 0.38, 0, 0); w.userData.noOutline = true;
+    const wo = new THREE.Mesh(R3.geo.sphere, R3E.outline); wo.scale.setScalar(1.12); wo.userData.isOutline = true; w.add(wo);
+    piv.add(w); piv.visible = false; lean.add(piv); wings.push(piv);
+  }
+  D.model = { g, lean, feet, wings };
   return true;
 }
 function duckModelPose(D, R, t) {
@@ -7112,6 +7198,12 @@ function duckModelPose(D, R, t) {
   m.feet[1].position.y = m.feet[1].userData.y0 === undefined ? (m.feet[1].userData.y0 = m.feet[1].position.y) : m.feet[1].userData.y0 + Math.max(0, -run) * 0.08;
   m.lean.rotation.z = run * 0.08 + (air ? Math.sin(t * 9) * 0.06 : 0);
   m.lean.rotation.x = air ? -0.05 : -0.14;
+  // knife slash: a quick twist of the whole body
+  m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / 0.22) * Math.PI) * -0.9 : 0;
+  // wings come out for the glide and the double jump
+  const fly = R.gliding || R.flap > 0;
+  for (let i = 0; i < 2; i++) { const w = m.wings[i], sd = i ? 1 : -1; w.visible = fly; if (fly) w.rotation.z = sd * (0.2 + Math.sin(t * (R.gliding ? 16 : 26)) * 0.75); }
+  if (R.gliding) m.lean.rotation.x = 0.1;
   const land = R.landT > 0 ? R.landT : 0; m.lean.scale.set(1 + land * 0.25, 1 - land * 0.3, 1 + land * 0.25);
 }
 function r3EvoFrame(dt, t, F) {
@@ -7127,6 +7219,7 @@ function r3EvoFrame(dt, t, F) {
   for (const s of R3E.trail) if (s.visible) { s.userData.life -= dt; s.material.opacity = Math.max(0, s.userData.life / 0.22) * 0.6; s.scale.multiplyScalar(1 - dt * 1.5); if (s.userData.life <= 0) s.visible = false; }
   D.aura.material.color.set(R.boost > 0 ? '#8fe8ff' : '#ffe066');
   duckModelPose(D, R, t);
+  frame4b(dt, t, F);
 }
 function drawBoostOverlay(c, t) {
   const R = G.run; if (!(R.boost > 0)) return;
@@ -7140,9 +7233,243 @@ const RUN_CFG4 = {
   evo: 2, bossAt: BOSS4_AT, surfaces: [[0, 'city']], build: buildTrack4, plan: () => TRACK_PLAN4,
   bossName: 'Ожившая диссертация', bossLabel: 'ОЖИВШАЯ ДИССЕРТАЦИЯ', voice: 'babble', lines: THESIS_LINES, attack: thesisAttack,
   drawBoss: drawThesis, bossScale: 8, drawEnd: drawEnd4, endSay: 'Ура! Защитилась! Теперь я кандидат утиных наук!', deathFx: 'paper',
-  targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk'], collide: collide4, tick: tick4,
-  floatTypes: ['bonk', 'cite', 'pen'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet'], bounce: ['bonk', 'cite'], draw2D: drawRun2D4,
+  targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk', 'clock'], collide: collide4, tick: tick4,
+  floatTypes: ['bonk', 'cite', 'pen', 'two', 'edit', 'clip', 'clock'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet', 'two', 'edit', 'clip', 'clock', 'stack'],
+  bounce: ['bonk', 'cite', 'clip', 'clock'], bounceH: { clock: 0.45, clip: 1.4 }, draw2D: drawRun2D4,
+  jump: 15.5, grav: 46, bossHp: 6, openPhase: (B) => thesisOpen(B), updOpen: (B, dt) => thesisUpdOpen(B, dt), overlay: (c, t) => overlay4(c, t),
 };
+
+/* ============================================================ duck level 4, part 2: knife, parry, glide, coffee overdose, the open-book phase
+   Controls: jump (hold = glide, press again in the air = double jump or homing attack), roll, lanes, knife (F / click / «Нож»). */
+
+/* ---------- knife: slashes whatever is right in front of the duck, in her lane */
+const KNIFE_OK = ['capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
+function runKnife() {
+  const R = G && G.run;
+  if (!R || runCfg().evo < 2 || state !== 'play' || G.phase !== 'run' || R.end || !G.player.alive || R.phase === 'intro') return;
+  if (R.knifeCd > 0) return;
+  R.knifeCd = 0.28; R.slash = 0.22; sfx('knife');
+  let hit = 0;
+  for (let j = R.i; j < R.objs.length; j++) {
+    const o = R.objs[j], dz = o.d - R.s;
+    if (dz > 4.6) break;
+    if (o.dead || o.reflect || dz < -0.8 || Math.abs(o.x - R.x) > 1.25) continue;
+    if (o.fall !== undefined && o.ft < 0.5) continue;
+    if (Math.abs((o.h || 0) - R.y) > 2.3) continue;
+    if (o.parry) { runParry(o); hit++; continue; }
+    if (KNIFE_OK.includes(o.type)) { runDestroy(o); addScore(50); hit++; }
+  }
+  if (hit) { G.shake = Math.max(G.shake, 5); sfx('clink'); }
+}
+// a pink projectile hit in time flies back into the boss
+function runParry(o) {
+  const R = G.run;
+  o.reflect = true; o.parry = false; o.v = R.speed + 30; o.h = Math.max(o.h, 1.8);
+  const q = runProj(o.x, o.h, o.d - R.s + RUN.PZ);
+  floatText(q.sx, q.sy - 30, 'ОТБИТО!', '#ff8fc8', 28); addScore(300, q.sx, q.sy);
+  burst(q.sx, q.sy, 12, { type: 'star', col: '#ff8fc8', smin: 80, smax: 280, lmin: 0.4, lmax: 0.8, rmin: 4, rmax: 9 });
+  sfx('power'); G.shake = Math.max(G.shake, 7);
+}
+function thesisReflect(R) {
+  const B = R.boss;
+  for (const o of R.objs) {
+    if (!o.reflect || o.dead) continue;
+    if (!B || B.state === 'dead' || o.d - R.s > 120) { o.dead = true; continue; }
+    if (o.d >= R.s + B.z - 1) {
+      o.dead = true; o.smashed = 0.3;
+      const q = runProj(B.x, B.h + 3, B.z + RUN.PZ);
+      floatText(q.sx, q.sy - 50, 'ПОЛУЧИ СВОИ ПРАВКИ!', '#ffd43b', 24);
+      runBossHit();
+      if (B.state !== 'dead') shawSay(pick(['Это же правки научрука!', 'Ай, вернулось!', 'Мой же текст!']));
+    }
+  }
+}
+
+/* ---------- coffee overdose (fever): a full coffee gauge makes the duck huge, fiery and unstoppable */
+const FEVER_T = 6.5;
+function startFever() {
+  const R = G.run; if (R.fever > 0) return;
+  R.fever = FEVER_T; R.meter = 100; R.boost = 0; R.boostDrain = false;
+  banner('КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Утка огромная и неуязвимая — сноси всё!', 2.2, 'red');
+  sfx('power'); sfx('quack2'); G.shake = 10; G.flash = 0.35; G.flashColor = '#ffb347';
+}
+function runFeverBtn() {
+  const R = G.run;
+  if (R.fever > 0) return;
+  if (R.meter >= 100) return startFever();
+  if (!R.boostNag || R.t - R.boostNag > 1.5) { R.boostNag = R.t; floatText(SW / 2, SH * 0.7, 'Собирай кофе: полная шкала — «Кофейный передоз»!', '#ffd8a8', 18); sfx('click'); }
+}
+function feverSmash(o) {
+  const R = G.run, q = runProj(o.x, (o.h || 0) + 1, o.d - R.s + RUN.PZ);
+  runDestroy(o, q); R.coffee++; R.cupsTotal++; addScore(100);
+  floatText(q.sx, q.sy - 24, '+☕', '#ffd27a', 24);
+}
+function updateFever(R, dt) {
+  if (R.fever > 0) {
+    R.fever -= dt; R.meter = Math.max(0, (100 * R.fever) / FEVER_T);
+    if (R.fever <= 0) { R.fever = 0; R.meter = 0; R.inv = 1.2; banner('Передоз прошёл', 'Собирай кофе снова', 1.4, 'small'); }
+  } else if (R.meter >= 100 && R.phase !== 'intro' && !R.end && G.player.alive) startFever();
+}
+
+/* ---------- control hints that unlock as you run */
+function tick4b(R) {
+  const hint = (key, ok, title, sub) => { if (!R.hints[key] && ok) { R.hints[key] = 1; banner(title, sub, 2.8, 'small'); } };
+  if (R.phase !== 'run') return;
+  hint('knife', R.s > 120, 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов и препятствия' : 'F или клик мышью — руби врагов и препятствия');
+  hint('glide', R.s > 330, 'ПЛАНИРОВАНИЕ', 'Держи прыжок в воздухе — утка машет крыльями и медленно снижается');
+  hint('djump', R.s > 480, 'ДВОЙНОЙ ПРЫЖОК', 'Нажми прыжок ещё раз в воздухе');
+  hint('fever', R.meter >= 50, 'КОФЕЙНЫЙ ПЕРЕДОЗ', 'Собери полную шкалу кофе — утка станет огромной и неуязвимой');
+}
+
+/* ---------- boss: the book opens, hit the «УТВЕРЖДЕНО» stamp with a jump attack, dodge the falling textbooks */
+function thesisOpen(B) {
+  const R = G.run;
+  B.state = 'open'; B.t = 0; B.tLane = Math.floor(Math.random() * 3); B.tT = 1.7; B.dropT = 0.9; B.mouth = 1;
+  shawSay(pick(['Открываю главу три!', 'Найди печать, если сможешь!', 'Прочти меня всю!']));
+  sfx('charge');
+  if (!R.hints.open) { R.hints.open = 1; banner('ДИССЕРТАЦИЯ РАСКРЫЛАСЬ!', 'Встань на дорожку печати, прыгни и нажми прыжок ещё раз', 3, 'small'); }
+}
+function thesisUpdOpen(B, dt) {
+  const R = G.run;
+  B.z = lerp(B.z, 13, Math.min(1, dt * 2)); B.h = lerp(B.h, 0.3, Math.min(1, dt * 3)); B.x = lerp(B.x, 0, Math.min(1, dt * 4));
+  B.mouth = Math.max(0, B.mouth - dt * 2);
+  B.tT -= dt;
+  if (B.tT <= 0) { B.tLane = (B.tLane + 1 + Math.floor(Math.random() * 2)) % 3; B.tT = B.hp <= 2 ? 1.25 : 1.7; sfx('click'); }
+  B.dropT -= dt;
+  if (B.dropT <= 0) {
+    B.dropT = B.hp <= 2 ? 0.6 : 0.8;
+    const l = Math.random() < 0.3 ? B.tLane : Math.floor(Math.random() * 3);
+    R.objs.push({ type: 'stack', d: R.s + 17, x: laneX(l), h: 0, fall: 10, ft: 0 });
+    R.objs.sort((a, b) => a.d - b.d); R.i = 0;
+  }
+  if (B.t > 7.5) { B.state = 'enter'; B.t = 1.2; B.round++; shawSay(pick(runCfg().lines.back)); }
+}
+
+/* ---------- 2D art: new enemies and boss projectiles */
+function sprClock(c, t) {
+  const sh = Math.sin(t * 40) * 3;
+  c.save(); c.translate(sh, 0);
+  for (const s of [-1, 1]) line(c, [s * 16, -14, s * 26, 0], 6);
+  // ringing bells and the hammer between them
+  for (const s of [-1, 1]) { P(c); c.arc(s * 28, -96, 17, Math.PI, 0); c.closePath(); fs(c, '#d5dae2', 3); }
+  P(c); circ(c, 0, -104, 6); fs(c, '#8a8f9c', 2);
+  for (const s of [-1, 1]) for (const r of [26, 36]) { P(c); c.arc(s * 30, -98, r, s < 0 ? Math.PI * 1.1 : Math.PI * 1.6, s < 0 ? Math.PI * 1.4 : Math.PI * 1.9); c.lineWidth = 2.5; c.strokeStyle = 'rgba(255,255,255,0.8)'; c.stroke(); }
+  P(c); circ(c, 0, -56, 44); fs(c, '#e63946', 4);
+  P(c); circ(c, 0, -56, 34); fs(c, '#fffaf0', 3);
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; line(c, [Math.cos(a) * 28, -56 + Math.sin(a) * 28, Math.cos(a) * 32, -56 + Math.sin(a) * 32], 2); }
+  eye(c, -13, -64, 8, 0, 0.12, -1.2, '#e63946'); eye(c, 13, -64, 8, 0, 0.12, 1.2, '#e63946');
+  P(c); c.moveTo(-14, -40); for (let i = 0; i <= 6; i++) c.lineTo(-14 + i * (28 / 6), i % 2 ? -46 : -38); c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+  c.restore();
+}
+function sprBooks(c) {
+  const books = [['#2a6bff', 'МАТАН', 92], ['#e63946', 'ФИЗИКА', 84], ['#3fa34d', 'ХИМИЯ', 96], ['#7e4fa0', 'СОПРОМАТ', 88]];
+  let y = 0;
+  books.forEach(([col, title, w], i) => {
+    const h = 28, x = i % 2 ? 5 : -5;
+    P(c); rr(c, x - w / 2, y - h, w, h, 4); fs(c, col, 3);
+    P(c); c.rect(x + w / 2 - 12, y - h + 4, 9, h - 8); c.fillStyle = '#fffaf0'; c.fill();
+    c.font = '900 12px ' + FONT_UI; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff'; c.fillText(title, x - 6, y - h / 2 + 1);
+    y -= h;
+  });
+  // angry eyes peeking over the top book
+  eye(c, -14, y - 10, 9, 0, 0.15, -1.2, '#e63946'); eye(c, 14, y - 10, 9, 0, 0.15, 1.2, '#e63946');
+}
+function sprTwo(c) {
+  P(c); rr(c, -34, -44, 68, 88, 8); fs(c, '#fffaf0', 4);
+  for (let k = 0; k < 5; k++) line(c, [-24, -30 + k * 14, 24, -30 + k * 14], 1.4, '#a8c4ec');
+  c.font = '72px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#e63946'; c.fillText('2', 0, 4);
+  P(c); circ(c, 0, 4, 34); c.lineWidth = 4; c.strokeStyle = '#e63946'; c.stroke();
+}
+function sprClip(c) {
+  P(c);
+  c.moveTo(-12, -16); c.lineTo(-12, -86); c.arc(0, -86, 12, Math.PI, 0); c.lineTo(12, -30); c.arc(2, -30, 10, 0, Math.PI); c.lineTo(-8, -76); c.arc(0, -76, 8, Math.PI, 0); c.lineTo(8, -40);
+  c.lineWidth = 9; c.strokeStyle = INK; c.lineCap = 'round'; c.stroke(); c.lineWidth = 5; c.strokeStyle = '#d5dae2'; c.stroke();
+  eye(c, -6, -60, 6, 0, 0.1, -1.2, '#e63946'); eye(c, 10, -60, 6, 0, 0.1, 1.2, '#e63946');
+}
+function sprEdit(c) {
+  P(c); rr(c, -42, -54, 84, 108, 6); fs(c, '#ffd6ea', 4, '#d63384');
+  c.font = '17px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#c4141f'; c.fillText('ПРАВКИ', 0, -36);
+  for (let k = 0; k < 4; k++) { line(c, [-30, -14 + k * 14, 30, -14 + k * 14], 1.5, '#8a8f9c'); line(c, [-28 + k * 9, -18 + k * 14, 8 + k * 6, -8 + k * 14], 3, '#e63946'); }
+  P(c); c.arc(22, 36, 10, 0, TAU); c.lineWidth = 3; c.strokeStyle = '#e63946'; c.stroke();
+}
+Object.assign(SPR4, { clock: sprClock, books: sprBooks, stack: sprBooks, two: sprTwo, clip: sprClip, edit: sprEdit });
+
+function drawThesisOpen(c, x, y, S, t, B) {
+  c.save(); c.translate(x, y); const s = S / 200; c.scale(s, s);
+  if (B.flash > 0 && Math.floor(B.flash * 20) % 2) c.globalAlpha = 0.6;
+  // the spread: cover behind, two pages, lines of text
+  P(c); rr(c, -106, -196, 212, 192, 10); fs(c, B.hp <= 2 ? '#7a1f2b' : '#1f3a6b', 4);
+  for (const sd of [-1, 1]) {
+    P(c); c.moveTo(0, -188); c.quadraticCurveTo(sd * 50, -198, sd * 100, -186); c.lineTo(sd * 100, -12); c.quadraticCurveTo(sd * 50, -22, 0, -10); c.closePath(); fs(c, '#fffaf0', 3);
+    for (let k = 0; k < 11; k++) { const yy = -168 + k * 14; line(c, [sd * 12, yy, sd * (k % 3 === 2 ? 62 : 88), yy], 2, '#b8bfca'); }
+  }
+  line(c, [0, -190, 0, -10], 3, '#c9bfa8');
+  // eyes on the top edge
+  eye(c, -22, -204, 10, 0, 0.1, -1.2, '#c4141f'); eye(c, 22, -204, 10, 0, 0.1, 1.2, '#c4141f');
+  // bookmark ribbon swaying
+  P(c); c.moveTo(-4, -190); c.lineTo(-4 + Math.sin(t * 3) * 6, 10); c.lineTo(4 + Math.sin(t * 3) * 6, 2); c.lineTo(12 + Math.sin(t * 3) * 6, 10); c.lineTo(10, -190); c.closePath(); fs(c, '#e63946', 2);
+  // the «УТВЕРЖДЕНО» stamp hops between the three lanes
+  const sx = (B.tLane - 1) * 57, pulse = 1 + Math.sin(t * 10) * 0.06;
+  c.save(); c.translate(sx, -112); c.scale(pulse, pulse); c.rotate(-0.2);
+  P(c); circ(c, 0, 0, 30); c.fillStyle = 'rgba(255,240,240,0.9)'; c.fill(); c.lineWidth = 5; c.strokeStyle = '#d62828'; c.stroke();
+  P(c); circ(c, 0, 0, 23); c.lineWidth = 2; c.stroke();
+  c.font = '900 8px ' + FONT_UI; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#d62828'; c.fillText('УТВЕРЖДЕНО', 0, 1);
+  c.restore();
+  c.restore();
+}
+
+/* ---------- 2D overlay on the 3D view: fever glow, knife arc, parry cues, the stamp target */
+function overlay4(c, t) {
+  const R = G.run, B = R.boss;
+  drawBoostOverlay(c, t);
+  if (R.fever > 0) {
+    const g = c.createRadialGradient(SW / 2, SH / 2, SH * 0.3, SW / 2, SH / 2, SW * 0.72), a = 0.3 + Math.sin(t * 18) * 0.06;
+    g.addColorStop(0, 'rgba(255,140,40,0)'); g.addColorStop(1, 'rgba(255,90,20,' + a.toFixed(3) + ')');
+    c.fillStyle = g; c.fillRect(0, 0, SW, SH);
+    if (R.fever < 1.5 && Math.floor(t * 6) % 2) { c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, 'ПЕРЕДОЗ ЗАКАНЧИВАЕТСЯ!', SW / 2, SH * 0.2, '#ffd27a', 5); }
+  }
+  if (R.slash > 0) {
+    const a = runPlayerScreen(), k = a.k * (R.fever > 0 ? 1.8 : 1), e = 1 - R.slash / 0.22;
+    c.save(); c.globalAlpha = Math.min(1, R.slash / 0.12); c.lineCap = 'round';
+    P(c); c.arc(a.sx, a.sy - k * 0.9, k * 1.35, -Math.PI * (0.95 - e * 0.25), -Math.PI * (0.15 + (1 - e) * 0.2)); c.lineWidth = Math.max(6, k * 0.22); c.strokeStyle = 'rgba(255,255,255,0.95)'; c.stroke();
+    c.lineWidth = Math.max(2, k * 0.07); c.strokeStyle = '#c9a8ff'; c.stroke();
+    c.restore();
+  }
+  // pink projectiles: ring them, and shout when they are in knife reach
+  for (let j = R.i; j < R.objs.length; j++) {
+    const o = R.objs[j], dz = o.d - R.s; if (dz > 40) break;
+    if (!o.parry || o.dead || dz < -0.5) continue;
+    const q = runProj3(o.x, o.h, dz + RUN.PZ); if (q.sx < -100) continue;
+    const near = dz < 4.6 && Math.abs(o.x - R.x) < 1.25;
+    c.save(); c.globalAlpha = near ? 1 : 0.6; P(c); circ(c, q.sx, q.sy, Math.max(16, q.k * 0.9) * (1 + Math.sin(t * 16) * 0.1)); c.lineWidth = near ? 5 : 3; c.strokeStyle = '#ff5fb4'; c.stroke(); c.restore();
+    if (near) { c.font = '26px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, isTouch ? 'НОЖ!' : 'F!', q.sx, q.sy - Math.max(30, q.k * 1.4), '#ff8fc8', 6); }
+  }
+  if (B && B.state === 'open') {
+    const q = runProj3(laneX(B.tLane), B.h + 4.5, B.z + RUN.PZ);
+    if (q.sx > -100) {
+      drawReticle(c, q.sx, q.sy, Math.max(26, q.k * 1.3), t);
+      c.font = '24px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle';
+      const msg = R.lane !== B.tLane ? (R.lane < B.tLane ? 'ПЕЧАТЬ ПРАВЕЕ ▸' : '◂ ПЕЧАТЬ ЛЕВЕЕ') : R.y > 0.25 ? 'ЖМИ ПРЫЖОК ЕЩЁ РАЗ!' : 'ПРЫГАЙ!';
+      if (Math.floor(t * 4) % 2 || R.lane === B.tLane) otext(c, msg, q.sx, q.sy - Math.max(50, q.k * 2.4), '#ffe14d', 6);
+    }
+  }
+}
+
+/* ---------- 3D extras each frame: fever size and flames, knife arc in the world, camera lift */
+function frame4b(dt, t, F) {
+  const R = G.run, D = R3.duck, p = D.root.position;
+  const fv = R.fever > 0 ? 1 : 0;
+  R3.feverK = lerp(R3.feverK || 0, fv, Math.min(1, dt * 4));
+  D.root.scale.setScalar(1 + R3.feverK * 0.8);
+  if (fv) {
+    for (let k = 0; k < 2; k++) {
+      const s = R3E.trail[R3E.trailI++ % R3E.trail.length];
+      s.visible = true; s.userData.life = 0.3; s.material.color.set(Math.random() < 0.5 ? '#ff7a1a' : '#ffd43b');
+      s.position.copy(p).addScaledVector(F.u, 0.6 + Math.random() * 2.2).addScaledVector(F.r, (Math.random() - 0.5) * 1.8).addScaledVector(F.f, -0.4);
+      s.scale.setScalar(1.2 + Math.random() * 0.8);
+    }
+  } else if (!(R.boost > 0)) for (const s of R3E.trail) if (!s.visible) s.material.color.set('#8fe8ff');
+}
 
 /* ============================================================ particles & effects */
 const FONT_DISPLAY = '"Dela Gothic One", "Arial Black", Impact, sans-serif';
@@ -7438,7 +7765,7 @@ function drawHUD(c, t) {
     const a = clamp(Math.min((G.t - 1) * 2, (6.5 - G.t) * 2), 0, 1);
     if (a > 0) {
       c.globalAlpha = a; c.font = '800 17px ' + FONT_UI; c.textAlign = 'center';
-      const msg = isTouch ? 'Веди пальцем по экрану — герой повторит движение. Стреляет сам!' : 'Стрелки / WASD или тяни мышью · стреляет сам · Пробел — суперудар';
+      const msg = isTouch ? 'Веди пальцем по экрану — герой повторит движение. Стреляет сам!' : 'Стрелки / WASD или просто веди мышью · стреляет сам · Пробел — суперудар';
       otext(c, msg, W / 2, H - 26, '#fff6e5', 5);
       c.globalAlpha = 1;
     }
@@ -7818,19 +8145,23 @@ let runUi = '';
 function updateRunCtl(run) {
   const show = run && !G.run.end && state !== 'menu';
   const p = show ? Math.round(G.run.meter) : 0, act = show && G.run.boost > 0;
-  const key = show + '|' + p + '|' + act;
+  const key = show + '|' + p + '|' + act + '|' + (show && G.run.fever > 0);
   if (key === runUi) return;
   runUi = key;
   $('hud').classList.toggle('runner', show);
-  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch);
+  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch); $('btnKnife').hidden = !(show && runCfg().evo >= 2);
   $('dashFill').style.width = (act ? 100 : p) + '%';
   const evo = show && runCfg().evo >= 2;
-  if ($('dashBar').dataset.evo !== String(evo)) { $('dashBar').dataset.evo = String(evo); $('dashBar').querySelector('.dash-lbl').textContent = evo ? 'BOOST' : 'РЫВОК'; $('dashBar').setAttribute('aria-label', evo ? 'Boost' : 'Рывок'); }
-  if (evo) { $('dashFill').style.width = p + '%'; $('dashBar').classList.toggle('full', p >= 20 && !act); $('dashBar').classList.toggle('active', act); return; }
+  if ($('dashBar').dataset.evo !== String(evo)) { $('dashBar').dataset.evo = String(evo); $('dashBar').querySelector('.dash-lbl').textContent = evo ? 'КОФЕЙНЫЙ ПЕРЕДОЗ' : 'РЫВОК'; $('dashBar').setAttribute('aria-label', evo ? 'Кофейный передоз' : 'Рывок'); }
+  if (evo) { const fv = G.run.fever > 0; $('dashFill').style.width = p + '%'; $('dashBar').classList.toggle('full', p >= 100 && !fv); $('dashBar').classList.toggle('active', fv); return; }
   $('dashBar').classList.toggle('full', p >= 100 && !act);
   $('dashBar').classList.toggle('active', act);
 }
 $('btnJump').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runJump(); });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('btnJump').addEventListener(ev, () => runJumpUp());
+$('btnKnife').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runKnife(); });
+$('btnKnife').addEventListener('click', (e) => { if (e.detail === 0) runKnife(); e.currentTarget.blur(); });
+if (isTouch) $('knifeKey').hidden = true;
 $('dashBar').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runBoost(); });
 $('dashBar').addEventListener('click', (e) => { if (e.detail === 0) runBoost(); e.currentTarget.blur(); });
 if (isTouch) $('hud').classList.add('touch');
@@ -7868,7 +8199,7 @@ $('btnBomb').addEventListener('click', (e) => { if (e.detail === 0) useBomb(); e
 if (isTouch) $('bombKey').hidden = true;
 $('controlsHint').textContent = isTouch
   ? 'Веди пальцем по экрану — герой повторит движение. Стреляет сам. Кнопка со звездой — суперудар.'
-  : 'Стрелки / WASD или тяни мышью · стреляет сам · Пробел — суперудар · P — пауза';
+  : 'Стрелки / WASD или просто веди мышью (без нажатия) · стреляет сам · Пробел — суперудар · P — пауза';
 const fsOk = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 if (!fsOk) $('btnFull').hidden = true;
 const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
@@ -7910,7 +8241,8 @@ hooks.key = (code, e, onButton) => {
   }
 };
 hooks.blur = () => { if (state === 'play') pauseGame(); };
-hooks.tap = () => { if (state === 'play' && G && !G.run) doBurst(); };
+hooks.tap = (e) => { if (state !== 'play' || !G) return; if (!G.run) doBurst(); else if (e && e.pointerType === 'mouse' && runCfg().evo >= 2) runKnife(); };
+hooks.keyUp = (code) => { if (state === 'play' && G && G.run) runnerKeyUp(code); };
 hooks.swipe = (dir) => { if (state !== 'play' || !G || !G.run) return; if (dir === 'down') runRoll(); else if (dir !== 'up') runLane(dir === 'left' ? -1 : 1); };
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (state === 'play') pauseGame(); Sound.suspend(); }
@@ -7983,7 +8315,7 @@ window.__kb = {
   eel: () => useEel(), croc: () => useCroc(),
   tunnelC: (x) => tunnelC(x), tunAt: (x) => tunAt(x), burst: () => doBurst(), squid: () => useSquid(),
   x: { get R3() { return R3; }, planRanges, get BOSS4_AT() { return BOSS4_AT; } },
-  runAct: (a) => ({ jump: runJump, roll: runRoll, left: () => runLane(-1), right: () => runLane(1), boost: runBoost })[a](), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
+  runAct: (a) => ({ jump: runJump, jumpUp: runJumpUp, knife: runKnife, roll: runRoll, left: () => runLane(-1), right: () => runLane(1), boost: runBoost })[a](), menu: goMenu, pause: pauseGame, resume: resumeGame, bomb: useBomb,
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },

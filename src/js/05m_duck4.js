@@ -20,7 +20,7 @@ function buildTrack4() {
   while (d < BOSS4_AT - 70) {
     const lr = planRanges().find(([a, b, ty]) => ty === 'loop' && d > a - 22 && d < b + 10);
     if (lr) { if (!loopsDone.has(lr[0])) { loopsDone.add(lr[0]); cups(lr[0] - 6, 1, Math.floor((lr[1] - lr[0] + 6) / 3), 3, 0.5); } d = lr[1] + 14; continue; }
-    const pool = d < 220 ? ['capy', 'line', 'jump'] : d < 450 ? ['capy', 'floppa', 'roll', 'line', 'bonk'] : ['capy', 'floppa', 'bonk', 'car', 'traffic', 'dash', 'spring', 'roll', 'mix'];
+    const pool = d < 220 ? ['capy', 'line', 'jump', 'books'] : d < 450 ? ['capy', 'floppa', 'roll', 'line', 'bonk', 'clock', 'books'] : ['capy', 'floppa', 'bonk', 'car', 'traffic', 'dash', 'spring', 'roll', 'mix', 'clock', 'study', 'books'];
     const pat = pool[Math.floor(Rn() * pool.length)], L = Math.floor(Rn() * 3), L2 = (L + 1 + Math.floor(Rn() * 2)) % 3, L3 = 3 - L - L2;
     switch (pat) {
       case 'line': cups(d, L, 9, 2.6, 0.5); add({ type: 'dash', d: d - 5, x: laneX(L) }); break;
@@ -33,6 +33,9 @@ function buildTrack4() {
       case 'traffic': for (let k = 0; k < 3; k++) add({ type: 'car', d: d + 6, x: laneX(k) }); add({ type: 'dash', d: d - 10, x: laneX(L) }); add({ type: 'spring', d: d - 4, x: laneX(L2) }); cups(d - 2, L2, 6, 3.2, 1.5, 4); break;
       case 'dash': add({ type: 'dash', d, x: laneX(L) }); cups(d + 4, L, 8, 3.5, 0.5); for (let k = 0; k < 3; k++) if (k !== L) add({ type: 'cone', d: d + 14, x: laneX(k) }); break;
       case 'spring': add({ type: 'spring', d, x: laneX(L) }); cups(d + 5, L, 8, 3.2, 1.5, 4.2); add({ type: 'car', d: d + 14, x: laneX(L) }); break;
+      case 'clock': add({ type: 'clock', d: d + 6, x: laneX(L), v: -4, ph: Rn() * 3 }); add({ type: 'clock', d: d + 14, x: laneX(L2), v: -4, ph: Rn() * 3 }); cups(d - 6, L3, 6, 3, 0.5); break;
+      case 'books': add({ type: 'books', d, x: laneX(L) }); add({ type: 'books', d: d + 8, x: laneX(L2) }); cups(d - 8, L, 6, 2.6, 0.5, 2.4); break;
+      case 'study': add({ type: 'books', d, x: laneX(L) }); add({ type: 'clock', d: d + 10, x: laneX(L2), v: -3.5, ph: 1 }); add({ type: 'bar', d: d + 4, x: laneX(L3) }); cups(d - 6, L3, 4, 2.5, 0.35); break;
       case 'mix': add({ type: 'floppa', d, x: laneX(L) }); add({ type: 'capy', d: d + 12, x: laneX(L2), v: -3 }); add({ type: 'bonk', d: d + 6, x: laneX(L3), ph: 1 }); break;
     }
     d += 34 - (d / BOSS4_AT) * 8 + Rn() * 10;
@@ -42,14 +45,18 @@ function buildTrack4() {
 function collide4(o, R) {
   const air = R.y, rolling = R.roll > 0 && R.y < 0.5;
   switch (o.type) {
-    case 'capy': return air > 0.9;
-    case 'floppa': if (air > 0.8) { runDestroy(o); R.vy = 12; return true; } return false;
+    case 'capy': return air > 0.7;
+    case 'floppa': if (air > 0.6) { runDestroy(o); R.vy = 12; return true; } return false;
     case 'bonk': return Math.abs(air - o.h) > 1.0;
-    case 'car': return air > 1.6;
+    case 'car': return air > 1.15;
+    case 'clock': if (air > 0.55) { runDestroy(o); R.vy = Math.max(R.vy, 11); return true; } return false;
+    case 'books': case 'stack': return air > 0.8;
+    case 'two': case 'edit': return rolling || air > 2.3;
+    case 'clip': return Math.abs(air - o.h) > 0.9;
     case 'sheet': return air > 0.3;
     case 'pen': return rolling || air > 2.6;
     case 'cite': return Math.abs(air - o.h) > 1.0;
-    case 'laser': return air > 0.7;
+    case 'laser': return air > 0.55;
   }
   return undefined;
 }
@@ -76,13 +83,18 @@ const THESIS_LINES = {
   dead: 'Я… защищена…',
 };
 function thesisAttack(B) {
-  const R = G.run, kind = ['sheet', 'pen', 'cite', 'laser'][(B.vol + B.round) % 4];
+  const R = G.run, kind = ['two', 'clip', 'edit', 'sheet', 'two', 'edit', 'laser'][(B.vol + B.round * 2) % 7];
   const lanes = [0, 1, 2].sort(() => Math.random() - 0.5), n = B.hp <= 2 ? 2 : (Math.random() < 0.5 ? 1 : 2);
   B.mouth = 1;
   const d = R.s + B.z;
-  if (kind === 'sheet') { shawSay(pick(['Листы рецензии!', 'Получай черновик!'])); for (let i = 0; i < n; i++) R.objs.push({ type: 'sheet', d: d - 2, x: laneX(lanes[i]), h: 0, fall: B.h + 3, ft: 0 }); }
-  else if (kind === 'pen') { shawSay('Красная ручка научрука!'); for (let i = 0; i < n; i++) R.objs.push({ type: 'pen', d: d - 2, x: laneX(lanes[i]), h: 1.3, v: -10 }); }
-  else if (kind === 'cite') { shawSay(pick(['Сноска на сноске!', 'Где список литературы?!'])); for (let i = 0; i < n + 1; i++) R.objs.push({ type: 'cite', d: d - 2 - i * 3, x: laneX(lanes[i % 3]), h: 0, ph: rand(0, 3) }); }
+  if (kind === 'two') { shawSay(pick(['Двойка тебе!', 'Неуд! Неуд!', 'Пересдача!'])); for (let i = 0; i < n; i++) R.objs.push({ type: 'two', d: d - 2 - i * 2, x: laneX(lanes[i]), h: 1.3, v: -10, parry: Math.random() < 0.35 }); }
+  else if (kind === 'clip') { shawSay(pick(['Скрепки, в атаку!', 'Скреплю тебя!'])); for (let i = 0; i < n + 1; i++) R.objs.push({ type: 'clip', d: d - 2 - i * 3, x: laneX(lanes[i % 3]), h: 0, ph: rand(0, 3) }); }
+  else if (kind === 'edit') {
+    shawSay(pick(['Правки научного руководителя!', 'Перепиши всё к утру!', 'Красной ручкой по тексту!']));
+    for (let i = 0; i < n; i++) R.objs.push({ type: 'edit', d: d - 2 - i * 4, x: laneX(lanes[i]), h: 1.3, v: -8.5, parry: true });
+    if (!R.hints.parry) { R.hints.parry = 1; banner('РОЗОВЫЕ ПРАВКИ', isTouch ? 'Ударь ножом в момент подлёта — отобьёшь в босса!' : 'Нож (F) в момент подлёта — отобьёшь в босса!', 2.8, 'small'); }
+  }
+  else if (kind === 'sheet') { shawSay(pick(['Листы рецензии!', 'Получай черновик!'])); for (let i = 0; i < n; i++) R.objs.push({ type: 'sheet', d: d - 2, x: laneX(lanes[i]), h: 0, fall: B.h + 3, ft: 0 }); }
   else { shawSay('АНТИПЛАГИАТ! Оригинальность 12%!'); for (let i = 0; i < 2; i++) R.objs.push({ type: 'laser', d: d - 2, x: laneX(lanes[i]), h: 0, v: -9 }); }
   R.objs.sort((a, b) => a.d - b.d); R.i = 0;
   sfx('throw');
@@ -93,15 +105,19 @@ const MEME_HINT = {
   capy: ['КАПИБАРА', 'Идёт навстречу — перепрыгни или атакуй в прыжке'],
   floppa: ['ШЛЁПА', 'Большой кот! Обойди или прыгни ему на голову'],
   bonk: ['БОНК-ПЁС', 'Скачет с битой — лови момент'],
-  car: ['ТАКСИ', 'Объезжай или пробей насквозь на BOOST'],
+  car: ['ТАКСИ', 'Объезжай, перепрыгни или снеси в «Кофейном передозе»'],
+  clock: ['ЗЛОЙ БУДИЛЬНИК', 'Звенит и скачет навстречу — прыгни сверху или руби ножом'],
+  books: ['СТОПКА УЧЕБНИКОВ', 'Перепрыгни или разруби ножом'],
 };
 function tick4(R) {
+  updateFever(R, R.dtLast || 0);
+  thesisReflect(R);
   if (R.cards === undefined) R.cards = R.s > 100 ? 2 : 0;
   // the title card goes first; the control hints wait until it is gone
-  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('ГОРОД', 'Эволюция графики: тени · мультяшный свет · BOOST', 2.6, 'green'); sfx('power'); }
+  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('ГОРОД', 'Эволюция графики: тени · мультяшный свет · 3D-утка', 2.6, 'green'); sfx('power'); }
   if (R.cards === 1 && R.t > 2.9) { R.cards = 2; banner('ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел', 2.4, 'small'); }
   if (R.cards < 2) return;
-  if (!R.hints.boostE && R.s > 140 && R.phase === 'run') { R.hints.boostE = 1; banner('BOOST', isTouch ? 'Жми шкалу BOOST — утка сносит всё, пока шкала не пуста' : 'Shift — BOOST: сносишь всё, пока шкала не пуста', 2.8, 'small'); }
+  tick4b(R);
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j], dz = o.d - R.s; if (dz > 45) break;
     if (dz > 20 && MEME_HINT[o.type] && !R.hints['m_' + o.type]) { R.hints['m_' + o.type] = 1; banner(MEME_HINT[o.type][0], MEME_HINT[o.type][1], 2.4, 'small'); break; }
@@ -154,12 +170,15 @@ function sprCite(c) {
   c.font = '34px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK; c.fillText('[1]', 0, -36);
 }
 const SPR4 = { capy: sprCapy, floppa: sprFloppa, bonk: sprBonk, cite: sprCite };
+// sprite height in metres for the whole 240 px canvas, and the anchor (0.04 = stands on the road, 0.5 = flies)
+const SPR4CFG = { capy: [2.0, 0.04], floppa: [2.4, 0.04], bonk: [2.0, 0.04], cite: [1.3, 0.04], clock: [2.3, 0.04], books: [2.5, 0.04], two: [2.6, 0.5], clip: [2.4, 0.04], edit: [2.8, 0.5] };
 function drawRun2D4(c, o, base, k, t) {
   const f = SPR4[o.type]; if (!f) return;
   const q = runProj(o.x, o.h || 0, o.d - G.run.s + RUN.PZ);
   c.save(); c.translate(q.sx, q.sy); c.scale(k / 90, k / 90); f(c, t); c.restore();
 }
 function drawThesis(c, x, y, S, t, B) {
+  if (B.state === 'open') return drawThesisOpen(c, x, y, S, t, B);
   c.save(); c.translate(x, y); const s = S / 200; c.scale(s, s);
   const angry = B.hp <= 2, tired = B.state === 'tired' || B.state === 'hurt', m = B.mouth || 0;
   if (B.flash > 0 && Math.floor(B.flash * 20) % 2) c.globalAlpha = 0.6;
@@ -423,11 +442,17 @@ function makeObj4(o, g, add) {
   const G3 = R3.geo, M = R3.mat;
   const shadowDisc = (r) => { const d = new THREE.Mesh(G3.disc, M.shadow); d.rotation.x = -Math.PI / 2; d.scale.setScalar(r); d.position.y = 0.03; d.userData.isOutline = true; g.add(d); };
   switch (o.type) {
-    case 'capy': case 'floppa': case 'bonk': case 'cite': {
-      const key = o.type, tex = R3.tex['spr4_' + key] || (R3.tex['spr4_' + key] = spriteTex(220, 240, (c) => { c.translate(110, 230); SPR4[key](c, 0.3); }));
-      const sz = key === 'floppa' ? 2.4 : key === 'cite' ? 1.3 : 2.0;
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex })); sp.center.set(0.5, 0.04); sp.scale.set(sz * 220 / 240, sz, 1); g.add(sp); g.userData.sprite = sp;
-      shadowDisc(key === 'floppa' ? 0.9 : 0.7);
+    case 'capy': case 'floppa': case 'bonk': case 'cite': case 'clock': case 'books': case 'stack': case 'two': case 'clip': case 'edit': {
+      const key = o.type === 'stack' ? 'books' : o.type, cfg = SPR4CFG[key] || [2.0, 0.04], mid = cfg[1] > 0.3;
+      const tex = R3.tex['spr4_' + key] || (R3.tex['spr4_' + key] = spriteTex(220, 240, (c) => { c.translate(110, mid ? 120 : 230); SPR4[key](c, 0.3); }));
+      const sz = cfg[0];
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex })); sp.center.set(0.5, cfg[1]); sp.scale.set(sz * 220 / 240, sz, 1); g.add(sp); g.userData.sprite = sp;
+      if (!mid) shadowDisc(key === 'floppa' ? 0.9 : 0.7);
+      if (o.parry) { const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: R3E.lampGlow.map, color: '#ff5fb4', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.set(2.6, 2.6, 1); g.add(gl); g.userData.glow = gl; }
+      if (o.type === 'stack') {
+        const ring = new THREE.Mesh(G3.disc, new THREE.MeshBasicMaterial({ color: '#ff3040', transparent: true, opacity: 0.45, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; ring.userData.isOutline = true; g.add(ring);
+        g.userData.upd = (oo) => { const k = oo.ft === undefined ? 1 : oo.ft; sp.position.y = lerp(oo.fall || 0, 0, k); ring.visible = k < 1; ring.scale.setScalar(0.4 + k * 0.6); };
+      } else if (o.parry || o.reflect !== undefined) g.userData.upd = (oo, t) => { if (g.userData.glow) { g.userData.glow.visible = !!oo.parry || !!oo.reflect; g.userData.glow.material.color.set(oo.reflect ? '#fff27a' : '#ff5fb4'); g.userData.glow.material.opacity = 0.55 + Math.sin(t * 14) * 0.35; } };
       break;
     }
     case 'car': {
@@ -520,7 +545,14 @@ function duckModelInstall(D) {
   const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.outline); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
   mk(M.body); const feet = [mk(M.footL), mk(M.footR)];
   const lean = new THREE.Group(); lean.add(g); D.body.add(lean);
-  D.model = { g, lean, feet };
+  const wm = new THREE.MeshToonMaterial({ color: '#f6d64a', gradientMap: R3E.grad }), wings = [];
+  for (const sd of [-1, 1]) {
+    const piv = new THREE.Group(); piv.position.set(sd * 0.3, 0.9, 0.12);
+    const w = new THREE.Mesh(R3.geo.sphere, wm); w.scale.set(0.42, 0.08, 0.22); w.position.set(sd * 0.38, 0, 0); w.userData.noOutline = true;
+    const wo = new THREE.Mesh(R3.geo.sphere, R3E.outline); wo.scale.setScalar(1.12); wo.userData.isOutline = true; w.add(wo);
+    piv.add(w); piv.visible = false; lean.add(piv); wings.push(piv);
+  }
+  D.model = { g, lean, feet, wings };
   return true;
 }
 function duckModelPose(D, R, t) {
@@ -531,6 +563,12 @@ function duckModelPose(D, R, t) {
   m.feet[1].position.y = m.feet[1].userData.y0 === undefined ? (m.feet[1].userData.y0 = m.feet[1].position.y) : m.feet[1].userData.y0 + Math.max(0, -run) * 0.08;
   m.lean.rotation.z = run * 0.08 + (air ? Math.sin(t * 9) * 0.06 : 0);
   m.lean.rotation.x = air ? -0.05 : -0.14;
+  // knife slash: a quick twist of the whole body
+  m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / 0.22) * Math.PI) * -0.9 : 0;
+  // wings come out for the glide and the double jump
+  const fly = R.gliding || R.flap > 0;
+  for (let i = 0; i < 2; i++) { const w = m.wings[i], sd = i ? 1 : -1; w.visible = fly; if (fly) w.rotation.z = sd * (0.2 + Math.sin(t * (R.gliding ? 16 : 26)) * 0.75); }
+  if (R.gliding) m.lean.rotation.x = 0.1;
   const land = R.landT > 0 ? R.landT : 0; m.lean.scale.set(1 + land * 0.25, 1 - land * 0.3, 1 + land * 0.25);
 }
 function r3EvoFrame(dt, t, F) {
@@ -546,6 +584,7 @@ function r3EvoFrame(dt, t, F) {
   for (const s of R3E.trail) if (s.visible) { s.userData.life -= dt; s.material.opacity = Math.max(0, s.userData.life / 0.22) * 0.6; s.scale.multiplyScalar(1 - dt * 1.5); if (s.userData.life <= 0) s.visible = false; }
   D.aura.material.color.set(R.boost > 0 ? '#8fe8ff' : '#ffe066');
   duckModelPose(D, R, t);
+  frame4b(dt, t, F);
 }
 function drawBoostOverlay(c, t) {
   const R = G.run; if (!(R.boost > 0)) return;
@@ -559,6 +598,8 @@ const RUN_CFG4 = {
   evo: 2, bossAt: BOSS4_AT, surfaces: [[0, 'city']], build: buildTrack4, plan: () => TRACK_PLAN4,
   bossName: 'Ожившая диссертация', bossLabel: 'ОЖИВШАЯ ДИССЕРТАЦИЯ', voice: 'babble', lines: THESIS_LINES, attack: thesisAttack,
   drawBoss: drawThesis, bossScale: 8, drawEnd: drawEnd4, endSay: 'Ура! Защитилась! Теперь я кандидат утиных наук!', deathFx: 'paper',
-  targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk'], collide: collide4, tick: tick4,
-  floatTypes: ['bonk', 'cite', 'pen'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet'], bounce: ['bonk', 'cite'], draw2D: drawRun2D4,
+  targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk', 'clock'], collide: collide4, tick: tick4,
+  floatTypes: ['bonk', 'cite', 'pen', 'two', 'edit', 'clip', 'clock'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet', 'two', 'edit', 'clip', 'clock', 'stack'],
+  bounce: ['bonk', 'cite', 'clip', 'clock'], bounceH: { clock: 0.45, clip: 1.4 }, draw2D: drawRun2D4,
+  jump: 15.5, grav: 46, bossHp: 6, openPhase: (B) => thesisOpen(B), updOpen: (B, dt) => thesisUpdOpen(B, dt), overlay: (c, t) => overlay4(c, t),
 };

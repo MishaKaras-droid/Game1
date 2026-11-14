@@ -93,10 +93,10 @@ function startRunner(atBoss) {
   planRanges.cache = null;
   const R = {
     s: 0, speed: atBoss ? RUN.BASE : 8, x: 0, vx: 0, lane: 1, y: 0, vy: 0, roll: 0, slam: false, boost: 0, inv: 0,
-    coffee: 0, cupsTotal: 0, meter: RCF.evo >= 2 ? 60 : 40, objs: RCF.build(), i: 0, phase: 'intro', t: 0,
+    coffee: 0, cupsTotal: 0, meter: RCF.evo >= 2 ? 20 : 40, objs: RCF.build(), i: 0, phase: 'intro', t: 0,
     camH: 9, hor: SH * 0.1, camX: 0, curve: 0, fade: 1, hints: {}, streak: null, target: null, boss: null, end: null, surf: 'road',
   };
-  if (atBoss) { R.s = RCF.bossAt - 25; R.objs = []; R.meter = 100; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, boostE: 1, grass: 1, sand: 1, ice: 1, road: 1, city: 1 }; }
+  if (atBoss) { R.s = RCF.bossAt - 25; R.objs = []; R.meter = RCF.evo >= 2 ? 50 : 100; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, boostE: 1, grass: 1, sand: 1, ice: 1, road: 1, city: 1 }; }
   R.surf = surfaceAt(R.s);
   R.three = r3Init();
   G.run = R; G.phase = 'run'; G.phaseT = 0;
@@ -113,12 +113,17 @@ function runProj2D(x, h, z) {
 function runPlayerScreen() { const R = G.run; return runProj(R.x, R.y, RUN.PZ); }
 function runJump() {
   const R = G.run; if (!R || G.phase !== 'run' || R.phase === 'end' || !G.player.alive) return;
+  R.jumpHeld = true;
   if (R.target && (R.y > 0.25 || R.target.boss)) return runHoming();
-  if (R.y <= 0.01 && R.vy <= 0) { R.vy = RUN.JUMP; R.y = 0.01; R.roll = 0; sfx('swoosh'); }
+  const C = runCfg();
+  if (R.y <= 0.01 && R.vy <= 0) { R.vy = C.jump || RUN.JUMP; R.y = 0.01; R.roll = 0; R.dj = false; sfx('swoosh'); return; }
+  if (C.evo >= 2 && !R.dj && R.y > 0.15) { R.dj = true; R.vy = Math.max(R.vy, 11.5); R.slam = false; R.flap = 0.4; sfx('swoosh'); sfx('quack'); return; }
+  if (R.vy < 0 && R.y < 1.3) R.jumpBuf = 0.2;
 }
+function runJumpUp() { if (G && G.run) G.run.jumpHeld = false; }
 function runRoll() {
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
-  if (R.y > 0.05) { R.vy = -30; R.slam = true; } else R.roll = 0.75;
+  if (R.y > 0.05) { R.vy = -30; R.slam = true; R.jumpHeld = false; } else R.roll = 0.75;
   sfx('throw');
 }
 function runLane(dir) {
@@ -129,7 +134,7 @@ function runLane(dir) {
 }
 function runBoost() {
   const R = G.run; if (!R || !G.player.alive || R.end || R.phase === 'intro') return;
-  if (runCfg().evo >= 2) return runBoostDrain();
+  if (runCfg().evo >= 2) return runFeverBtn();
   if (R.boost > 0) return;
   if (R.meter < 100) { if (!R.boostNag || R.t - R.boostNag > 1.5) { R.boostNag = R.t; floatText(SW / 2, SH * 0.7, 'Шкала «Рывок» ещё не полная — собирай кофе!', '#ffe9a0', 18); sfx('click'); } return; }
   R.boost = 4; R.meter = 0; banner('РЫВОК!', '', 1.2, 'small'); sfx('power'); sfx('quack'); sfx('swoosh'); G.shake = 6;
@@ -142,7 +147,7 @@ function runHoming() {
   const R = G.run, T = R.target; if (!T) return;
   const a = runPlayerScreen();
   if (T.boss) {
-    const B = R.boss, q = runProj(B.x, B.h + 2.2, B.z + RUN.PZ);
+    const B = R.boss, open = B.state === 'open', q = runProj(open ? laneX(B.tLane) : B.x, B.h + (open ? 4.5 : 2.2), B.z + RUN.PZ);
     R.streak = { x0: a.sx, y0: a.sy - a.k * 0.6, x1: q.sx, y1: q.sy, t: 0.25 };
     runBossHit();
   } else {
@@ -157,7 +162,7 @@ function runHoming() {
 function runDestroy(o, q) {
   o.dead = true; o.smashed = 0.5;
   q = q || runProj(o.x, o.h + 0.3, o.d - G.run.s + RUN.PZ);
-  const enemyHit = runCfg().targets.includes(o.type), meme = enemyHit && o.type !== 'pigeon' && o.type !== 'crow', paper = o.type === 'sheet' || o.type === 'cite';
+  const enemyHit = runCfg().targets.includes(o.type), meme = enemyHit && o.type !== 'pigeon' && o.type !== 'crow', paper = ['sheet', 'cite', 'two', 'clip', 'edit', 'stack', 'books'].includes(o.type);
   addScore(enemyHit ? 150 : 50, q.sx, q.sy);
   if (G.run.boostDrain && G.run.boost > 0) boostChain(G.run, q);
   if (meme || paper) { burst(q.sx, q.sy, 12, { type: 'star', col: paper ? '#fffaf0' : '#ffd43b', smin: 80, smax: 260, lmin: 0.5, lmax: 0.9, rmin: 5, rmax: 9 }); sfx('pop'); return; }
@@ -166,7 +171,7 @@ function runDestroy(o, q) {
 }
 function runHit() {
   const R = G.run;
-  if (R.inv > 0 || R.boost > 0 || !G.player.alive || DEBUG.god) return;
+  if (R.inv > 0 || R.boost > 0 || R.fever > 0 || !G.player.alive || DEBUG.god) return;
   const a = runPlayerScreen();
   G.shake = 10; sfx('hurt'); sfx('quack');
   if (R.coffee > 0) {
@@ -187,7 +192,7 @@ function runCollide(o) {
   switch (o.type) {
     case 'cup':
       if (Math.abs(o.h - R.y) < 1.4) {
-        o.dead = true; R.coffee++; R.cupsTotal++; R.meter = Math.min(100, R.meter + 4); addScore(10);
+        o.dead = true; R.coffee++; R.cupsTotal++; if (!(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 5 : 4)); addScore(10);
         const q = runProj(o.x, o.h, RUN.PZ + 0.3); burst(q.sx, q.sy, 4, { type: 'star', col: '#ffe066', smin: 40, smax: 120, lmin: 0.3, lmax: 0.5, rmin: 4, rmax: 6 });
         sfx('heal');
         if (R.cupsTotal % 30 === 0 && G.hp < MAX_HP) { G.hp++; floatText(q.sx, q.sy - 40, '+1 ♥', '#ff8fa3', 24); }
@@ -197,13 +202,15 @@ function runCollide(o) {
     case 'dash': if (!o.used && R.y < 0.4) { o.used = true; R.boost = Math.max(R.boost, 1.6); sfx('swoosh'); } return;
   }
   if (o.hitDone) return;
+  if (R.fever > 0) { feverSmash(o); return; }
   if (R.boost > 0) { runDestroy(o); return; }
   if (runCfg().collide) { const r = runCfg().collide(o, R); if (r !== undefined) { if (!r) { o.hitDone = true; runHit(); } return; } }
   const air = R.y, rolling = R.roll > 0 && R.y < 0.5;
   let ok = false;
   switch (o.type) {
-    case 'barrier': case 'cone': ok = air > 0.95; break;
-    case 'spikes': ok = air > 0.6; break;
+    case 'barrier': ok = air > 0.7; break;
+    case 'cone': ok = air > 0.6; break;
+    case 'spikes': ok = air > 0.5; break;
     case 'hole': case 'puddle': ok = air > 0.3; break;
     case 'pepper': ok = Math.abs(air - o.h) > 1.0; break;
     case 'bar': case 'red': ok = rolling || air > 2.6; break;
@@ -217,7 +224,7 @@ function runCollide(o) {
 function startRunBoss() {
   const R = G.run;
   R.phase = 'boss';
-  R.boss = { hp: 5, max: 5, state: 'enter', t: 0, z: 70, x: 0, h: 0, round: 0, vol: 0, mouth: 0, flash: 0, speech: null, atkT: 0 };
+  R.boss = { hp: runCfg().bossHp || 5, max: runCfg().bossHp || 5, tLane: 1, state: 'enter', t: 0, z: 70, x: 0, h: 0, round: 0, vol: 0, mouth: 0, flash: 0, speech: null, atkT: 0 };
   G.checkpoint = { score: G.score, power: G.power };
   R.objs = R.objs.filter((o) => o.d > R.s - 10); R.i = 0;
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
@@ -228,7 +235,7 @@ function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
   if (B.speech) { B.speech.t -= dt; if (B.speech.t <= 0) B.speech = null; }
-  B.x = Math.sin(B.t * 0.9) * 1.4 * (B.state === 'tired' ? 0.2 : 1);
+  if (B.state !== 'open') B.x = Math.sin(B.t * 0.9) * 1.4 * (B.state === 'tired' ? 0.2 : 1);
   if (B.state === 'enter') {
     B.z = lerp(B.z, 28, Math.min(1, dt * 1.5)); B.h = lerp(B.h, 0.6, Math.min(1, dt * 2));
     if (B.t > 2.6) { B.state = 'attack'; B.t = 0; B.vol = 0; B.atkT = 0.6; if (B.round === 0) shawSay(runCfg().lines.intro); }
@@ -237,9 +244,12 @@ function updateRunBoss(dt) {
     B.atkT -= dt; B.mouth = Math.max(0, B.mouth - dt * 2);
     if (B.atkT <= 0) {
       const vols = B.hp <= 2 ? 5 : 4;
-      if (B.vol >= vols) { B.state = 'tired'; B.t = 0; shawSay(pick(runCfg().lines.tired)); sfx('charge'); }
+      if (B.vol >= vols && runCfg().openPhase) runCfg().openPhase(B);
+      else if (B.vol >= vols) { B.state = 'tired'; B.t = 0; shawSay(pick(runCfg().lines.tired)); sfx('charge'); }
       else { runCfg().attack(B); B.vol++; B.atkT = B.hp <= 2 ? 1.05 : 1.35; }
     }
+  } else if (B.state === 'open') {
+    runCfg().updOpen(B, dt);
   } else if (B.state === 'tired') {
     B.z = lerp(B.z, 9, Math.min(1, dt * 2.5)); B.h = lerp(B.h, 0.1, Math.min(1, dt * 3));
     if (B.t > 2.8) { B.state = 'enter'; B.t = 1.2; B.round++; shawSay(pick(runCfg().lines.back)); }
@@ -301,26 +311,33 @@ function updateRunner(dt) {
     R.camH = lerp(9, 2.2, e); R.hor = lerp(SH * 0.1, SH * 0.36, e);
     if (R.t >= 1.5) R.phase = R.boss ? 'boss' : 'run';
   }
+  R.dtLast = dt;
   if (runCfg().tick) runCfg().tick(R);
   const surf = surfaceAt(R.s);
   if (surf !== R.surf) { R.surf = surf; if (!R.hints[surf] && R.s > 50) { R.hints[surf] = 1; banner(SURF_NAME[surf][0], SURF_NAME[surf][1], 2.2, 'small'); } }
   let target = Math.min(RUN.MAXS, RUN.BASE + R.s * 0.004);
   if (surf === 'sand') target *= 0.78;
   if (R.boost > 0) target *= runCfg().evo >= 2 ? 1.65 : 1.8;
-  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0)) R.meter = Math.min(100, R.meter + 2.2 * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
+  if (R.fever > 0) target *= 1.3;
+  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0) && !(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 0.5 : 2.2) * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
   R.speed = lerp(R.speed, target, Math.min(1, dt * 2.5));
   R.s += R.speed * dt;
   R.curve = Math.sin(R.s / 230) * 0.0026 + Math.sin(R.s / 97) * 0.0009;
   // lanes: ice makes the duck slide
   const tx = laneX(R.lane);
   if (surf === 'ice') { R.vx += (tx - R.x) * 32 * dt; R.vx *= 1 - 2.4 * dt; R.x += R.vx * dt; }
-  else { R.x = lerp(R.x, tx, Math.min(1, dt * 14)); R.vx = 0; }
-  R.camX = lerp(R.camX, R.x * 0.6, Math.min(1, dt * 6));
+  else { R.x = lerp(R.x, tx, Math.min(1, dt * 20)); R.vx = 0; }
+  R.camX = lerp(R.camX, R.x * 0.6, Math.min(1, dt * 8));
+  // glide: holding jump on the way down (level 4+) — the duck flaps and sinks slowly
+  const CF = runCfg();
+  R.gliding = CF.evo >= 2 && R.jumpHeld && R.vy < 0 && R.y > 0.25 && !R.slam && G.player.alive;
   if (R.y > 0 || R.vy > 0) {
-    R.vy -= RUN.G * dt; R.y += R.vy * dt;
-    if (R.y <= 0) { R.y = 0; R.vy = 0; if (R.slam) { R.roll = 0.6; R.slam = false; } const a = runPlayerScreen(); burst(a.sx, a.sy, 5, { type: 'smoke', col: surf === 'ice' ? 'rgba(220,240,255,A)' : 'rgba(230,215,190,A)', r: 4, r1: 14, smin: 30, smax: 90, lmin: 0.3, lmax: 0.5 }); }
+    R.vy -= (CF.grav || RUN.G) * dt * (R.gliding ? 0.22 : 1); if (R.gliding) R.vy = Math.max(R.vy, -2.2);
+    R.y += R.vy * dt;
+    if (R.y <= 0) { R.y = 0; R.vy = 0; R.dj = false; if (R.jumpBuf > 0) { R.jumpBuf = 0; R.vy = CF.jump || RUN.JUMP; R.y = 0.01; sfx('swoosh'); } if (R.slam) { R.roll = 0.6; R.slam = false; } const a = runPlayerScreen(); burst(a.sx, a.sy, 5, { type: 'smoke', col: surf === 'ice' ? 'rgba(220,240,255,A)' : 'rgba(230,215,190,A)', r: 4, r1: 14, smin: 30, smax: 90, lmin: 0.3, lmax: 0.5 }); }
   }
   if (R.boostDrain) { R.meter -= 22 * dt; R.boost = Math.max(R.boost, 0.12); if (R.meter <= 0 || R.phase === 'intro') { R.meter = Math.max(0, R.meter); R.boostDrain = false; } }
+  R.jumpBuf = Math.max(0, (R.jumpBuf || 0) - dt); R.knifeCd = Math.max(0, (R.knifeCd || 0) - dt); R.slash = Math.max(0, (R.slash || 0) - dt); R.flap = Math.max(0, (R.flap || 0) - dt);
   R.roll = Math.max(0, R.roll - dt); R.boost = Math.max(0, R.boost - dt); R.inv = Math.max(0, R.inv - dt);
   if (surf === 'sand' && Math.random() < dt * 12 && R.y === 0) { const a = runPlayerScreen(); part({ type: 'smoke', x: a.sx + rand(-20, 20), y: a.sy, r: 3, r1: 12, col: 'rgba(240,220,170,A)', life: 0.4, vx: rand(-40, 40), vy: rand(-40, 0) }); }
   // hints for the controls
@@ -336,7 +353,7 @@ function updateRunner(dt) {
     if (o.dead) continue;
     if (o.v && (R.boss || o.d - R.s < 55)) o.d += o.v * dt;
     if (o.fall !== undefined && o.ft < 1) o.ft = Math.min(1, o.ft + dt * 2.2);
-    if (o.type === 'pepper' || runCfg().bounce.includes(o.type)) { o.ph += dt * 5; o.h = Math.abs(Math.sin(o.ph)) * 1.9; }
+    if (o.type === 'pepper' || runCfg().bounce.includes(o.type)) { o.ph += dt * 5; o.h = Math.abs(Math.sin(o.ph)) * ((runCfg().bounceH || {})[o.type] || 1.9); }
   }
   if (R.boss || runCfg().evo >= 2) { R.objs.sort((a, b) => a.d - b.d); R.i = 0; }
   // collisions near the duck
@@ -344,13 +361,14 @@ function updateRunner(dt) {
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j];
     if (o.d > R.s + 2) break;
-    if (o.dead || Math.abs(o.d - R.s) > 0.9 || Math.abs(o.x - R.x) > 1.0) continue;
+    if (o.dead || o.reflect || Math.abs(o.d - R.s) > 0.9 || Math.abs(o.x - R.x) > 1.0) continue;
     if (o.fall !== undefined && o.ft < 1) continue;
     runCollide(o);
   }
   // homing target: nearest enemy ahead while in the air, or the dizzy boss
   R.target = null;
   if (R.boss && R.boss.state === 'tired') R.target = { boss: true };
+  else if (R.boss && R.boss.state === 'open') { if (R.y > 0.25 && R.lane === R.boss.tLane) R.target = { boss: true }; }
   else if (R.y > 0.25) {
     for (let j = R.i; j < R.objs.length; j++) {
       const o = R.objs[j], dz = o.d - R.s;
@@ -677,7 +695,8 @@ function runnerKey(code) {
   else if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') runJump();
   else if (code === 'ArrowDown' || code === 'KeyS') runRoll();
   else if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyQ' || code === 'KeyC') runBoost();
-  else if (code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
+  else if (code === 'KeyF' || code === 'KeyJ' || code === 'KeyE' || code === 'Enter') runKnife();
   else return false;
   return true;
 }
+function runnerKeyUp(code) { if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') runJumpUp(); }
