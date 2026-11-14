@@ -40,6 +40,9 @@ def main():
             img[key] = data_uri(p)
     meta = json.loads((K / "assets" / "sprites.json").read_text())
     assets_js = "const ASSETS = " + json.dumps({"img": img, "meta": meta}, ensure_ascii=False) + ";"
+    city = K / "assets" / "models" / "city.bin.gz"
+    if city.exists():  # 3D buildings for duck level 4 (packed by tools/pack_models.py)
+        assets_js += "\nconst CITY_PACK = " + json.dumps({"head": json.loads(city.with_suffix("").with_suffix(".json").read_text()), "gz": base64.b64encode(city.read_bytes()).decode()}) + ";"
     js = "\n".join(p.read_text() for p in sorted((K / "src" / "js").glob("*.js")))
     shell = (K / "src" / "shell.html").read_text()
     three = (K / "vendor" / "three-r128.min.js").read_text()

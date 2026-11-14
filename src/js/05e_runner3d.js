@@ -207,7 +207,7 @@ function syncChunks(s) {
   for (let ci = Math.max(0, Math.floor(s / 100) - 1); ci <= Math.floor(s / 100) + 2; ci++) want.add(ci);
   for (const [ci, grp] of R3.chunks) if (!want.has(ci)) {
     R3.scene.remove(grp);
-    grp.traverse((o) => { if (o.geometry && !Object.values(R3.geo).includes(o.geometry)) o.geometry.dispose(); });
+    grp.traverse((o) => { if (o.geometry && !o.userData.shared && !Object.values(R3.geo).includes(o.geometry)) o.geometry.dispose(); });
     R3.chunks.delete(ci);
   }
   for (const ci of want) if (!R3.chunks.has(ci)) { const grp = buildChunk(ci); R3.chunks.set(ci, grp); R3.scene.add(grp); }
@@ -344,7 +344,7 @@ function r3Resize() {
   R3.camera.aspect = SW / SH; R3.camera.updateProjectionMatrix();
 }
 function r3Reset() {
-  for (const [, grp] of R3.chunks) { R3.scene.remove(grp); grp.traverse((o) => { if (o.geometry && !Object.values(R3.geo).includes(o.geometry)) o.geometry.dispose(); }); }
+  for (const [, grp] of R3.chunks) { R3.scene.remove(grp); grp.traverse((o) => { if (o.geometry && !o.userData.shared && !Object.values(R3.geo).includes(o.geometry)) o.geometry.dispose(); }); }
   R3.chunks.clear();
   for (const o of R3.live) { R3.scene.remove(o.mesh); o.mesh = null; }
   R3.live.clear();

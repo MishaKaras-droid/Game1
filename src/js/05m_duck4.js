@@ -226,8 +226,55 @@ function drawEnd4(c, t) {
 
 /* ============================================================ 3D: city, toon shading, shadows, Boost trail */
 const R3E = { inited: false };
+/* ---------- real 3D houses from the model pack (OBJ -> tools/pack_models.py -> CITY_PACK, gzip + base64) */
+const CITY3 = { state: 'idle', models: [] };
+function cityDecode() {
+  if (CITY3.state !== 'idle') return;
+  if (typeof CITY_PACK === 'undefined' || typeof DecompressionStream === 'undefined') { CITY3.state = 'none'; return; }
+  CITY3.state = 'loading';
+  try {
+    const raw = atob(CITY_PACK.gz), bin = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+    new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+      .then((buf) => { CITY3.buf = buf; CITY3.state = 'raw'; if (R3E.inited) cityBuild(); })
+      .catch(() => { CITY3.state = 'none'; });
+  } catch (e) { CITY3.state = 'none'; }
+}
+function cityBuild() {
+  if (CITY3.state !== 'raw') return;
+  const buf = CITY3.buf;
+  CITY3.mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: R3E.grad });
+  // colour themes for the walls: the pack is all green, a street looks better mixed
+  const THEMES = [{}, { Bricks: '#c96f4a', Main: '#e8b48a', Dark: '#7a3f2e', RoofBricks: '#5a2e24', Light: '#f2d3a8' },
+    { Bricks: '#6f8fc9', Main: '#a8c4ec', Dark: '#3b4f7a', RoofBricks: '#2e3a5a', Light: '#dce8f7' },
+    { Bricks: '#d9b45a', Main: '#f2dd9a', Dark: '#8a6a2e', RoofBricks: '#6b4b2a', Light: '#fff1c7' },
+    { Bricks: '#d98aa6', Main: '#f4c6d4', Dark: '#8a4a62', RoofBricks: '#5a3344', Light: '#fde3eb' }];
+  for (const h of CITY_PACK.head) {
+    const P = new Int16Array(buf, h.off, h.nv * 3), C = new Uint8Array(buf, h.off + h.nv * 6, h.nv), I = new Uint16Array(buf, h.ioff, h.nt * 3);
+    const n = h.nt * 3, pos = new Float32Array(n * 3), mi = new Uint8Array(n);
+    const cx = h.lo[0] + h.size[0] / 2, cz = h.lo[2] + h.size[2] / 2;
+    // un-indexed so every triangle gets its own flat normal (the toon material has no flatShading in r128)
+    for (let k = 0; k < n; k++) {
+      const i = I[k]; mi[k] = C[i];
+      pos[k * 3] = P[i * 3] / h.q + h.lo[0] - cx; pos[k * 3 + 1] = P[i * 3 + 1] / h.q + h.lo[1]; pos[k * 3 + 2] = P[i * 3 + 2] / h.q + h.lo[2] - cz;
+    }
+    const base = new THREE.BufferGeometry(); base.setAttribute('position', new THREE.BufferAttribute(pos, 3)); base.computeVertexNormals(); base.computeBoundingSphere();
+    const geos = THEMES.map((th) => {
+      const pal = h.mats.map((m, j) => new THREE.Color(th[m] || h.cols[j])), col = new Uint8Array(n * 3);
+      for (let k = 0; k < n; k++) { const c = pal[mi[k]]; col[k * 3] = c.r * 255; col[k * 3 + 1] = c.g * 255; col[k * 3 + 2] = c.b * 255; }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', base.attributes.position); g.setAttribute('normal', base.attributes.normal);
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3, true)); g.boundingSphere = base.boundingSphere; return g;
+    });
+    CITY3.models.push({ geos, w: h.size[0], dpt: h.size[2], h: h.size[1], name: h.name });
+  }
+  CITY3.buf = null; CITY3.state = 'ready';
+  // chunks built with placeholder boxes are rebuilt with the real houses
+  if (R3.evoOn) { for (const [, grp] of R3.chunks) R3.scene.remove(grp); R3.chunks.clear(); }
+}
+cityDecode();
 function r3EvoInit() {
   if (R3E.inited) return; R3E.inited = true;
+  setTimeout(() => cityBuild(), 0);
   const tones = new Uint8Array([70, 150, 255]);
   const gm = new THREE.DataTexture(tones, 3, 1, THREE.LuminanceFormat); gm.minFilter = gm.magFilter = THREE.NearestFilter; gm.generateMipmaps = false; gm.needsUpdate = true;
   R3E.grad = gm; R3E.cache = new Map();
@@ -323,7 +370,7 @@ function buildCityChunk(ci) {
     }
     if (flat && d % 10 === 5) for (const s of [-1, 1]) {
       if (rnd() < 0.15) continue;
-      const fr = flatR(R), off = H + sw + 4 + rnd() * 5, b = R3E.bld[Math.floor(rnd() * R3E.bld.length)], hh = b.h * (0.75 + rnd() * 0.5), w = 7 + rnd() * 4;
+      const fr = flatR(R), off = H + sw + 4 + rnd() * 5 + (CITY3.models.length ? 15 : 0), b = R3E.bld[Math.floor(rnd() * R3E.bld.length)], hh = b.h * (0.75 + rnd() * 0.5), w = 7 + rnd() * 4;
       const pos = P.clone().addScaledVector(fr, s * (off + w / 2)); const m = new THREE.Mesh(R3.geo.box, b.mat); m.scale.set(w, hh, 8);
       m.position.set(pos.x, -7 + hh / 2, pos.z); m.rotation.y = Math.atan2(fr.x, fr.z); g.add(m);
       const roof = new THREE.Mesh(R3.geo.box, R3E.roof); roof.scale.set(w + 0.6, 0.6, 8.6); roof.position.set(pos.x, -7 + hh + 0.3, pos.z); roof.rotation.y = m.rotation.y; g.add(roof);
@@ -336,6 +383,7 @@ function buildCityChunk(ci) {
       sign.position.copy(base).addScaledVector(U, 5.4); orient(sign, { r: T.F[d].clone().negate(), u: U, f: R.clone().multiplyScalar(s) }); sign.rotateY(s > 0 ? Math.PI / 2 : -Math.PI / 2); g.add(sign);
     }
   }
+  if (CITY3.models.length) cityHouses(g, d0, d1, H + 4, rnd);
   g.add(ribbon(rows.road, R3.mat.road));
   for (const k of ['curbL', 'curbR']) g.add(ribbon(rows[k], R3.mat.road));
   for (const k of ['shL', 'shR']) g.add(ribbon(rows[k], R3.mat.road));
@@ -350,6 +398,26 @@ function buildCityChunk(ci) {
   // the scenery only receives shadows: casting is kept for the duck and the obstacles (cheap and readable)
   g.traverse((m) => { if (m.isMesh) { m.castShadow = false; if (m.material === R3E.far) m.receiveShadow = false; } });
   return g;
+}
+// a row of houses along each side of the street, doors facing the road, standing on concrete podiums
+function cityHouses(g, d0, d1, edge, rnd) {
+  const T = R3.track, M = CITY3.models;
+  for (const s of [-1, 1]) {
+    let cur = d0 + rnd() * 4;
+    while (cur < d1 - 2) {
+      const m = M[Math.floor(rnd() * M.length)], sc = 3.1 + rnd() * 0.7, w = m.w * sc, dpt = m.dpt * sc;
+      const d = Math.min(d1, Math.floor(cur + w / 2)), U = T.U[d];
+      if (T.seg[d] === 'loop' || Math.abs(U.y) < 0.85 || T.seg[Math.min(T.seg.length - 1, d + 6)] === 'loop' || T.seg[Math.max(0, d - 6)] === 'loop') { cur += 6; continue; }
+      if (d % 50 >= 21 && d % 50 <= 29) { cur += 4; continue; } // keep the billboards visible
+      const R = T.R[d].clone(); R.y = 0; R.normalize();
+      const off = edge + 2.2 + dpt / 2, base = T.P[d].clone().addScaledVector(R, s * off);
+      const h = new THREE.Mesh(m.geos[Math.floor(rnd() * m.geos.length)], CITY3.mat); h.scale.setScalar(sc); h.position.set(base.x, T.P[d].y - 0.05, base.z);
+      h.rotation.y = Math.atan2(-s * R.x, -s * R.z); h.userData.shared = true; g.add(h);
+      const podH = T.P[d].y + 7.05;
+      if (podH > 0.3) { const pod = new THREE.Mesh(R3.geo.box, R3E.concrete); pod.scale.set(w + 0.4, podH, dpt + 0.4); pod.position.set(base.x, T.P[d].y - 0.05 - podH / 2, base.z); pod.rotation.y = h.rotation.y; g.add(pod); }
+      cur += w + 0.8 + rnd() * 1.5;
+    }
+  }
 }
 function makeObj4(o, g, add) {
   const G3 = R3.geo, M = R3.mat;
