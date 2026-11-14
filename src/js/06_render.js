@@ -288,7 +288,7 @@ function drawHUD(c, t) {
     const k = clamp(b.hp / b.maxHp, 0, 1) * b.shown;
     if (k > 0) { P(c); rr(c, bx + 3, by + 3, (bw - 6) * k, 9, 4.5); c.fillStyle = b.phase2 ? '#ff3d5a' : '#ffb347'; c.fill(); }
   }
-  if (G.t < 6.5 && G.player.alive) {
+  if (G.t < 6.5 && G.player.alive && !G.run) {
     const a = clamp(Math.min((G.t - 1) * 2, (6.5 - G.t) * 2), 0, 1);
     if (a > 0) {
       c.globalAlpha = a; c.font = '800 17px ' + FONT_UI; c.textAlign = 'center';

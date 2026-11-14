@@ -11,7 +11,7 @@ const TRACK_EXTRA = [['straight', 80], ['scurve', 180, 0.6], ['straight', 60], [
 function planRanges() {
   if (planRanges.cache) return planRanges.cache;
   let d = 0; const out = [];
-  for (const s of TRACK_PLAN) { out.push([d, d + s[1], s[0]]); d += s[1]; }
+  for (const s of runCfg().plan()) { out.push([d, d + s[1], s[0]]); d += s[1]; }
   return (planRanges.cache = out);
 }
 function segAt(d) { for (const [a, b, t] of planRanges()) if (d >= a && d < b) return t; return 'straight'; }
@@ -19,7 +19,7 @@ function segAt(d) { for (const [a, b, t] of planRanges()) if (d >= a && d < b) r
 /* ---------- track centreline, one sample per metre, extended on demand */
 function trackNew() {
   const V = THREE.Vector3;
-  return { P: [], F: [], U: [], R: [], seg: [], plan: TRACK_PLAN.slice(), extra: 0, cur: null, i: 0,
+  return { P: [], F: [], U: [], R: [], seg: [], plan: runCfg().plan().slice(), extra: 0, cur: null, i: 0,
     p: new V(0, 0, 0), f: new V(0, 0, -1), u: new V(0, 1, 0), r: new V(1, 0, 0) };
 }
 function trackStep(T) {
@@ -164,6 +164,7 @@ function palm(group, base, up, rnd) {
   }
 }
 function buildChunk(ci) {
+  if (runCfg().evo >= 2) return buildCityChunk(ci);
   const T = R3.track, d0 = ci * 100, d1 = d0 + 100;
   trackEnsure(T, d1 + 2);
   const g = new THREE.Group(), H = RUN.HALF, rows = { road: [], curbL: [], curbR: [], shL: [], shR: [], skL: [], skR: [], railL: [], railR: [], railL2: [], railR2: [] };
@@ -262,12 +263,13 @@ function makeObj(o) {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex })); sp.scale.set(key === 'pepper' ? 1.1 : 1.6, key === 'pepper' ? 1.1 : 1.6, 1); sp.position.y = 0.5; g.add(sp); g.userData.sprite = sp;
       break;
     }
+    default: if (typeof makeObj4 === 'function') makeObj4(o, g, add);
   }
   return g;
 }
 function placeObj(o) {
   const m = o.mesh, F = frameAt(o.d);
-  let h = o.type === 'cup' || o.type === 'pigeon' || o.type === 'crow' || o.type === 'pepper' ? o.h : o.type === 'red' ? o.h : 0;
+  let h = o.type === 'cup' || o.type === 'pigeon' || o.type === 'crow' || o.type === 'pepper' || runCfg().floatTypes.includes(o.type) ? o.h : o.type === 'red' ? o.h : 0;
   m.position.copy(F.p).addScaledVector(F.r, o.x).addScaledVector(F.u, h);
   orient(m, F);
 }
@@ -280,9 +282,10 @@ function r3SyncObjects(dt, t) {
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j]; if (o.d - R.s > 140) break;
     if (o.dead && !(o.smashed > 0)) continue;
-    if (!o.mesh) { o.mesh = makeObj(o); R3.scene.add(o.mesh); R3.live.add(o); placeObj(o); }
+    if (!o.mesh) { o.mesh = makeObj(o); if (R3.evoOn) r3Toonify(o.mesh, o.type !== 'hole' && o.type !== 'dash'); R3.scene.add(o.mesh); R3.live.add(o); placeObj(o); }
     const m = o.mesh;
-    if (o.v || o.type === 'pepper' || o.type === 'puddle') placeObj(o);
+    if (o.v || o.type === 'pepper' || o.type === 'puddle' || runCfg().moveTypes.includes(o.type)) placeObj(o);
+    if (m.userData.upd) m.userData.upd(o, t);
     if (m.userData.spin) m.userData.spin.rotation.y = t * 3 + o.d;
     if (o.type === 'puddle') { const done = !(o.fall !== undefined && o.ft < 1); m.userData.pool.visible = done; m.userData.drop.visible = !done; if (!done) m.userData.drop.position.y = lerp(o.fall, 0, o.ft); }
     if (o.smashed > 0) { o.smashed -= dt; m.scale.setScalar(Math.max(0.01, o.smashed * 2)); m.position.addScaledVector(frameAt(o.d).u, dt * 6); }
@@ -300,8 +303,8 @@ function r3Boss(t) {
     R3.scene.add(R3.boss);
   }
   const c = R3.bossCv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 512, 512);
-  drawShawarma(c, 256, 500, 470, t, B); R3.bossTex.needsUpdate = true;
-  R3.boss.visible = true;
+  runCfg().drawBoss(c, 256, 500, 470, t, B); R3.bossTex.needsUpdate = true;
+  R3.boss.visible = true; R3.boss.scale.set(runCfg().bossScale || 6, runCfg().bossScale || 6, 1);
   R3.boss.position.copy(trackPoint(R.s + B.z, B.x, B.h));
 }
 
@@ -319,8 +322,8 @@ function r3Init() {
     R3.scene = new THREE.Scene();
     R3.scene.fog = new THREE.Fog('#cfeeff', 70, 300);
     R3.camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 900);
-    R3.scene.add(new THREE.HemisphereLight('#e8f6ff', '#4f7a3a', 0.85));
-    const sun = new THREE.DirectionalLight('#ffffff', 0.75); sun.position.set(-0.5, 1, 0.6); R3.scene.add(sun);
+    R3.hemi = new THREE.HemisphereLight('#e8f6ff', '#4f7a3a', 0.85); R3.scene.add(R3.hemi);
+    const sun = new THREE.DirectionalLight('#ffffff', 0.75); sun.position.set(-0.5, 1, 0.6); R3.scene.add(sun); R3.sun = sun;
     r3Textures(); r3Shared();
     const sky = new THREE.Mesh(new THREE.SphereGeometry(700, 24, 16), new THREE.MeshBasicMaterial({ map: R3.tex.sky, side: THREE.BackSide, fog: false, depthWrite: false }));
     R3.sky = sky; R3.scene.add(sky);
@@ -349,6 +352,9 @@ function r3Reset() {
   if (R3.boss) R3.boss.visible = false;
   R3.track = trackNew();
   buildDuck();
+  const evo = runCfg().evo >= 2;
+  if (evo || R3.evoOn) r3EvoSetup(evo);
+  if (evo) r3Toonify(R3.duck.root, true);
 }
 function r3Show(on) {
   if (!R3.renderer || R3.shown === on) return;
@@ -377,6 +383,8 @@ function r3Frame(t) {
   D.shadow.position.copy(F.p).addScaledVector(F.r, R.x).addScaledVector(F.u, 0.03);
   D.shadow.quaternion.copy(D.root.quaternion); D.shadow.rotateX(-Math.PI / 2);
   D.shadow.scale.setScalar(0.5 / (1 + R.y * 0.25));
+  D.shadow.visible = !R3.evoOn || R3E.noShadow;
+  if (R3.evoOn) r3EvoFrame(dt, t, F);
   // camera behind the duck, following the road's up vector (it rolls through loops)
   const intro = R.phase === 'intro' ? easeInOut(clamp(R.t / 1.5, 0, 1)) : 1;
   const back = lerp(18, 6.6, intro), upH = lerp(14, 2.9, intro);
@@ -385,11 +393,12 @@ function r3Frame(t) {
   cam.position.copy(C.p).addScaledVector(C.r, R.camX * 0.85).addScaledVector(C.u, upH);
   cam.up.copy(R3.camUp);
   cam.lookAt(L.p.clone().addScaledVector(L.r, R.camX * 0.5).addScaledVector(L.u, 1.2));
-  const fov = R.boost > 0 ? 80 : 62;
+  const fov = R.boost > 0 ? (R3.evoOn ? 86 : 80) : 62;
   if (Math.abs(cam.fov - fov) > 0.1) { cam.fov = lerp(cam.fov, fov, Math.min(1, dt * 5)); cam.updateProjectionMatrix(); }
   if (G.shake > 0.3 && !reducedMotion) cam.position.add(new THREE.Vector3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(G.shake * 0.012));
   R3.sky.position.copy(cam.position);
   R3.water.position.x = cam.position.x; R3.water.position.z = cam.position.z;
+  if (R3.evoOn && R3E.ground) { R3E.ground.position.x = cam.position.x; R3E.ground.position.z = cam.position.z; }
   for (const c of R3.clouds) { const u = c.userData; c.position.set(cam.position.x + Math.cos(u.a) * u.r, u.y, cam.position.z + Math.sin(u.a) * u.r); }
   r3SyncObjects(dt, t);
   r3Boss(t);
@@ -417,6 +426,7 @@ function renderRunner3D(c) {
   r3Frame(t);
   c.setTransform(view.px, 0, 0, view.px, 0, 0);
   c.clearRect(0, 0, SW, SH);
+  if (R3.evoOn) drawBoostOverlay(c, t);
   drawSpeedLines(c, t);
   if (R.target && !R.target.boss) { const o = R.target, q = runProj3(o.x, o.h + 0.5, o.d - R.s + RUN.PZ); drawReticle(c, q.sx, q.sy, Math.max(14, q.k * 0.7), t); }
   const B = R.boss;

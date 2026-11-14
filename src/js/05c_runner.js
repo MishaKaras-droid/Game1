@@ -17,8 +17,19 @@ const LEVEL3_DUCK = [
 const RUN = { PZ: 4.2, LANE: 2.1, HALF: 3.4, G: 36, JUMP: 13.5, SPRING: 21, BASE: 19.2, MAXS: 24.8, BOSS_AT: 1800, ZMAX: 95 };
 const SURFACES = [[0, 'grass'], [520, 'sand'], [900, 'ice'], [1250, 'road']];
 const SURF_NAME = { grass: ['ЗЕЛЁНЫЕ ХОЛМЫ', 'Беги по траве'], sand: ['ПЛЯЖ', 'Песок замедляет бег'], ice: ['КАТОК', 'Скользко! Дорожки меняются с заносом'], road: ['ГОРОД', 'Скоро шаверма…'] };
-function surfaceAt(d) { let s = 'road'; for (const [d0, k] of SURFACES) if (d >= d0) s = k; return s; }
+function surfaceAt(d) { let s = 'road'; for (const [d0, k] of runCfg().surfaces) if (d >= d0) s = k; return s; }
 const laneX = (l) => (l - 1) * RUN.LANE;
+SURF_NAME.city = ['ГОРОД', 'Беги, утка, беги!'];
+// per-level run settings: level 3 keeps its original look, level 4+ switch on the 'evolution' features
+let RCF = null;
+const RUN_CFG3 = {
+  evo: 1, bossAt: RUN.BOSS_AT, surfaces: SURFACES, build: () => buildTrack(), plan: () => TRACK_PLAN,
+  bossName: 'Злая шаверма', bossLabel: 'ЗЛАЯ ШАВЕРМА', voice: 'babble',
+  lines: { intro: 'Я шаверма с двойным соусом!', tired: ['Уф… устала…', 'Лаваш… порвался…'], back: ['Ха! Медленно!', 'Не догонишь!'], hurt: ['Ай! Мой лаваш!', 'Ой, соус потёк!', 'Ну всё, утка!'], dead: 'Я… всего лишь… лаваш…' },
+  attack: (B) => shawAttack(B), drawBoss: (...a) => drawShawarma(...a), drawEnd: null, endSay: 'Шаверма побеждена! Теперь можно и пообедать.',
+  deathFx: 'sauce', targets: ['pigeon', 'crow'], collide: null, tick: null, floatTypes: [], moveTypes: [], bounce: [], draw2D: null,
+};
+const runCfg = () => RCF || RUN_CFG3;
 
 function buildTrack() {
   const Rn = mulberry(77), objs = [];
@@ -78,12 +89,14 @@ function drawLandFade(c) {
 
 /* ---------- the run */
 function startRunner(atBoss) {
+  RCF = G.level === 4 && typeof RUN_CFG4 !== 'undefined' ? RUN_CFG4 : RUN_CFG3;
+  planRanges.cache = null;
   const R = {
     s: 0, speed: atBoss ? RUN.BASE : 8, x: 0, vx: 0, lane: 1, y: 0, vy: 0, roll: 0, slam: false, boost: 0, inv: 0,
-    coffee: 0, cupsTotal: 0, meter: 40, objs: buildTrack(), i: 0, phase: 'intro', t: 0,
+    coffee: 0, cupsTotal: 0, meter: RCF.evo >= 2 ? 60 : 40, objs: RCF.build(), i: 0, phase: 'intro', t: 0,
     camH: 9, hor: SH * 0.1, camX: 0, curve: 0, fade: 1, hints: {}, streak: null, target: null, boss: null, end: null, surf: 'road',
   };
-  if (atBoss) { R.s = RUN.BOSS_AT - 25; R.objs = []; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, grass: 1, sand: 1, ice: 1, road: 1 }; }
+  if (atBoss) { R.s = RCF.bossAt - 25; R.objs = []; R.meter = 100; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, boostE: 1, grass: 1, sand: 1, ice: 1, road: 1, city: 1 }; }
   R.surf = surfaceAt(R.s);
   R.three = r3Init();
   G.run = R; G.phase = 'run'; G.phaseT = 0;
@@ -115,7 +128,9 @@ function runLane(dir) {
   R.lane = n; sfx('click');
 }
 function runBoost() {
-  const R = G.run; if (!R || R.boost > 0 || !G.player.alive || R.end || R.phase === 'intro') return;
+  const R = G.run; if (!R || !G.player.alive || R.end || R.phase === 'intro') return;
+  if (runCfg().evo >= 2) return runBoostDrain();
+  if (R.boost > 0) return;
   if (R.meter < 100) { if (!R.boostNag || R.t - R.boostNag > 1.5) { R.boostNag = R.t; floatText(SW / 2, SH * 0.7, 'Шкала «Рывок» ещё не полная — собирай кофе!', '#ffe9a0', 18); sfx('click'); } return; }
   R.boost = 4; R.meter = 0; banner('РЫВОК!', '', 1.2, 'small'); sfx('power'); sfx('quack'); sfx('swoosh'); G.shake = 6;
 }
@@ -142,8 +157,10 @@ function runHoming() {
 function runDestroy(o, q) {
   o.dead = true; o.smashed = 0.5;
   q = q || runProj(o.x, o.h + 0.3, o.d - G.run.s + RUN.PZ);
-  const enemyHit = o.type === 'pigeon' || o.type === 'crow';
+  const enemyHit = runCfg().targets.includes(o.type), meme = enemyHit && o.type !== 'pigeon' && o.type !== 'crow', paper = o.type === 'sheet' || o.type === 'cite';
   addScore(enemyHit ? 150 : 50, q.sx, q.sy);
+  if (G.run.boostDrain && G.run.boost > 0) boostChain(G.run, q);
+  if (meme || paper) { burst(q.sx, q.sy, 12, { type: 'star', col: paper ? '#fffaf0' : '#ffd43b', smin: 80, smax: 260, lmin: 0.5, lmax: 0.9, rmin: 5, rmax: 9 }); sfx('pop'); return; }
   burst(q.sx, q.sy, 10, enemyHit ? { type: 'feather', col: o.type === 'crow' ? '#3a3646' : '#a7b0bf', smin: 60, smax: 220, lmin: 0.6, lmax: 1.1, rmin: 5, rmax: 9 } : { type: 'chunk', col: '#e63946', g: 500, smin: 80, smax: 260, lmin: 0.5, lmax: 0.9, rmin: 4, rmax: 8 });
   sfx('pop');
 }
@@ -181,6 +198,7 @@ function runCollide(o) {
   }
   if (o.hitDone) return;
   if (R.boost > 0) { runDestroy(o); return; }
+  if (runCfg().collide) { const r = runCfg().collide(o, R); if (r !== undefined) { if (!r) { o.hitDone = true; runHit(); } return; } }
   const air = R.y, rolling = R.roll > 0 && R.y < 0.5;
   let ok = false;
   switch (o.type) {
@@ -202,10 +220,10 @@ function startRunBoss() {
   R.boss = { hp: 5, max: 5, state: 'enter', t: 0, z: 70, x: 0, h: 0, round: 0, vol: 0, mouth: 0, flash: 0, speech: null, atkT: 0 };
   G.checkpoint = { score: G.score, power: G.power };
   R.objs = R.objs.filter((o) => o.d > R.s - 10); R.i = 0;
-  banner('ВНИМАНИЕ!', 'Злая шаверма', 3.0, 'warn');
+  banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { G.run.boss.speech = { text, t: 2.3 }; sfx('babble'); }
+function shawSay(text) { G.run.boss.speech = { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
@@ -213,18 +231,18 @@ function updateRunBoss(dt) {
   B.x = Math.sin(B.t * 0.9) * 1.4 * (B.state === 'tired' ? 0.2 : 1);
   if (B.state === 'enter') {
     B.z = lerp(B.z, 28, Math.min(1, dt * 1.5)); B.h = lerp(B.h, 0.6, Math.min(1, dt * 2));
-    if (B.t > 2.6) { B.state = 'attack'; B.t = 0; B.vol = 0; B.atkT = 0.6; if (B.round === 0) shawSay('Я шаверма с двойным соусом!'); }
+    if (B.t > 2.6) { B.state = 'attack'; B.t = 0; B.vol = 0; B.atkT = 0.6; if (B.round === 0) shawSay(runCfg().lines.intro); }
   } else if (B.state === 'attack') {
     B.z = lerp(B.z, 28, Math.min(1, dt * 2)); B.h = 0.6 + Math.sin(B.t * 3) * 0.2;
     B.atkT -= dt; B.mouth = Math.max(0, B.mouth - dt * 2);
     if (B.atkT <= 0) {
       const vols = B.hp <= 2 ? 5 : 4;
-      if (B.vol >= vols) { B.state = 'tired'; B.t = 0; shawSay(pick(['Уф… устала…', 'Лаваш… порвался…'])); sfx('charge'); }
-      else { shawAttack(B); B.vol++; B.atkT = B.hp <= 2 ? 1.05 : 1.35; }
+      if (B.vol >= vols) { B.state = 'tired'; B.t = 0; shawSay(pick(runCfg().lines.tired)); sfx('charge'); }
+      else { runCfg().attack(B); B.vol++; B.atkT = B.hp <= 2 ? 1.05 : 1.35; }
     }
   } else if (B.state === 'tired') {
     B.z = lerp(B.z, 9, Math.min(1, dt * 2.5)); B.h = lerp(B.h, 0.1, Math.min(1, dt * 3));
-    if (B.t > 2.8) { B.state = 'enter'; B.t = 1.2; B.round++; shawSay(pick(['Ха! Медленно!', 'Не догонишь!'])); }
+    if (B.t > 2.8) { B.state = 'enter'; B.t = 1.2; B.round++; shawSay(pick(runCfg().lines.back)); }
   } else if (B.state === 'hurt') {
     B.z = lerp(B.z, 30, Math.min(1, dt * 2)); B.h = lerp(B.h, 2.5, Math.min(1, dt * 3));
     if (B.t > 1.3) { B.state = 'enter'; B.t = 1.4; B.round++; }
@@ -258,8 +276,8 @@ function runBossHit() {
   const q = runProj(B.x, B.h + 2.5, B.z + RUN.PZ);
   burst(q.sx, q.sy, 18, { type: 'dot', col: pick(['#fff', '#e63946', '#5cc94a']), smin: 100, smax: 380, lmin: 0.4, lmax: 0.8, rmin: 4, rmax: 9 });
   addScore(1000, q.sx, q.sy);
-  if (B.hp <= 0) { shawSay('Я… всего лишь… лаваш…'); addScore(10000, q.sx, q.sy - 40); Sound.music(null); R.splats = []; for (let i = 0; i < 7; i++) R.splats.push({ x: rand(0.1, 0.9) * SW, y: rand(0.1, 0.8) * SH, r: rand(30, 70), col: pick(['#fffaf0', '#e63946', '#fffaf0']), t: 0 }); }
-  else shawSay(pick(['Ай! Мой лаваш!', 'Ой, соус потёк!', 'Ну всё, утка!']));
+  if (B.hp <= 0) { shawSay(runCfg().lines.dead); addScore(10000, q.sx, q.sy - 40); Sound.music(null); R.splats = []; for (let i = 0; i < 7; i++) R.splats.push({ x: rand(0.1, 0.9) * SW, y: rand(0.1, 0.8) * SH, r: rand(30, 70), col: pick(runCfg().deathFx === 'paper' ? ['#fffaf0', '#fffaf0', '#1f3a6b'] : ['#fffaf0', '#e63946', '#fffaf0']), t: 0 }); }
+  else shawSay(pick(runCfg().lines.hurt));
 }
 function runFinish() {
   const R = G.run;
@@ -275,7 +293,7 @@ function updateRunner(dt) {
   R.t += dt; R.fade = Math.max(0, R.fade - dt * 1.4);
   if (R.streak) { R.streak.t -= dt; if (R.streak.t <= 0) R.streak = null; }
   if (R.splats) for (const s of R.splats) s.t += dt;
-  if (R.end) { R.end.t += dt; R.speed = lerp(R.speed, 0, Math.min(1, dt * 2)); if (G.heroSay) { G.heroSay.t -= dt; if (G.heroSay.t <= 0) G.heroSay = null; } if (R.end.t > 1.0 && !R.end.said) { R.end.said = true; G.heroSay = { text: 'Шаверма побеждена! Теперь можно и пообедать.', t: 3.6 }; sfx('quack2'); } if (R.end.t > 5.2) onWin(); return; }
+  if (R.end) { R.end.t += dt; R.speed = lerp(R.speed, 0, Math.min(1, dt * 2)); if (G.heroSay) { G.heroSay.t -= dt; if (G.heroSay.t <= 0) G.heroSay = null; } if (R.end.t > 1.0 && !R.end.said) { R.end.said = true; G.heroSay = { text: runCfg().endSay, t: 3.6 }; sfx('quack2'); } if (R.end.t > 5.2) onWin(); return; }
   if (G.phase === 'dead') { R.speed = lerp(R.speed, 0, Math.min(1, dt * 3)); R.s += R.speed * dt; if (G.phaseT > 2.2) onGameOver(); return; }
   // camera swoops down behind the duck at the start
   if (R.phase === 'intro') {
@@ -283,12 +301,13 @@ function updateRunner(dt) {
     R.camH = lerp(9, 2.2, e); R.hor = lerp(SH * 0.1, SH * 0.36, e);
     if (R.t >= 1.5) R.phase = R.boss ? 'boss' : 'run';
   }
+  if (runCfg().tick) runCfg().tick(R);
   const surf = surfaceAt(R.s);
   if (surf !== R.surf) { R.surf = surf; if (!R.hints[surf] && R.s > 50) { R.hints[surf] = 1; banner(SURF_NAME[surf][0], SURF_NAME[surf][1], 2.2, 'small'); } }
   let target = Math.min(RUN.MAXS, RUN.BASE + R.s * 0.004);
   if (surf === 'sand') target *= 0.78;
-  if (R.boost > 0) target *= 1.8;
-  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0)) R.meter = Math.min(100, R.meter + 2.2 * dt); if (R.meter >= 100 && !R.hints.boost) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
+  if (R.boost > 0) target *= runCfg().evo >= 2 ? 1.65 : 1.8;
+  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0)) R.meter = Math.min(100, R.meter + 2.2 * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
   R.speed = lerp(R.speed, target, Math.min(1, dt * 2.5));
   R.s += R.speed * dt;
   R.curve = Math.sin(R.s / 230) * 0.0026 + Math.sin(R.s / 97) * 0.0009;
@@ -301,6 +320,7 @@ function updateRunner(dt) {
     R.vy -= RUN.G * dt; R.y += R.vy * dt;
     if (R.y <= 0) { R.y = 0; R.vy = 0; if (R.slam) { R.roll = 0.6; R.slam = false; } const a = runPlayerScreen(); burst(a.sx, a.sy, 5, { type: 'smoke', col: surf === 'ice' ? 'rgba(220,240,255,A)' : 'rgba(230,215,190,A)', r: 4, r1: 14, smin: 30, smax: 90, lmin: 0.3, lmax: 0.5 }); }
   }
+  if (R.boostDrain) { R.meter -= 22 * dt; R.boost = Math.max(R.boost, 0.12); if (R.meter <= 0 || R.phase === 'intro') { R.meter = Math.max(0, R.meter); R.boostDrain = false; } }
   R.roll = Math.max(0, R.roll - dt); R.boost = Math.max(0, R.boost - dt); R.inv = Math.max(0, R.inv - dt);
   if (surf === 'sand' && Math.random() < dt * 12 && R.y === 0) { const a = runPlayerScreen(); part({ type: 'smoke', x: a.sx + rand(-20, 20), y: a.sy, r: 3, r1: 12, col: 'rgba(240,220,170,A)', life: 0.4, vx: rand(-40, 40), vy: rand(-40, 0) }); }
   // hints for the controls
@@ -314,11 +334,11 @@ function updateRunner(dt) {
   // moving boss projectiles and falling sauce
   for (const o of R.objs) {
     if (o.dead) continue;
-    if (o.v) o.d += o.v * dt;
+    if (o.v && (R.boss || o.d - R.s < 55)) o.d += o.v * dt;
     if (o.fall !== undefined && o.ft < 1) o.ft = Math.min(1, o.ft + dt * 2.2);
-    if (o.type === 'pepper') { o.ph += dt * 5; o.h = Math.abs(Math.sin(o.ph)) * 1.9; }
+    if (o.type === 'pepper' || runCfg().bounce.includes(o.type)) { o.ph += dt * 5; o.h = Math.abs(Math.sin(o.ph)) * 1.9; }
   }
-  if (R.boss) { R.objs.sort((a, b) => a.d - b.d); R.i = 0; }
+  if (R.boss || runCfg().evo >= 2) { R.objs.sort((a, b) => a.d - b.d); R.i = 0; }
   // collisions near the duck
   while (R.i < R.objs.length && R.objs[R.i].d < R.s - 6) R.i++;
   for (let j = R.i; j < R.objs.length; j++) {
@@ -335,10 +355,10 @@ function updateRunner(dt) {
     for (let j = R.i; j < R.objs.length; j++) {
       const o = R.objs[j], dz = o.d - R.s;
       if (dz > 16) break;
-      if (dz > 2.5 && !o.dead && (o.type === 'pigeon' || o.type === 'crow')) { R.target = o; break; }
+      if (dz > 2.5 && !o.dead && runCfg().targets.includes(o.type)) { R.target = o; break; }
     }
   }
-  if (R.phase === 'run' && R.s >= RUN.BOSS_AT) startRunBoss();
+  if (R.phase === 'run' && R.s >= runCfg().bossAt) startRunBoss();
   if (R.boss) updateRunBoss(dt);
 }
 
@@ -463,6 +483,7 @@ function drawRunObj(c, o, t) {
       drawJalapeno(c);
       break;
     }
+    default: if (runCfg().draw2D) { c.restore(); runCfg().draw2D(c, o, base, k, t); c.save(); }
     case 'red': {
       const q = at(o.h);
       for (let i = 1; i < 5; i++) { const b = runProj(o.x, o.h, z + i * 0.8); P(c); circ(c, b.sx, b.sy, k * 0.25 * (1 - i * 0.15)); c.fillStyle = 'rgba(230,57,70,0.4)'; c.fill(); }
@@ -576,7 +597,7 @@ function drawRunBoss(c, t) {
   const R = G.run, B = R.boss; if (!B) return;
   const z = B.z + RUN.PZ, base = runProj(B.x, 0, z), q = runProj(B.x, B.h, z);
   P(c); ell(c, base.sx, base.sy, base.k * 1.6, base.k * 0.35); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fill();
-  drawShawarma(c, q.sx, q.sy, base.k * 6.5, t, B);
+  runCfg().drawBoss(c, q.sx, q.sy, base.k * 6.5, t, B);
   if (B.state === 'tired') {
     drawReticle(c, q.sx, q.sy - base.k * 3, base.k * 1.6, t);
     c.font = '30px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle';
@@ -591,7 +612,7 @@ function drawRunHud(c, t) {
   c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'left'; otext(c, '× ' + R.coffee, 46, 114, '#fff6e5', 5);
   if (R.boss) {
     const bw = Math.min(380, SW * 0.4), bx = SW / 2 - bw / 2, by = 60;
-    c.font = '900 13px ' + FONT_UI; c.textAlign = 'center'; otext(c, 'ЗЛАЯ ШАВЕРМА', SW / 2, 52, '#ffd43b', 4);
+    c.font = '900 13px ' + FONT_UI; c.textAlign = 'center'; otext(c, runCfg().bossLabel, SW / 2, 52, '#ffd43b', 4);
     for (let i = 0; i < R.boss.max; i++) { const w = (bw - (R.boss.max - 1) * 6) / R.boss.max; P(c); rr(c, bx + i * (w + 6), by, w, 14, 7); fs(c, i < R.boss.hp ? '#ff3d5a' : 'rgba(34,29,46,0.6)', 3); }
   }
 }
@@ -610,6 +631,7 @@ function drawRunEnd(c, t) {
   const k = E.t;
   if (k < 0.8) { c.fillStyle = 'rgba(255,255,255,' + clamp(k / 0.8, 0, 1).toFixed(3) + ')'; c.fillRect(0, 0, SW, SH); return; }
   // back to the side view: now we see Ilona's face again
+  if (runCfg().drawEnd) runCfg().drawEnd(c, t); else {
   const g = c.createLinearGradient(0, 0, 0, SH); g.addColorStop(0, '#5aa9ef'); g.addColorStop(0.7, '#cdeeff'); g.addColorStop(1, '#cdeeff');
   c.fillStyle = g; c.fillRect(0, 0, SW, SH);
   c.fillStyle = '#5aa04a'; c.fillRect(0, SH - 90, SW, 90); c.fillStyle = '#b07a45'; c.fillRect(0, SH - 70, SW, 40);
@@ -617,6 +639,7 @@ function drawRunEnd(c, t) {
   drawShawarma(c, 0, 0, 150, 0, { hp: 0, state: 'tired', mouth: 0, flash: 0 }); c.restore();
   const bob = Math.abs(Math.sin(t * 4)) * 14;
   drawDuckHero(c, SW * 0.36, SH - 190 - bob, t, { h: 210, flapSpeed: 10 });
+  }
   for (let i = 0; i < 14; i++) { const x = ((i * 137 + t * 90) % SW), y = ((i * 71 + t * 120) % SH); P(c); starPath(c, x, y, 6, 2.5); c.fillStyle = ['#ffd43b', '#ff8fa3', '#7ee7f2'][i % 3]; c.fill(); }
   c.font = '54px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, 'ПОБЕДА!', SW / 2, 70, '#ffd43b', 10);
   if (G.heroSay) speechAt(c, G.heroSay.text, SW * 0.36 + 70, SH - 330, G.heroSay.t, 3.6, 1);
