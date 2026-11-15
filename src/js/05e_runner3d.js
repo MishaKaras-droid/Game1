@@ -389,7 +389,7 @@ function r3Frame(t) {
   if (R3.evoOn) r3EvoFrame(dt, t, F);
   // camera behind the duck, following the road's up vector (it rolls through loops)
   const intro = R.phase === 'intro' ? easeInOut(clamp(R.t / 1.5, 0, 1)) : 1;
-  const fk = R3.feverK || 0, back = lerp(18, 6.6 + fk * 3, intro), upH = lerp(14, 2.9 + fk * 1.8, intro);
+  const fk = R3.feverK || 0, back = lerp(18, 6.6 + fk * 1.2, intro), upH = lerp(14, 2.9 + fk * 0.7, intro);
   const C = frameAt(R.s - back), L = frameAt(R.s + 7);
   R3.camUp = (R3.camUp || C.u.clone()).lerp(C.u, Math.min(1, dt * 6)).normalize();
   cam.position.copy(C.p).addScaledVector(C.r, R.camX * 0.85).addScaledVector(C.u, upH);

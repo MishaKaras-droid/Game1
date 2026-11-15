@@ -27,6 +27,7 @@ const RUN_CFG3 = {
   bossName: 'Злая шаверма', bossLabel: 'ЗЛАЯ ШАВЕРМА', voice: 'babble',
   lines: { intro: 'Я шаверма с двойным соусом!', tired: ['Уф… устала…', 'Лаваш… порвался…'], back: ['Ха! Медленно!', 'Не догонишь!'], hurt: ['Ай! Мой лаваш!', 'Ой, соус потёк!', 'Ну всё, утка!'], dead: 'Я… всего лишь… лаваш…' },
   attack: (B) => shawAttack(B), drawBoss: (...a) => drawShawarma(...a), drawEnd: null, endSay: 'Шаверма побеждена! Теперь можно и пообедать.',
+  bossTip: (B) => B.state === 'tired' ? 'ШАВЕРМА УСТАЛА — ПРЫГАЙ НА НЕЁ!' : 'УВОРАЧИВАЙСЯ, ПОКА ШАВЕРМА НЕ УСТАНЕТ',
   deathFx: 'sauce', targets: ['pigeon', 'crow'], collide: null, tick: null, floatTypes: [], moveTypes: [], bounce: [], draw2D: null,
   jump: 15.5, grav: 46,
 };
@@ -202,7 +203,7 @@ function runCollide(o) {
   switch (o.type) {
     case 'cup':
       if (Math.abs(o.h - R.y) < 1.4) {
-        o.dead = true; R.coffee++; R.cupsTotal++; if (!(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 5 : 4)); addScore(10);
+        o.dead = true; R.coffee++; R.cupsTotal++; if (!(R.fever > 0) && !(runCfg().evo >= 2 && R.boss)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 1 : 4)); addScore(10);
         const q = runProj(o.x, o.h, RUN.PZ + 0.3); burst(q.sx, q.sy, 4, { type: 'star', col: '#ffe066', smin: 40, smax: 120, lmin: 0.3, lmax: 0.5, rmin: 4, rmax: 6 });
         sfx('heal');
         if (R.cupsTotal % 30 === 0 && G.hp < MAX_HP) { G.hp++; floatText(q.sx, q.sy - 40, '+1 ♥', '#ff8fa3', 24); }
@@ -333,7 +334,7 @@ function updateRunner(dt) {
   if (R.boost > 0) target *= runCfg().evo >= 2 ? 1.65 : 1.8;
   if (R.fever > 0) target *= 1.3;
   if (R.armor > 0) target *= 1.25;
-  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0) && !(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 0.5 : 2.2) * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
+  if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0) && !(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 0 : 2.2) * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
   R.speed = lerp(R.speed, target, Math.min(1, dt * 2.5));
   R.s += R.speed * dt;
   R.curve = Math.sin(R.s / 230) * 0.0026 + Math.sin(R.s / 97) * 0.0009;
@@ -654,6 +655,9 @@ function drawRunHud(c, t) {
     const bw = Math.min(380, SW * 0.4), bx = SW / 2 - bw / 2, by = 60;
     c.font = '900 13px ' + FONT_UI; c.textAlign = 'center'; otext(c, runCfg().bossLabel, SW / 2, 52, '#ffd43b', 4);
     for (let i = 0; i < R.boss.max; i++) { const w = (bw - (R.boss.max - 1) * 6) / R.boss.max; P(c); rr(c, bx + i * (w + 6), by, w, 14, 7); fs(c, i < R.boss.hp ? '#ff3d5a' : 'rgba(34,29,46,0.6)', 3); }
+    // how to hurt it right now, always under the health bar
+    const tip = runCfg().bossTip && R.boss.state !== 'dead' && runCfg().bossTip(R.boss);
+    if (tip) { c.font = '900 15px ' + FONT_UI; const tw = c.measureText('КАК БИТЬ: ' + tip).width + 24; P(c); rr(c, SW / 2 - tw / 2, by + 22, tw, 26, 13); fs(c, 'rgba(22,18,31,0.78)', 0); otext(c, 'КАК БИТЬ: ' + tip, SW / 2, by + 35, '#ffe14d', 3); }
   }
 }
 function drawSplats(c) {
