@@ -295,6 +295,7 @@ function r3SyncObjects(dt, t) {
 /* ---------- boss sprite (redrawn each frame from the 2D art) */
 function r3Boss(t) {
   const R = G.run, B = R.boss;
+  if (runCfg().boss3d) { if (R3.boss) R3.boss.visible = false; return runCfg().boss3d(t); }
   if (!B) { if (R3.boss) R3.boss.visible = false; return; }
   if (!R3.boss) {
     const cv = document.createElement('canvas'); cv.width = cv.height = 512;
@@ -369,7 +370,7 @@ function r3Frame(t) {
   const F = frameAt(R.s);
   D.root.position.copy(F.p).addScaledVector(F.r, R.x).addScaledVector(F.u, R.y);
   orient(D.root, F);
-  const spin = R.boost > 0 || R.roll > 0 || R.slam;
+  const spin = R.boost > 0 || ((R.roll > 0 || R.slam) && !R.juice);
   D.body.visible = !spin; D.ball.visible = spin;
   D.aura.visible = R.boost > 0;
   if (spin) { D.ballMesh.rotation.x -= dt * (R.boost > 0 ? 30 : 20); D.aura.scale.setScalar(0.85 + Math.sin(t * 30) * 0.06); }
@@ -393,8 +394,9 @@ function r3Frame(t) {
   cam.position.copy(C.p).addScaledVector(C.r, R.camX * 0.85).addScaledVector(C.u, upH);
   cam.up.copy(R3.camUp);
   cam.lookAt(L.p.clone().addScaledVector(L.r, R.camX * 0.5).addScaledVector(L.u, 1.2));
-  const fov = R.boost > 0 ? (R3.evoOn ? 86 : 80) : 62;
-  if (Math.abs(cam.fov - fov) > 0.1) { cam.fov = lerp(cam.fov, fov, Math.min(1, dt * 5)); cam.updateProjectionMatrix(); }
+  if (R.juice) juiceVisual(R, D, cam);   // FOV kick + shake from DuckJuiceController, squash & stretch on the model
+  else { const fov = R.boost > 0 ? (R3.evoOn ? 86 : 80) : 62;
+  if (Math.abs(cam.fov - fov) > 0.1) { cam.fov = lerp(cam.fov, fov, Math.min(1, dt * 5)); cam.updateProjectionMatrix(); } }
   if (G.shake > 0.3 && !reducedMotion) cam.position.add(new THREE.Vector3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(G.shake * 0.012));
   R3.sky.position.copy(cam.position);
   R3.water.position.x = cam.position.x; R3.water.position.z = cam.position.z;

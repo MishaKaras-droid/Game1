@@ -167,6 +167,7 @@ function* squidBrain(b) {
 
 /* ---------- squid helper (super ability charged like an X-ray meter) */
 function useSquid() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (state !== 'play' || !G || !G.squidUnlocked || G.squidT > 0 || G.squidCharge < 100 || !G.player.alive) return;
   G.squidT = 20; G.squidCharge = 0;
   G.squid = { x: G.player.x - 40, y: G.player.y - 90, strikeT: 0, strike: null };

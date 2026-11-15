@@ -121,6 +121,7 @@ function* eelBrain(b) {
   }
 }
 function useEel() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (state !== 'play' || !G || !G.eelUnlocked || G.eelT > 0 || G.eelCharge < 100 || !G.player.alive) return;
   G.eelT = 20; G.eelCharge = 0;
   G.eel = { x: G.player.x - 60, y: G.player.y + 80, strikeT: 0, bolts: [] };

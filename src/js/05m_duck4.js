@@ -263,6 +263,7 @@ function cityBuild() {
   if (CITY3.state !== 'raw') return;
   const buf = CITY3.buf;
   CITY3.mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: R3E.grad });
+  if (R3.evoOn && runCfg().theme) CITY3.mat.color.set(runCfg().theme.houses || '#ffffff');
   // colour themes for the walls: the pack is all green, a street looks better mixed
   const THEMES = [{}, { Bricks: '#c96f4a', Main: '#e8b48a', Dark: '#7a3f2e', RoofBricks: '#5a2e24', Light: '#f2d3a8' },
     { Bricks: '#6f8fc9', Main: '#a8c4ec', Dark: '#3b4f7a', RoofBricks: '#2e3a5a', Light: '#dce8f7' },
@@ -352,11 +353,17 @@ function r3EvoSetup(on) {
   if (on) {
     const sz = isTouch ? 1024 : 2048; R3.sun.shadow.mapSize.set(sz, sz);
     const sc = R3.sun.shadow.camera; sc.left = -24; sc.right = 24; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 90; sc.updateProjectionMatrix();
-    R3.sun.shadow.bias = -0.0006; R3.sun.intensity = 1.0; R3.hemi.intensity = 0.62;
+    const TH = runCfg().theme || {};
+    R3.sun.shadow.bias = -0.0006; R3.sun.intensity = TH.sun || 1.0; R3.hemi.intensity = TH.hemi || 0.62; R3.sun.color.set(TH.sunCol || '#ffffff');
+    if (CITY3.mat) CITY3.mat.color.set(TH.houses || '#ffffff');
+    if (R3E.ground) R3E.ground.material.color.set(TH.ground || '#8a8f9c');
     if (!R3.sun.target.parent) R3.scene.add(R3.sun.target);
-  } else { R3.sun.intensity = 0.75; R3.hemi.intensity = 0.85; R3.sun.position.set(-0.5, 1, 0.6); R3.sun.target.position.set(0, 0, 0); }
-  R3.sky.material.map = on ? R3E.skyTex : R3.tex.sky; R3.sky.material.needsUpdate = true;
-  R3.scene.fog.color.set(on ? '#ffd2b0' : '#cfeeff'); R3.scene.fog.near = on ? 60 : 70; R3.scene.fog.far = on ? 260 : 300;
+  } else { R3.sun.intensity = 0.75; R3.hemi.intensity = 0.85; R3.sun.color.set('#ffffff'); R3.sun.position.set(-0.5, 1, 0.6); R3.sun.target.position.set(0, 0, 0); }
+  // per-level look of the evolved levels (level 5: a decayed zombie city at dusk)
+  const TH2 = (on && runCfg().theme) || {};
+  if (TH2.sky && !TH2._sky) TH2._sky = TH2.sky();
+  R3.sky.material.map = on ? (TH2._sky || R3E.skyTex) : R3.tex.sky; R3.sky.material.needsUpdate = true;
+  R3.scene.fog.color.set(on ? TH2.fog || '#ffd2b0' : '#cfeeff'); R3.scene.fog.near = on ? TH2.near || 60 : 70; R3.scene.fog.far = on ? TH2.far || 260 : 300;
   R3.water.visible = !on; if (R3E.ground) R3E.ground.visible = on;
   for (const m of Object.values(R3.mat)) m.needsUpdate = true;
   R3.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
@@ -413,6 +420,7 @@ function buildCityChunk(ci) {
     const d = d0 + rnd() * 100, P = T.P[Math.floor(d)], fr = flatR(T.R[Math.floor(d)]), s = rnd() < 0.5 ? -1 : 1, hh = 30 + rnd() * 60;
     const pos = P.clone().addScaledVector(fr, s * (70 + rnd() * 80)); const m = new THREE.Mesh(R3.geo.box, R3E.far); m.scale.set(14 + rnd() * 10, hh, 14); m.position.set(pos.x, -7 + hh / 2, pos.z); g.add(m);
   }
+  if (runCfg().decor) runCfg().decor(g, d0, d1, rnd, H + 4);
   r3Toonify(g, false);
   // the scenery only receives shadows: casting is kept for the duck and the obstacles (cheap and readable)
   g.traverse((m) => { if (m.isMesh) { m.castShadow = false; if (m.material === R3E.far) m.receiveShadow = false; } });
@@ -483,6 +491,7 @@ function makeObj4(o, g, add) {
       const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: R3E.lampGlow.map, color: '#ff3040', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.set(3, 0.9, 1); gl.position.y = 0.45; g.add(gl);
       break;
     }
+    default: if (typeof makeObj5 === 'function') makeObj5(o, g, add);
   }
 }
 /* ---------- the low-poly 3D duck (Meshy model -> tools/duck_model.py -> DUCK_PACK) */
@@ -544,7 +553,8 @@ function duckModelInstall(D) {
   const g = new THREE.Group(); g.scale.setScalar(1.5 / M.H); g.rotation.y = Math.PI;
   const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.outline); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
   mk(M.body); const feet = [mk(M.footL), mk(M.footR)];
-  const lean = new THREE.Group(); lean.add(g); D.body.add(lean);
+  // pivots: juice (squash & stretch, tilt) and lean both sit at the feet (y = 0), so the duck squashes into the road
+  const lean = new THREE.Group(); lean.add(g); const juice = new THREE.Group(); juice.add(lean); D.body.add(juice);
   const wm = new THREE.MeshToonMaterial({ color: '#f6d64a', gradientMap: R3E.grad }), wings = [];
   for (const sd of [-1, 1]) {
     const piv = new THREE.Group(); piv.position.set(sd * 0.3, 0.9, 0.12);
@@ -552,7 +562,7 @@ function duckModelInstall(D) {
     const wo = new THREE.Mesh(R3.geo.sphere, R3E.outline); wo.scale.setScalar(1.12); wo.userData.isOutline = true; w.add(wo);
     piv.add(w); piv.visible = false; lean.add(piv); wings.push(piv);
   }
-  D.model = { g, lean, feet, wings };
+  D.model = { g, lean, feet, wings, juice };
   return true;
 }
 function duckModelPose(D, R, t) {
@@ -585,6 +595,8 @@ function r3EvoFrame(dt, t, F) {
   D.aura.material.color.set(R.boost > 0 ? '#8fe8ff' : '#ffe066');
   duckModelPose(D, R, t);
   frame4b(dt, t, F);
+  if (R.juice) juiceFrame(R, D, F, dt);
+  if (runCfg().frame3d) runCfg().frame3d(dt, t, F);
 }
 function drawBoostOverlay(c, t) {
   const R = G.run; if (!(R.boost > 0)) return;

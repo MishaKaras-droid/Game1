@@ -89,7 +89,7 @@ function drawLandFade(c) {
 
 /* ---------- the run */
 function startRunner(atBoss) {
-  RCF = G.level === 4 && typeof RUN_CFG4 !== 'undefined' ? RUN_CFG4 : RUN_CFG3;
+  RCF = G.level === 5 && typeof RUN_CFG5 !== 'undefined' ? RUN_CFG5 : G.level === 4 && typeof RUN_CFG4 !== 'undefined' ? RUN_CFG4 : RUN_CFG3;
   planRanges.cache = null;
   const R = {
     s: 0, speed: atBoss ? RUN.BASE : 8, x: 0, vx: 0, lane: 1, y: 0, vy: 0, roll: 0, slam: false, boost: 0, inv: 0,
@@ -99,6 +99,7 @@ function startRunner(atBoss) {
   if (atBoss) { R.s = RCF.bossAt - 25; R.objs = []; R.meter = RCF.evo >= 2 ? 50 : 100; R.hints = { jump: 1, roll: 1, lane: 1, homing: 1, boost: 1, boostE: 1, grass: 1, sand: 1, ice: 1, road: 1, city: 1 }; }
   R.surf = surfaceAt(R.s);
   R.three = r3Init();
+  R.juice = RCF.evo >= 2 && R.three ? juiceInit(R) : null;   // levels 4+: DuckJuiceController drives the moves
   G.run = R; G.phase = 'run'; G.phaseT = 0;
   if (R.three) r3Reset();
   G.enemies.length = 0; G.eb.length = 0; G.pickups.length = 0; G.parts.length = 0; G.banners.length = 0;
@@ -112,7 +113,9 @@ function runProj2D(x, h, z) {
 }
 function runPlayerScreen() { const R = G.run; return runProj(R.x, R.y, RUN.PZ); }
 function runJump() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || R.phase === 'end' || !G.player.alive) return;
+  if (R.juice) return juiceJump(R);
   R.jumpHeld = true;
   if (R.target && (R.y > 0.25 || R.target.boss)) return runHoming();
   const C = runCfg();
@@ -122,17 +125,22 @@ function runJump() {
 }
 function runJumpUp() { if (G && G.run) G.run.jumpHeld = false; }
 function runRoll() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
+  if (R.juice) return juiceDown(R);
   if (R.y > 0.05) { R.vy = -30; R.slam = true; R.jumpHeld = false; } else R.roll = 0.75;
   sfx('throw');
 }
 function runLane(dir) {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
+  if (R.juice) return juiceLane(R, dir);
   const n = clamp(R.lane + dir, 0, 2);
   if (n === R.lane) { G.shake = Math.max(G.shake, 3); return; }
   R.lane = n; sfx('click');
 }
 function runBoost() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || !G.player.alive || R.end || R.phase === 'intro') return;
   if (runCfg().evo >= 2) return runFeverBtn();
   if (R.boost > 0) return;
@@ -147,7 +155,7 @@ function runHoming() {
   const R = G.run, T = R.target; if (!T) return;
   const a = runPlayerScreen();
   if (T.boss) {
-    const B = R.boss, open = B.state === 'open', q = runProj(open ? laneX(B.tLane) : B.x, B.h + (open ? 4.5 : 2.2), B.z + RUN.PZ);
+    const B = R.boss, open = B.state === 'open', q = runProj(open ? laneX(B.tLane) : B.x, B.h + (open ? 4.5 : B.aimH || 2.2), B.z + RUN.PZ);
     R.streak = { x0: a.sx, y0: a.sy - a.k * 0.6, x1: q.sx, y1: q.sy, t: 0.25 };
     runBossHit();
   } else {
@@ -171,7 +179,7 @@ function runDestroy(o, q) {
 }
 function runHit() {
   const R = G.run;
-  if (R.inv > 0 || R.boost > 0 || R.fever > 0 || !G.player.alive || DEBUG.god) return;
+  if (R.inv > 0 || R.boost > 0 || R.fever > 0 || R.armor > 0 || R.homing || !G.player.alive || DEBUG.god) return;
   const a = runPlayerScreen();
   G.shake = 10; sfx('hurt'); sfx('quack');
   if (R.coffee > 0) {
@@ -201,8 +209,9 @@ function runCollide(o) {
     case 'spring': if (!o.used && R.y < 0.4) { o.used = true; R.vy = RUN.SPRING; R.y = 0.05; R.roll = 0; sfx('power'); } return;
     case 'dash': if (!o.used && R.y < 0.4) { o.used = true; R.boost = Math.max(R.boost, 1.6); sfx('swoosh'); } return;
   }
+  if (runCfg().pickup && runCfg().pickup(o, R)) return;
   if (o.hitDone) return;
-  if (R.fever > 0) { feverSmash(o); return; }
+  if (R.fever > 0 || R.armor > 0) { feverSmash(o); return; }
   if (R.boost > 0) { runDestroy(o); return; }
   if (runCfg().collide) { const r = runCfg().collide(o, R); if (r !== undefined) { if (!r) { o.hitDone = true; runHit(); } return; } }
   const air = R.y, rolling = R.roll > 0 && R.y < 0.5;
@@ -230,11 +239,12 @@ function startRunBoss() {
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { noteRead(text, 0.9); G.run.boss.speech = { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
+function shawSay(text) { const first = readQueue({ kind: 'say', who: runCfg().bossName, text }); G.run.boss.speech = first ? null : { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
   if (B.speech) { B.speech.t -= dt; if (B.speech.t <= 0) B.speech = null; }
+  if (runCfg().bossUpdate) return runCfg().bossUpdate(B, dt);
   if (B.state !== 'open') B.x = Math.sin(B.t * 0.9) * 1.4 * (B.state === 'tired' ? 0.2 : 1);
   if (B.state === 'enter') {
     B.z = lerp(B.z, 28, Math.min(1, dt * 1.5)); B.h = lerp(B.h, 0.6, Math.min(1, dt * 2));
@@ -280,6 +290,7 @@ function shawAttack(B) {
   sfx('throw');
 }
 function runBossHit() {
+  if (runCfg().bossHit) return runCfg().bossHit();
   const R = G.run, B = R.boss;
   B.hp--; B.flash = 0.3; B.state = B.hp <= 0 ? 'dead' : 'hurt'; B.t = 0; B.vol = 0;
   G.shake = 12; sfx('boom');
@@ -319,11 +330,15 @@ function updateRunner(dt) {
   if (surf === 'sand') target *= 0.78;
   if (R.boost > 0) target *= runCfg().evo >= 2 ? 1.65 : 1.8;
   if (R.fever > 0) target *= 1.3;
+  if (R.armor > 0) target *= 1.25;
   if (R.phase === 'run' || R.phase === 'boss') { if (!(R.boost > 0) && !(R.fever > 0)) R.meter = Math.min(100, R.meter + (runCfg().evo >= 2 ? 0.5 : 2.2) * dt); if (R.meter >= 100 && !R.hints.boost && runCfg().evo < 2) { R.hints.boost = 1; banner('РЫВОК ГОТОВ!', isTouch ? 'Жми полоску «Рывок» слева внизу' : 'Жми Shift или полоску «Рывок»', 2.4, 'small'); } }
   R.speed = lerp(R.speed, target, Math.min(1, dt * 2.5));
   R.s += R.speed * dt;
   R.curve = Math.sin(R.s / 230) * 0.0026 + Math.sin(R.s / 97) * 0.0009;
-  // lanes: ice makes the duck slide
+  // lanes: ice makes the duck slide (levels 4+: the juice controller moves the duck instead)
+  const CF = runCfg();
+  if (R.juice) juiceStep(R, dt);
+  else {
   const tx = laneX(R.lane);
   if (surf === 'ice') { R.vx += (tx - R.x) * 32 * dt; R.vx *= 1 - 2.4 * dt; R.x += R.vx * dt; }
   else { R.x = lerp(R.x, tx, Math.min(1, dt * 20)); R.vx = 0; }
@@ -336,6 +351,8 @@ function updateRunner(dt) {
     R.y += R.vy * dt;
     if (R.y <= 0) { R.y = 0; R.vy = 0; R.dj = false; if (R.jumpBuf > 0) { R.jumpBuf = 0; R.vy = CF.jump || RUN.JUMP; R.y = 0.01; sfx('swoosh'); } if (R.slam) { R.roll = 0.6; R.slam = false; } const a = runPlayerScreen(); burst(a.sx, a.sy, 5, { type: 'smoke', col: surf === 'ice' ? 'rgba(220,240,255,A)' : 'rgba(230,215,190,A)', r: 4, r1: 14, smin: 30, smax: 90, lmin: 0.3, lmax: 0.5 }); }
   }
+  }
+  R.camX = lerp(R.camX, R.x * 0.6, Math.min(1, dt * 8));
   if (R.boostDrain) { R.meter -= 22 * dt; R.boost = Math.max(R.boost, 0.12); if (R.meter <= 0 || R.phase === 'intro') { R.meter = Math.max(0, R.meter); R.boostDrain = false; } }
   R.jumpBuf = Math.max(0, (R.jumpBuf || 0) - dt); R.knifeCd = Math.max(0, (R.knifeCd || 0) - dt); R.slash = Math.max(0, (R.slash || 0) - dt); R.flap = Math.max(0, (R.flap || 0) - dt);
   R.roll = Math.max(0, R.roll - dt); R.boost = Math.max(0, R.boost - dt); R.inv = Math.max(0, R.inv - dt);
@@ -344,7 +361,7 @@ function updateRunner(dt) {
   const hint = (key, at, title, sub) => { if (!R.hints[key] && R.s > at) { R.hints[key] = 1; banner(title, sub, 2.6, 'small'); } };
   if (R.phase === 'run') {
     hint('jump', 25, 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел');
-    hint('roll', 255, 'КУВЫРОК', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой');
+    hint('roll', 255, R.juice ? 'ПОДКАТ' : 'КУВЫРОК', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой');
     hint('lane', 425, 'ДОРОЖКИ', isTouch ? 'Свайп влево или вправо' : 'Стрелки влево и вправо');
     hint('homing', 560, 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — утка бросится на врага' : 'В прыжке нажми ещё раз — утка бросится на врага');
   }
@@ -358,7 +375,7 @@ function updateRunner(dt) {
   if (R.boss || runCfg().evo >= 2) { R.objs.sort((a, b) => a.d - b.d); R.i = 0; }
   // collisions near the duck
   while (R.i < R.objs.length && R.objs[R.i].d < R.s - 6) R.i++;
-  for (let j = R.i; j < R.objs.length; j++) {
+  for (let j = R.i; j < R.objs.length && !R.homing; j++) {
     const o = R.objs[j];
     if (o.d > R.s + 2) break;
     if (o.dead || o.reflect || Math.abs(o.d - R.s) > 0.9 || Math.abs(o.x - R.x) > 1.0) continue;
@@ -368,6 +385,7 @@ function updateRunner(dt) {
   // homing target: nearest enemy ahead while in the air, or the dizzy boss
   R.target = null;
   if (R.boss && R.boss.state === 'tired') R.target = { boss: true };
+  else if (R.boss && R.boss.homable) { if (R.y > 0.25) R.target = { boss: true }; }
   else if (R.boss && R.boss.state === 'open') { if (R.y > 0.25 && R.lane === R.boss.tLane) R.target = { boss: true }; }
   else if (R.y > 0.25) {
     for (let j = R.i; j < R.objs.length; j++) {

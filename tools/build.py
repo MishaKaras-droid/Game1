@@ -7,6 +7,7 @@ import base64
 import io
 import json
 import pathlib
+import re
 
 from PIL import Image
 
@@ -32,6 +33,16 @@ def data_uri(path):
     return "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
+def svg_data_uri(path):
+    """Minified SVG as a text data URI (safe inside a JS '...' string and an HTML src=\"...\"); gzip on the server keeps it small."""
+    svg = path.read_text()
+    svg = re.sub(r"(\d+\.\d)\d+", r"\1", svg)          # 1 decimal is plenty for a 2688 px drawing
+    svg = re.sub(r"\s+", " ", svg).strip()
+    for ch, enc in (("%", "%25"), ("#", "%23"), ('"', "%22"), ("'", "%27"), ("<", "%3C"), (">", "%3E"), ("\\", "%5C")):
+        svg = svg.replace(ch, enc)
+    return "data:image/svg+xml," + svg
+
+
 def main():
     img = {}
     for key, name in IMAGES.items():
@@ -43,13 +54,41 @@ def main():
     duck = K / "assets" / "models" / "duck.bin.gz"
     if duck.exists():  # low-poly 3D duck (tools/duck_model.py)
         assets_js += "\nconst DUCK_PACK = " + json.dumps({"head": json.loads((K / "assets" / "models" / "duck.json").read_text()), "gz": base64.b64encode(duck.read_bytes()).decode()}) + ";"
+    zkit = K / "assets" / "models" / "zkit.bin.gz"
+    if zkit.exists():  # Zombie Apocalypse Kit by Quaternius (CC0), packed by tools/pack_zombie_kit.mjs
+        assets_js += "\nconst ZKIT_PACK = " + json.dumps({"head": json.loads((K / "assets" / "models" / "zkit.json").read_text()), "gz": base64.b64encode(zkit.read_bytes()).decode()}) + ";"
     city = K / "assets" / "models" / "city.bin.gz"
     if city.exists():  # 3D buildings for duck level 4 (packed by tools/pack_models.py)
         assets_js += "\nconst CITY_PACK = " + json.dumps({"head": json.loads(city.with_suffix("").with_suffix(".json").read_text()), "gz": base64.b64encode(city.read_bytes()).decode()}) + ";"
     js = "\n".join(p.read_text() for p in sorted((K / "src" / "js").glob("*.js")))
+    # ES-module drop-ins in src/ (e.g. level5_prologue_and_juice.js): strip import/export so they join the bundle,
+    # and inline the asset files they reference (assets/slide1.svg ...) as data URIs
+    mods = []
+    for mp in sorted((K / "src").glob("*.js")):
+        code = re.sub(r"^\s*import\s+[^;]*?from\s+['\"]three['\"];?\s*$", "", mp.read_text(), flags=re.M)
+        code = re.sub(r"^export\s+(default\s+)?(class|function|const|let)", r"\2", code, flags=re.M)
+        for ref in sorted(set(re.findall(r"assets/[\w./-]+\.svg", code))):
+            f = K / ref
+            if f.exists():
+                webp = f.with_suffix(".webp")  # pre-rendered by tools/raster_slides.js — much lighter than a traced SVG
+                if webp.exists() and webp.stat().st_mtime >= f.stat().st_mtime:
+                    code = code.replace(ref, "data:image/webp;base64," + base64.b64encode(webp.read_bytes()).decode())
+                else:
+                    code = code.replace(ref, svg_data_uri(f))
+            else:
+                print("WARNING: missing", ref)
+        mods.append("/* ---- " + mp.name + " */\n" + code)
+    js = "\n".join(mods) + "\n" + js
     shell = (K / "src" / "shell.html").read_text()
     three = (K / "vendor" / "three-r128.min.js").read_text()
     assert "</script" not in three.lower()
+    # three.js r128 + its glTF loader and skeleton cloning (examples/js, non-module) for the level 5 models
+    for extra in ("three-r128-GLTFLoader.js", "three-r128-SkeletonUtils.js"):
+        ex = K / "vendor" / extra
+        if ex.exists():
+            code = ex.read_text()
+            assert "</script" not in code.lower()
+            three += "\n" + code
     shell = shell.replace("<!--VENDOR-->", "<script>\n" + three + "\n</script>")
     page = shell.replace("<!--ASSETS-->", "<script>\n" + assets_js + "\n</script>").replace(
         "<!--SCRIPT-->", "<script>\n(function () {\n" + js + "\n})();\n</script>"
@@ -61,8 +100,9 @@ def main():
     full = ('<!doctype html>\n<html lang="ru">\n<head>\n<meta charset="utf-8">\n'
             + page[:head_end] + "\n</head>\n<body>\n" + page[head_end:] + "\n</body>\n</html>\n")
     (out / "kryabul-standalone.html").write_text(full)
+    (K / "index.html").write_text(full)  # GitHub Pages entry point
     print("images:", {k: len(v) // 1024 for k, v in img.items()}, "KB")
-    print("page:", len(page) // 1024, "KB")
+    print("page:", len(page) // 1024, "KB  (dist/kryabul.html, dist/kryabul-standalone.html, index.html)")
 
 
 main()
