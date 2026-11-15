@@ -1,7 +1,7 @@
 /* ============================================================ duck level 4: graphics evolution — city run, Boost, the living Dissertation
    Level 3 keeps its look. Level 4 turns on: real-time shadows, toon shading with ink outlines,
    a 3D city, a Boost gauge that burns while you smash through everything (Sonic-style). */
-LEVEL_INFO[4].duck = { name: 'Город · эпоха Boost', boss: 'thesis', song: 'sky2' };
+LEVEL_INFO[4].duck = { name: 'Город и Диссертация', boss: 'thesis', song: 'sky2' };
 const LEVEL4_DUCK = [];
 const TRACK_PLAN4 = [
   ['straight', 60], ['curve', 140, 0.8], ['hill', 110, 0.15], ['straight', 40], ['scurve', 170, 0.8], ['loop', 90], ['straight', 50],
