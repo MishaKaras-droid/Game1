@@ -108,6 +108,7 @@ const Sound = (() => {
     drone: (t) => { osc('sawtooth', 55, 52, 4.5, 0.12, t, undefined, 1.2); osc('sine', 41, 40, 4.5, 0.25, t, undefined, 1.2); osc('triangle', 220, 196, 4, 0.03, t + 0.5, undefined, 1.5); },
     hiss: (t) => { noise(1.4, 0.3, 'highpass', 4200, 2600, t, 0.8); noise(1.2, 0.12, 'bandpass', 6000, 5000, t + 0.3, 2); },
     squelch: (t) => { noise(0.7, 0.45, 'bandpass', 250, 1400, t, 3); osc('sawtooth', 90, 45, 0.6, 0.15, t); noise(1.2, 0.2, 'lowpass', 600, 120, t + 0.4); },
+    splash: (t) => { noise(0.3, 0.3, 'bandpass', 1500, 500, t, 0.8); noise(0.18, 0.14, 'highpass', 3000, 5200, t + 0.03, 0.7); },
     win: (t) => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => osc('square', f, f, i === 5 ? 0.6 : 0.14, 0.09, t + i * 0.13)),
     lose: (t) => [392, 330, 262, 196].forEach((f, i) => osc('triangle', f, f * 0.98, 0.32, 0.17, t + i * 0.22)),
   };
@@ -178,6 +179,17 @@ const Sound = (() => {
         { drum: true, vol: 0.9, str: 'K . H K S . H . K . H K S . H H' },
       ],
     },
+  };
+  SONGS.china = {
+    bpm: 112, echo: 0.3,
+    parts: [
+      { wave: 'triangle', vol: 0.15, gate: 0.6, echo: true, str:
+        'E5 - G5 - A5 - C6 - A5 - G5 - E5 - D5 - | E5 - G5 - A5 - - - G5 - E5 - D5 - C5 - | D5 - E5 - G5 - A5 - G5 - E5 - D5 - C5 - | A4 - C5 - D5 - E5 - D5 - - - . . . . |' +
+        'A5 - C6 - D6 - C6 - A5 - G5 - A5 - - - | G5 - A5 - G5 - E5 - D5 - E5 - G5 - - - | E5 - D5 - C5 - D5 - E5 - G5 - A5 - C6 - | A5 - - - G5 - - - A5 - - - - - . .' },
+      { wave: 'sine', vol: 0.2, str:
+        'A2 - - - E3 - - - A2 - - - E3 - - - | C3 - - - G3 - - - C3 - - - G3 - - - | G2 - - - D3 - - - G2 - - - D3 - - - | A2 - - - E3 - - - A2 - - - E3 - - -' },
+      { drum: true, vol: 0.4, str: 'K . . H . . K . H . K . . H S .' },
+    ],
   };
   SONGS.sky2 = Object.assign({}, SONGS.sky, { bpm: 148, tracks: undefined });
   SONGS.sea2 = Object.assign({}, SONGS.sea, { bpm: 114, tracks: undefined });

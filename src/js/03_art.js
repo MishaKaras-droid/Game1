@@ -107,6 +107,7 @@ function drawCarpHero(c, x, y, t, o) {
   c.translate(hx + hw / 2, hy + hh / 2);
   c.rotate(Math.sin(t * sp * 0.5) * 0.04);
   c.drawImage(head, -hw / 2, -hh / 2, hw, hh);
+  if (o.hat) drawChinaHat(c, hw, hh);
   c.restore();
 }
 
@@ -298,6 +299,7 @@ function drawPickupIcon(c, x, y, type, t, s) {
   else if (type === 'bomb') drawStarPickup(c, x, y, t, s);
   else if (type === 'slow') drawClock(c, x, y, t, s);
   else if (type === 'charm') drawCharm(c, x, y, t, s);
+  else if (type === 'bling') drawBling(c, x, y, t, s);
 }
 function drawClock(c, x, y, t, s) {
   c.save(); c.translate(x, y); const k = (s || 1) * (1 + Math.sin(t * 6) * 0.05); c.scale(k, k);

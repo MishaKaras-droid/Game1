@@ -323,7 +323,7 @@ function updateHelpers(dt) {
 function updateOutro(dt) {
   const o = G.outro; o.t += dt;
   if (o.t > 3.8 && o.s < 1) { o.s = 1; sfx('drone'); }
-  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else if (o.kind === 'vampire') { sfx('wave'); } else if (o.kind === 'salmon') { sfx('drone'); sfx('clink'); } else if (o.kind === 'crayboss') { sfx('drone'); sfx('wave'); } else sfx('squelch'); G.shake = 14; }
+  if (o.t > 8.6 && o.s < 2) { o.s = 2; if (o.kind === 'kraken') { sfx('swoosh'); sfx('boom'); } else if (o.kind === 'swordfish') { sfx('boom'); sfx('drone'); } else if (o.kind === 'perch') sfx('wave'); else if (o.kind === 'gator') { sfx('hiss'); sfx('drone'); } else if (o.kind === 'anaconda') { sfx('drone'); sfx('clink'); } else if (o.kind === 'vampire') { sfx('wave'); } else if (o.kind === 'salmon') { sfx('drone'); sfx('clink'); } else if (o.kind === 'crayboss') { sfx('drone'); sfx('wave'); } else if (o.kind === 'koi') { sfx('hiss'); sfx('blub'); } else sfx('squelch'); G.shake = 14; }
   if (o.t >= 12.4) onWin();
 }
 
@@ -531,6 +531,7 @@ function drawOutro(c) {
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'salmon') drawSalmonEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'crayfish') drawCrayfishEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'koi') drawKoiEnd(c, k);
+  else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'diver') drawDiverEnd(c, k);
   else if (k >= 8.6 && OUTRO[o.kind || 'mega'].end === 'tentacle') {
     const slam = easeOut(clamp((k - 8.6) / 0.35, 0, 1)), slide = easeInOut(clamp((k - 9.0) / 2.0, 0, 1)) * SH * 1.1;
     // the tentacle's spine as a curve from the top-right corner
