@@ -200,10 +200,47 @@ function startGame(mode, fromBoss, level) {
   keepAwake(true);
   lastT = performance.now();
 }
+// the controls for what is on screen right now, shown on the pause panel
+function pauseHelpRows() {
+  const T = isTouch;
+  if (G && G.run) {
+    const evo = runCfg().evo >= 2;
+    const rows = [
+      ['Дорожки', T ? 'свайп влево / вправо' : '← → или A / D'],
+      ['Прыжок', T ? 'кнопка «Прыжок»' : '↑, W или Пробел'],
+      [evo ? 'Подкат' : 'Кувырок', T ? 'свайп вниз — под высокими преградами' : '↓ или S — под высокими преградами'],
+    ];
+    if (evo) rows.push(
+      ['Двойной прыжок', 'прыжок ещё раз в воздухе'],
+      ['Планирование', 'держи прыжок, пока падаешь'],
+      ['Атака в прыжке', 'рядом враг — прыжок в воздухе бросает утку на него; так можно бить цепочкой'],
+      ['Удар сверху', T ? 'в воздухе свайп вниз — ломает крепкое' : 'в воздухе ↓ или S — ломает крепкое'],
+      ['Нож', T ? 'кнопка «Нож»' : 'F, Enter или клик мышью'],
+      ['Кофейный передоз', 'включается сам, когда шкала внизу полная']);
+    else rows.push(['Атака в прыжке', 'в воздухе нажми прыжок ещё раз'], ['Рывок', T ? 'полоска «Рывок», когда она полная' : 'Shift, когда полоска полная']);
+    for (const r of runCfg().help || []) rows.push(r);
+    return rows;
+  }
+  const rows = [['Движение', T ? 'води пальцем по экрану' : 'стрелки, WASD или тяни мышью'], ['Стрельба', 'герой стреляет сам'], ['Суперудар', T ? 'кнопка со звездой' : 'Пробел']];
+  if (G && G.squidUnlocked) rows.push(['Кальмар', T ? 'кнопка кальмара' : 'Q']);
+  if (G && G.eelUnlocked) rows.push(['Угорь', T ? 'кнопка угря' : 'E']);
+  if (G && G.crocUnlocked) rows.push(['Крокодил', T ? 'кнопка крокодила' : 'R']);
+  return rows;
+}
+function renderPauseHelp() {
+  const tb = $('pauseHelp'); tb.textContent = '';
+  const cap = document.createElement('caption'); cap.textContent = 'Управление'; tb.appendChild(cap);
+  for (const r of pauseHelpRows()) {
+    const tr = document.createElement('tr'), th = document.createElement('th'), td = document.createElement('td');
+    if (r[2]) tr.className = 'sep';
+    th.textContent = r[0]; td.textContent = r[1]; tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+  }
+}
 function pauseGame() {
   if (state !== 'play') return;
   state = 'paused';
   $('pauseHint').textContent = isTouch ? 'Нажми «Продолжить», когда будешь готов.' : 'Esc или P — продолжить.';
+  renderPauseHelp();
   updateSoundUi(); show('pause');
   Sound.suspend(); keepAwake(false);
   render();

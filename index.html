@@ -278,6 +278,13 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .panel p { margin: 0; font-weight: 800; font-size: clamp(13px, 2.6vh, 18px); line-height: 1.3; text-wrap: balance; }
 .panel .big { font-family: var(--font-display); font-size: clamp(26px, 7vh, 44px); font-variant-numeric: tabular-nums; }
 .panel .small { font-size: clamp(11px, 2.1vh, 14px); opacity: .7; }
+.help { margin: 2px auto 10px; border-collapse: collapse; text-align: left; font-size: clamp(11px, 2.3vh, 15px); line-height: 1.25; max-width: 100%; }
+.help caption { font-weight: 900; padding-bottom: 4px; }
+.help th { font-weight: 900; white-space: nowrap; padding: 2px 12px 2px 0; vertical-align: top; }
+.help td { padding: 2px 0; }
+.help tr.sep th, .help tr.sep td { border-top: 2px solid rgba(34,29,46,.18); padding-top: 5px; }
+#pause .panel { max-height: 96vh; overflow-y: auto; width: min(94vw, 660px); max-width: none; }
+#pause .help { margin-top: 12px; }
 .btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
 .btn {
   border: 3px solid var(--ink); border-radius: 14px; padding: clamp(8px, 1.6vh, 12px) 18px;
@@ -513,6 +520,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
         <button class="btn alt" id="btnRestart" type="button">Заново</button>
         <button class="btn alt" id="btnMenu1" type="button">В меню</button>
       </div>
+      <table id="pauseHelp" class="help" aria-label="Управление"></table>
     </div>
   </section>
 
@@ -13629,6 +13637,7 @@ const RUN_CFG6 = Object.assign({}, RUN_CFG4, {
   onChain: onChain6, onPound: onPound6, overlay: overlay6, theme: THEME6, decor: null, frame3d: frame6,
   chunk: buildCubeChunk, make: make6, fx: fx6, hudIcon: hud6, lootLost: 'Алмазы рассыпаны!', lootPart: 'chunk', lootPlus: '+◆',
   feverBanner: ['КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Режим креатива — ломай всё!'], duckAlt: true,
+  help: [['Гоблин мигает', 'сбей атакой в прыжке, пока не взорвался', 1], ['Йети и чёрт', 'только удар сверху'], ['Курица', 'прыгни на неё — подбросит к алмазам'], ['Сундук, вагонетка', 'разбей сундук — магнит; в вагонетку запрыгивай'], ['Красная кнопка босса', 'встань по центру, прыжок и удар сверху']],
   bossTip: (B) => B.state === 'summon' || B.homable ? 'ПРЫЖОК · ЖМИ ПРЫЖОК ПО МОБАМ ЦЕПОЧКОЙ → В ЛИЦО МОДЕРАТОРУ' : B.state === 'freeze' ? 'ЗАВИС! ПРЫЖОК И ВНИЗ: УДАР СВЕРХУ' : B.state === 'crash' ? 'ПО ЦЕНТРУ · ПРЫЖОК И ВНИЗ: ПО КРАСНОЙ КНОПКЕ' : B.state === 'dead' ? '' : 'УВОРАЧИВАЙСЯ — ЖДИ МОБОВ',
 });
 
@@ -14669,10 +14678,47 @@ function startGame(mode, fromBoss, level) {
   keepAwake(true);
   lastT = performance.now();
 }
+// the controls for what is on screen right now, shown on the pause panel
+function pauseHelpRows() {
+  const T = isTouch;
+  if (G && G.run) {
+    const evo = runCfg().evo >= 2;
+    const rows = [
+      ['Дорожки', T ? 'свайп влево / вправо' : '← → или A / D'],
+      ['Прыжок', T ? 'кнопка «Прыжок»' : '↑, W или Пробел'],
+      [evo ? 'Подкат' : 'Кувырок', T ? 'свайп вниз — под высокими преградами' : '↓ или S — под высокими преградами'],
+    ];
+    if (evo) rows.push(
+      ['Двойной прыжок', 'прыжок ещё раз в воздухе'],
+      ['Планирование', 'держи прыжок, пока падаешь'],
+      ['Атака в прыжке', 'рядом враг — прыжок в воздухе бросает утку на него; так можно бить цепочкой'],
+      ['Удар сверху', T ? 'в воздухе свайп вниз — ломает крепкое' : 'в воздухе ↓ или S — ломает крепкое'],
+      ['Нож', T ? 'кнопка «Нож»' : 'F, Enter или клик мышью'],
+      ['Кофейный передоз', 'включается сам, когда шкала внизу полная']);
+    else rows.push(['Атака в прыжке', 'в воздухе нажми прыжок ещё раз'], ['Рывок', T ? 'полоска «Рывок», когда она полная' : 'Shift, когда полоска полная']);
+    for (const r of runCfg().help || []) rows.push(r);
+    return rows;
+  }
+  const rows = [['Движение', T ? 'води пальцем по экрану' : 'стрелки, WASD или тяни мышью'], ['Стрельба', 'герой стреляет сам'], ['Суперудар', T ? 'кнопка со звездой' : 'Пробел']];
+  if (G && G.squidUnlocked) rows.push(['Кальмар', T ? 'кнопка кальмара' : 'Q']);
+  if (G && G.eelUnlocked) rows.push(['Угорь', T ? 'кнопка угря' : 'E']);
+  if (G && G.crocUnlocked) rows.push(['Крокодил', T ? 'кнопка крокодила' : 'R']);
+  return rows;
+}
+function renderPauseHelp() {
+  const tb = $('pauseHelp'); tb.textContent = '';
+  const cap = document.createElement('caption'); cap.textContent = 'Управление'; tb.appendChild(cap);
+  for (const r of pauseHelpRows()) {
+    const tr = document.createElement('tr'), th = document.createElement('th'), td = document.createElement('td');
+    if (r[2]) tr.className = 'sep';
+    th.textContent = r[0]; td.textContent = r[1]; tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+  }
+}
 function pauseGame() {
   if (state !== 'play') return;
   state = 'paused';
   $('pauseHint').textContent = isTouch ? 'Нажми «Продолжить», когда будешь готов.' : 'Esc или P — продолжить.';
+  renderPauseHelp();
   updateSoundUi(); show('pause');
   Sound.suspend(); keepAwake(false);
   render();

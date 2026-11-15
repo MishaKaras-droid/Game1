@@ -729,5 +729,6 @@ const RUN_CFG6 = Object.assign({}, RUN_CFG4, {
   onChain: onChain6, onPound: onPound6, overlay: overlay6, theme: THEME6, decor: null, frame3d: frame6,
   chunk: buildCubeChunk, make: make6, fx: fx6, hudIcon: hud6, lootLost: 'Алмазы рассыпаны!', lootPart: 'chunk', lootPlus: '+◆',
   feverBanner: ['КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Режим креатива — ломай всё!'], duckAlt: true,
+  help: [['Гоблин мигает', 'сбей атакой в прыжке, пока не взорвался', 1], ['Йети и чёрт', 'только удар сверху'], ['Курица', 'прыгни на неё — подбросит к алмазам'], ['Сундук, вагонетка', 'разбей сундук — магнит; в вагонетку запрыгивай'], ['Красная кнопка босса', 'встань по центру, прыжок и удар сверху']],
   bossTip: (B) => B.state === 'summon' || B.homable ? 'ПРЫЖОК · ЖМИ ПРЫЖОК ПО МОБАМ ЦЕПОЧКОЙ → В ЛИЦО МОДЕРАТОРУ' : B.state === 'freeze' ? 'ЗАВИС! ПРЫЖОК И ВНИЗ: УДАР СВЕРХУ' : B.state === 'crash' ? 'ПО ЦЕНТРУ · ПРЫЖОК И ВНИЗ: ПО КРАСНОЙ КНОПКЕ' : B.state === 'dead' ? '' : 'УВОРАЧИВАЙСЯ — ЖДИ МОБОВ',
 });

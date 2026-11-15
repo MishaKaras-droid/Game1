@@ -274,6 +274,13 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .panel p { margin: 0; font-weight: 800; font-size: clamp(13px, 2.6vh, 18px); line-height: 1.3; text-wrap: balance; }
 .panel .big { font-family: var(--font-display); font-size: clamp(26px, 7vh, 44px); font-variant-numeric: tabular-nums; }
 .panel .small { font-size: clamp(11px, 2.1vh, 14px); opacity: .7; }
+.help { margin: 2px auto 10px; border-collapse: collapse; text-align: left; font-size: clamp(11px, 2.3vh, 15px); line-height: 1.25; max-width: 100%; }
+.help caption { font-weight: 900; padding-bottom: 4px; }
+.help th { font-weight: 900; white-space: nowrap; padding: 2px 12px 2px 0; vertical-align: top; }
+.help td { padding: 2px 0; }
+.help tr.sep th, .help tr.sep td { border-top: 2px solid rgba(34,29,46,.18); padding-top: 5px; }
+#pause .panel { max-height: 96vh; overflow-y: auto; width: min(94vw, 660px); max-width: none; }
+#pause .help { margin-top: 12px; }
 .btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
 .btn {
   border: 3px solid var(--ink); border-radius: 14px; padding: clamp(8px, 1.6vh, 12px) 18px;
@@ -506,6 +513,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
         <button class="btn alt" id="btnRestart" type="button">Заново</button>
         <button class="btn alt" id="btnMenu1" type="button">В меню</button>
       </div>
+      <table id="pauseHelp" class="help" aria-label="Управление"></table>
     </div>
   </section>
 
