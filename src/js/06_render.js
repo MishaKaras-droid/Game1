@@ -122,11 +122,12 @@ function drawPlayer(c, t) {
   if (p.sc !== undefined && p.sc !== 1) c.scale(p.sc, p.sc);
   if (p.spin) c.rotate(p.spin);
   if (G.mode === 'duck') drawDuckHero(c, 0, 0, t, { h: 77, tilt: p.tilt, flapSpeed: G.phase === 'turn' ? 24 : 15 });
-  else drawCarpHero(c, 0, 0, t, { w: 150, tilt: p.tilt * 0.7 });
+  else drawCarpHero(c, 0, 0, t, { w: 150, tilt: p.tilt * 0.7, hat: !!G.china });
   c.restore();
 }
 function drawPickup(c, k, t) {
-  const col = k.type === 'power' ? 'rgba(120,220,255,A)' : k.type === 'bomb' ? 'rgba(255,190,90,A)' : k.type === 'charm' ? 'rgba(255,150,210,A)' : k.type === 'slow' ? 'rgba(150,210,255,A)' : 'rgba(255,248,210,A)';
+  const col = k.type === 'power' ? 'rgba(120,220,255,A)' : k.type === 'bomb' ? 'rgba(255,190,90,A)' : k.type === 'charm' || k.type === 'bling' ? 'rgba(255,150,210,A)' : k.type === 'slow' ? 'rgba(150,210,255,A)' : 'rgba(255,248,210,A)';
+  if (k.air) drawAirLantern(c, k, t);
   glow(c, k.x, k.y, 36, col, 0.6 + Math.sin(t * 5 + k.age) * 0.15);
   c.save(); c.translate(k.x, k.y); upright(c); drawPickupIcon(c, 0, 0, k.type, t + k.age, 1); c.restore();
 }
@@ -165,7 +166,7 @@ function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
   speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, b.speech.life || 2.3, -1, b.speech.who);
 }
-const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda, crocboss: drawCrocBoss, vampire: drawVampire, salmon: drawSalmon, crayboss: drawCrayBoss };
+const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda, crocboss: drawCrocBoss, vampire: drawVampire, salmon: drawSalmon, crayboss: drawCrayBoss, koi: drawKoiBoss };
 function drawBossEntity(c, b, t) {
   const x = b.x, y = b.y + b.oy;
   if (b.telegraph > 0) {
@@ -325,6 +326,7 @@ function drawBanners(c, t) {
       P(c); rr(c, -w / 2 + 6, -36, w, 80, 12); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fill();
       P(c); rr(c, -w / 2, -42, w, 80, 12); fs(c, '#ffffff', 7);
       c.fillStyle = INK; c.fillText(b.text, 0, 0);
+    } else if (b.style === 'china') { drawChinaStamp(c, b);
     } else if (b.style === 'green') {
       c.font = '56px ' + FONT_DISPLAY; otext(c, b.text, 0, -12, '#7cff4f', 10);
       if (b.sub) { c.font = '900 26px ' + FONT_UI; otext(c, b.sub, 0, 40, '#e8ffd0', 6); }
@@ -358,6 +360,7 @@ function drawBanners(c, t) {
 
 function drawBackground(c, T) {
   const p = progress();
+  if (G.mode === 'fish' && G.china) { drawChina(c, T); return; }
   if (G.mode === 'fish') { drawSea(c, T, G.dark ? 1 : G.bright ? 0.05 : G.aqua || G.lake ? 0.2 : G.shop ? 0.45 : G.amazon || G.lake67 || G.mangrove || G.rapids || G.rivers ? 0.25 : p); if (G.level >= 2 && !G.bright && !G.aqua && !G.lake && !G.shop && !G.amazon && !G.lake67 && !G.mangrove && !G.rapids && !G.rivers) drawDeepGlow(c, T); if (G.dark) drawDarkDepths(c, T); drawAquarium(c, T); drawLake(c, T); drawShop(c, T); drawAmazon(c, T); drawMangrove(c, T); drawRapids(c, T); drawRivers(c, T); return; }
   if (G.level === 1) { drawSky(c, T, p); return; }
   if (G.vert) { drawSkyUp(c, T, 1); return; }
@@ -390,6 +393,7 @@ function render() {
   drawSpearW(c, T);
   drawTunnel(c, T);
   drawPortal(c, T);
+  drawC12World(c, T);
   for (const k of G.pickups) drawPickup(c, k, T);
   for (const e of G.enemies) drawEnemy(c, e, T);
   drawHelpers(c, T);
@@ -403,6 +407,7 @@ function render() {
     else drawBubble(c, s.x, s.y + Math.sin(s.age * 16 + s.wob) * 1.6, s.r * (0.85 + Math.min(s.age * 1.2, 0.35)));
   }
   drawPlayer(c, T);
+  drawC12Blings(c, T);
   drawSquidAlly(c, T);
   drawEelAlly(c, T);
   drawCrocAlly(c, T);
