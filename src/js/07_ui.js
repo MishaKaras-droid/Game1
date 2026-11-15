@@ -208,13 +208,13 @@ function pauseHelpRows() {
     const rows = [
       ['Дорожки', T ? 'свайп влево / вправо' : '← → или A / D'],
       ['Прыжок', T ? 'кнопка «Прыжок»' : '↑, W или Пробел'],
-      [evo ? 'Подкат' : 'Кувырок', T ? 'свайп вниз — под высокими преградами' : '↓ или S — под высокими преградами'],
+      [evo ? 'Подкат' : 'Кувырок', T ? 'кнопка «Подкат» или свайп вниз — под высокими преградами' : '↓, S или кнопка «Подкат» — под высокими преградами'],
     ];
     if (evo) rows.push(
       ['Двойной прыжок', 'прыжок ещё раз в воздухе'],
       ['Планирование', 'держи прыжок, пока падаешь'],
       ['Атака в прыжке', 'рядом враг — прыжок в воздухе бросает утку на него; так можно бить цепочкой'],
-      ['Удар сверху', T ? 'в воздухе свайп вниз — ломает крепкое' : 'в воздухе ↓ или S — ломает крепкое'],
+      ['Удар сверху', T ? 'в воздухе кнопка «Подкат» или свайп вниз — ломает крепкое' : 'в воздухе ↓ или S — ломает крепкое'],
       ['Нож', T ? 'кнопка «Нож»' : 'F, Enter или клик мышью'],
       ['Кофейный передоз', 'включается сам, когда шкала внизу полная']);
     else rows.push(['Атака в прыжке', 'в воздухе нажми прыжок ещё раз'], ['Рывок', T ? 'полоска «Рывок», когда она полная' : 'Shift, когда полоска полная']);
@@ -368,7 +368,7 @@ function updateRunCtl(run) {
   if (key === runUi) return;
   runUi = key;
   $('hud').classList.toggle('runner', show);
-  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch); $('btnKnife').hidden = !(show && runCfg().evo >= 2);
+  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch); $('btnKnife').hidden = !(show && runCfg().evo >= 2); $('btnDown').hidden = !(show && runCfg().evo >= 2);
   $('dashFill').style.width = (act ? 100 : p) + '%';
   const evo = show && runCfg().evo >= 2;
   if ($('dashBar').dataset.evo !== String(evo)) { $('dashBar').dataset.evo = String(evo); $('dashBar').querySelector('.dash-lbl').textContent = evo ? 'КОФЕЙНЫЙ ПЕРЕДОЗ' : 'РЫВОК'; $('dashBar').setAttribute('aria-label', evo ? 'Кофейный передоз' : 'Рывок'); }
@@ -379,6 +379,7 @@ function updateRunCtl(run) {
 $('btnJump').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runJump(); });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('btnJump').addEventListener(ev, () => runJumpUp());
 $('btnKnife').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runKnife(); });
+$('btnDown').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runRoll(); e.currentTarget.blur(); });
 $('btnKnife').addEventListener('click', (e) => { if (e.detail === 0) runKnife(); e.currentTarget.blur(); });
 if (isTouch) $('knifeKey').hidden = true;
 $('dashBar').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runBoost(); });

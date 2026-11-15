@@ -228,6 +228,17 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 #btnKnife svg { width: 34px; height: 34px; }
 #btnKnife .key { position: absolute; bottom: -18px; font: 900 10px var(--font-ui); color: #fff; opacity: .8; }
 #btnKnife:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+#btnDown {
+  position: absolute; right: 112px; bottom: 18px; width: 82px; height: 82px; border-radius: 50%; padding: 0;
+  border: 4px solid var(--ink); background: radial-gradient(circle at 35% 30%, #e3ffd6, #5cc94a 60%, #2b8a3e); color: #fff;
+  box-shadow: 0 5px 0 var(--ink); display: grid; place-items: center; align-content: center; gap: 0;
+  font: 900 11px var(--font-ui); letter-spacing: .03em; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+#btnDown svg { width: 32px; height: 32px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+#btnDown .key { position: absolute; bottom: -18px; font: 900 10px var(--font-ui); color: #fff; opacity: .8; }
+#btnDown:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+#hud.touch #btnDown { right: max(140px, calc(env(safe-area-inset-right, 0px) + 124px)); bottom: 122px; }
+#hud.touch #btnDown .key, #hud.touch #btnKnife .key { display: none; }
 #hud.touch #btnKnife { right: max(140px, calc(env(safe-area-inset-right, 0px) + 124px)); bottom: 26px; }
 #hud.runner #btnBomb { display: none !important; }
 #dashBar[data-evo="true"] .dash-lbl { font-size: 16px; letter-spacing: .02em; }
@@ -418,6 +429,10 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
     <button id="btnKnife" type="button" aria-label="Удар ножом" hidden>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l3-1 11-11a2.2 2.2 0 0 0-3-3L4 16z" fill="#eef2f7" stroke="#221d2e" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 21l3.2-3.2" stroke="#7e4fa0" stroke-width="3.4" stroke-linecap="round"/></svg>
       <span class="kn-lbl">НОЖ</span><span class="key" id="knifeKey">F</span>
+    </button>
+    <button id="btnDown" type="button" aria-label="Подкат, в прыжке — удар сверху" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21l8-9h-5V4H9v8H4z" fill="currentColor"/></svg>
+      <span class="kn-lbl">ПОДКАТ</span><span class="key" id="downKey">↓</span>
     </button>
     <button id="btnJump" type="button" aria-label="Прыжок" hidden>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 9h-5v8H9v-8H4z" fill="currentColor"/></svg>
@@ -13040,12 +13055,13 @@ const FX6 = { skel: '#f2e6b8', skelA: '#c9ced6', gob: '#7cc242', demon: '#c8402e
 function fx6(o, q) {
   const col = FX6[o.type]; if (!col) return false;
   if (o.type === 'chest') chestOpen6(o);
+  const B6 = G.run.boss; if (o.minion && B6 && B6.state === 'summon') { B6.chainKills = (B6.chainKills || 0) + 1; if (B6.chainKills >= 2 && !B6.homable) { B6.homable = true; B6.chainT = 5; B6.chainOpened = true; } }
   burst(q.sx, q.sy, 12, { type: 'chunk', col, g: 520, smin: 80, smax: 280, lmin: 0.5, lmax: 0.9, rmin: 4, rmax: 8 });
   return true;
 }
-KNIFE_OK.push('skel', 'bamboo', 'bone', 'sword', 'snow', 'chest');
+KNIFE_OK.push('skel', 'gob', 'bamboo', 'bone', 'sword', 'snow', 'chest');
 POUND_OK.push('skel', 'skelA', 'gob', 'demon', 'yeti', 'blk', 'wall', 'bone', 'dirtf', 'chunkf', 'jblk', 'chest', 'bamboo');
-const KNIFE_NO6 = { skelA: 'БРОНЯ! Прыгни сверху', gob: 'ВЗОРВЁТСЯ! Бей в прыжке', demon: 'ТОЛСТЫЙ! Бей сверху ↓', yeti: 'ЛЁД! Бей сверху ↓', blk: 'ПЕРЕПРЫГНИ', wall: 'БЕЙ СВЕРХУ ↓', gate: 'ПОДКАТ ↓',
+const KNIFE_NO6 = { skelA: 'БРОНЯ! Прыгни сверху', demon: 'ТОЛСТЫЙ! Бей сверху ↓', yeti: 'ЛЁД! Бей сверху ↓', blk: 'ПЕРЕПРЫГНИ', wall: 'БЕЙ СВЕРХУ ↓', gate: 'ПОДКАТ ↓',
   sheep: 'ОНИ МИРНЫЕ!', pig: 'ОНИ МИРНЫЕ!', chicken: 'ПРЫГНИ НА НЕЁ!', mcart: 'ВАГОНЕТКА!', jblk: 'ПЕРЕПРЫГНИ', jtool: 'ПОДКАТ ↓', jtree: 'ПОДКАТ ↓', dirtf: 'ПЕРЕПРЫГНИ', chunkf: 'ПЕРЕПРЫГНИ' };
 
 /* ---------- per-frame level logic: the magnet, the ride, throwing skeletons and yetis, goblin fuses, crossing animals */
@@ -13064,6 +13080,11 @@ function tick6(R) {
   }
   if (R.armor > 0) { R.armor -= dt; if (R.armor <= 0) { R.armor = 0; R.inv = 1.2; } }
   if (R.end || !G.player.alive) return;
+  const fresh = R.slash > 0 && !(R.prevSlash > 0), Bk = R.boss; R.prevSlash = R.slash;
+  if (fresh && Bk && Bk.z < 12) {
+    if (Bk.state === 'freeze') modHit('pound');
+    else if (Bk.state === 'crash') { const a = runPlayerScreen(); floatText(a.sx, a.sy - a.k * 2.4, 'КНОПКА ВЫСОКО — ПРЫГАЙ!', '#ff8fa3', 22); }
+  }
   const born = [];
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j], dz = o.d - R.s; if (dz > 60) break;
@@ -13118,9 +13139,9 @@ function modPhase(B, st) {
   const R = G.run;
   B.state = st; B.t = 0; B.vol = 0; B.atkT = 0.9; B.spawned = false; B.chainKills = 0; B.chainOpened = false; B.homable = false;
   if (st === 'throw') { if (!R.hints.p1) { R.hints.p1 = 1; banner('ФАЗА 1: БАН-ХАММЕР', 'Уворачивайся: дорожки, прыжок, подкат', 2, 'green'); } modAnim('Run'); }
-  if (st === 'summon') { if (!R.hints.p2) { R.hints.p2 = 1; banner('ФАЗА 2: СПАВН МОБОВ', 'Цепочка по головам — и в лицо модератору!', 2.2, 'green'); } shawSay(pick(MOD_LINES.summon)); modAnim('Attack', true, 0.8); }
-  if (st === 'freeze') { shawSay(pick(MOD_LINES.freeze)); modAnim('Idle'); }
-  if (st === 'crash') { banner('ФАЗА 3: КРАХ СЕРВЕРА', 'Прыгни и ударь сверху ↓ по красной кнопке!', 2.6, 'red'); modAnim('Idle'); B.dropT = 2.4; B.lagT = 1; sfx('drone'); }
+  if (st === 'summon') { if (!R.hints.p2) { R.hints.p2 = 1; banner('ФАЗА 2: СПАВН МОБОВ', 'Сбей двух мобов — потом прыжок и ещё прыжок: в лицо!', 2.4, 'green'); } shawSay(pick(MOD_LINES.summon)); modAnim('Attack', true, 0.8); }
+  if (st === 'freeze') { shawSay(pick(MOD_LINES.freeze)); modAnim('Idle'); if (!R.hints.pf) { R.hints.pf = 1; banner('МОДЕРАТОР ЗАВИС!', isTouch ? 'Бей: кнопка «Нож» или прыжок и ещё прыжок' : 'Бей: нож (F) или прыжок и ещё прыжок', 2.4, 'green'); } }
+  if (st === 'crash') { banner('ФАЗА 3: КРАХ СЕРВЕРА', 'Прыгни и жми прыжок ещё раз — по красной кнопке!', 2.6, 'red'); modAnim('Idle'); B.dropT = 2.4; B.lagT = 1; sfx('drone'); }
 }
 function modThrow(B) {
   const R = G.run, kind = ['jblk', 'jtool', 'chunkf', 'jtree'][(B.vol + B.round) % 4];
@@ -13167,25 +13188,22 @@ function modUpdate(B, dt) {
       }
       if (B.homable) { B.chainT -= dt; if (B.chainT <= 0) B.homable = false; }
       const alive = R.objs.some((o) => o.minion && !o.dead && o.d > R.s - 1);
-      if (B.spawned && !alive && !B.homable && !B.chainOpened && (B.chainKills || 0) >= 2) { B.homable = true; B.chainT = 2.4; }
-      if (B.homable) B.chainOpened = true;
-      if ((B.spawned && !alive && !B.homable) || B.t > 9) {
-        // no chain into the face: after two misses in a row the moderator lags for a moment (a ground pound next to him counts)
-        B.homable = false; B.fails = (B.fails || 0) + 1; B.round++;
-        if (B.fails >= 2) { B.fails = 0; modPhase(B, 'freeze'); } else { shawSay(pick(MOD_LINES.back)); modPhase(B, 'throw'); }
+      if ((B.spawned && !alive && !B.homable) || B.t > 10) {
+        // after every wave the moderator lags right in front of the duck: any attack counts there
+        B.homable = false; B.round++; modPhase(B, 'freeze');
       }
       break;
     }
     case 'freeze':
-      B.z = lerp(B.z, 7.5, Math.min(1, dt * 2.5));
-      if (B.t > 3.8) { B.round++; shawSay(pick(MOD_LINES.back)); modPhase(B, 'throw'); }
+      B.z = lerp(B.z, 7.5, Math.min(1, dt * 2.5)); B.homable = B.z < 12; B.aimH = 3.6;
+      if (B.t > 5) { B.round++; shawSay(pick(MOD_LINES.back)); modPhase(B, 'throw'); }
       break;
     case 'hurt':
       B.z = lerp(B.z, 18, Math.min(1, dt * 2));
       if (B.t > 1.0) modPhase(B, B.hp <= 1 ? 'crash' : 'throw');
       break;
     case 'crash':
-      B.z = lerp(B.z, 6.5, Math.min(1, dt * 2));
+      B.z = lerp(B.z, 6.5, Math.min(1, dt * 2)); B.homable = B.z < 10; B.aimH = 4.2;
       if (!B.crashSaid && B.t > 2.9) { B.crashSaid = true; shawSay(MOD_LINES.crash); }   // after the phase card, one message at a time
       B.lagT -= dt; if (B.lagT <= 0) { B.lagT = rand(1.1, 1.9); G.hitStop = 0.05; }
       B.dropT -= dt;
@@ -13220,20 +13238,16 @@ function modHit(kind) {
   modAnim('HitRecieve', true); shawSay(first ? MOD_LINES.hurt[0] : pick(MOD_LINES.hurt.slice(1)));
   B.state = 'hurt'; B.t = 0; if (kind === 'pound') B.round++;
 }
-// the chain: minions broken by homing dashes (at least two) open a dash into the moderator's face once the wave is gone
+// two minions down (knife, stomp or dash: counted in fx6) open a dash into the moderator's face
 function onChain6(o) {
   const R = G.run, B = R.boss;
   if (!B || !o.minion || B.state !== 'summon') return;
-  B.chainKills = (B.chainKills || 0) + 1;
-  if (B.chainKills < 2 || R.objs.some((m) => m.minion && !m.dead && m.d > R.s - 1)) return;
-  B.homable = true; B.chainT = 2.4;
 }
 function onPound6(R) {
   const B = R.boss; if (!B) return;
   if (B.state === 'freeze' && B.z < 11) modHit('pound');
   else if (B.state === 'crash' && B.z < 10) {
-    if (R.lane === 1) modHit('button');
-    else { const a = runPlayerScreen(); floatText(a.sx, a.sy - a.k * 2.4, 'КНОПКА ПО ЦЕНТРУ!', '#ff8fa3', 22); }
+    modHit('button');
   }
 }
 
@@ -13554,15 +13568,16 @@ function overlay6(c, t) {
   if (B.state === 'crash') lagOverlay6(c, t, 1); else if (B.state === 'freeze') lagOverlay6(c, t, 0.6);
   const blink = Math.floor(t * 4) % 2;
   if (B.state === 'summon' && B.spawned && !B.homable && !B.chainOpened) {
-    c.font = '22px ' + FONT_DISPLAY; otext(c, 'ЦЕПОЧКА ПО МОБАМ: ' + Math.min(2, B.chainKills || 0) + '/2', SW / 2, SH * 0.34, '#7ee7f2', 6);
+    c.font = '22px ' + FONT_DISPLAY; otext(c, 'СБЕЙ МОБОВ: ' + Math.min(2, B.chainKills || 0) + '/2', SW / 2, SH * 0.34, '#7ee7f2', 6);
   }
   if (B.homable || B.state === 'freeze' || (B.state === 'crash' && B.t > 2.9)) {
     const crash = B.state === 'crash', q = runProj3(B.x, B.h + (crash ? 6.6 : 4.7), B.z + RUN.PZ);
     if (q.sx > -100) {
       drawReticle(c, q.sx, q.sy, Math.max(30, q.k * (crash ? 1.2 : 1.6)), t);
       c.font = '26px ' + FONT_DISPLAY;
-      const msg = B.homable ? (R.y > 0.25 ? 'ЖМИ ПРЫЖОК — В ЛИЦО!' : 'ПРЫГАЙ!') : crash && R.lane !== 1 ? (R.lane < 1 ? 'КНОПКА ПРАВЕЕ ▸' : '◂ КНОПКА ЛЕВЕЕ') : R.y > 0.6 ? 'ВНИЗ — УДАР СВЕРХУ!' : crash ? 'ПРЫГАЙ И ЖМИ КНОПКУ ↓' : 'ПРЫГАЙ И БЕЙ СВЕРХУ!';
-      if (blink || (crash && R.lane !== 1)) otext(c, msg, q.sx, Math.max(110, q.sy - Math.max(60, q.k * 2.2)), '#ffe14d', 7);
+      const again = isTouch ? 'ЖМИ «ПРЫЖОК» ЕЩЁ РАЗ!' : 'ЖМИ ПРЫЖОК ЕЩЁ РАЗ!';
+      const msg = crash ? (R.y > 0.25 ? again : 'ПРЫГАЙ К КНОПКЕ!') : B.state === 'freeze' ? (R.y > 0.25 ? again : isTouch ? 'БЕЙ НОЖОМ ИЛИ ПРЫГАЙ!' : 'БЕЙ НОЖОМ (F) ИЛИ ПРЫГАЙ!') : R.y > 0.25 ? again : 'ПРЫГАЙ — И ЕЩЁ РАЗ ПРЫЖОК!';
+      if (blink || R.y > 0.25) otext(c, msg, q.sx, Math.max(158, q.sy - Math.max(60, q.k * 2.2)), '#ffe14d', 7);
     }
   }
 }
@@ -13615,7 +13630,7 @@ const HK6 = {
   jump: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'],
   roll: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'],
   knife: ['knife', 'НОЖ', isTouch ? 'Кнопка «Нож» — руби скелетов и бамбук' : 'F или клик мышью — руби скелетов и бамбук'],
-  homing: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — сбей гоблина, пока не взорвался' : 'В прыжке нажми прыжок ещё раз — сбей гоблина, пока не взорвался'],
+  homing: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'Гоблин взорвётся! Руби ножом или в прыжке нажми «Прыжок» ещё раз' : 'Гоблин взорвётся! Руби ножом (F) или в прыжке нажми прыжок ещё раз'],
   pound: ['pound', 'УДАР СВЕРХУ', isTouch ? 'В прыжке свайп вниз — ломает лёд и ящики' : 'В прыжке стрелка вниз — ломает лёд и ящики'],
   hen: ['hen', 'КУРИЦА-БАТУТ', 'Прыгни на неё — подбросит к алмазам в небе'],
 };
@@ -13626,12 +13641,12 @@ const RUN_CFG6 = Object.assign({}, RUN_CFG4, {
   ctxHints: { blk: HK6.jump, gate: HK6.roll, skel: HK6.knife, bamboo: HK6.knife, gob: HK6.homing, wall: HK6.pound, yeti: HK6.pound, demon: HK6.pound, chicken: HK6.hen },
   targets: ['skel', 'skelA', 'gob'], collide: collide6, tick: tick6, pickup: pickup6, knifeNo: KNIFE_NO6,
   floatTypes: ['gkey', 'sword', 'snow', 'jtool', 'jtree'], moveTypes: ['skel', 'gob', 'demon', 'sheep', 'pig', 'chicken', 'mcart', 'bone', 'sword', 'snow', 'jblk', 'jtool', 'jtree', 'dirtf', 'chunkf'], bounce: [], bounceH: {},
-  openPhase: null, updOpen: null, bossUpdate: modUpdate, bossHit: () => { const B = G.run.boss; if (B && B.homable) modHit('chain'); }, boss3d: modFrame,
+  openPhase: null, updOpen: null, bossUpdate: modUpdate, bossHit: () => { const B = G.run.boss; if (B && B.homable) modHit(B.state === 'crash' ? 'button' : B.state === 'freeze' ? 'pound' : 'chain'); }, boss3d: modFrame,
   onChain: onChain6, onPound: onPound6, overlay: overlay6, theme: THEME6, decor: null, frame3d: frame6,
   chunk: buildCubeChunk, make: make6, fx: fx6, hudIcon: hud6, lootLost: 'Алмазы рассыпаны!', lootPart: 'chunk', lootPlus: '+◆',
   feverBanner: ['КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Режим креатива — ломай всё!'], duckAlt: true,
-  help: [['Гоблин мигает', 'сбей атакой в прыжке, пока не взорвался', 1], ['Йети и чёрт', 'только удар сверху'], ['Курица', 'прыгни на неё — подбросит к алмазам'], ['Сундук, вагонетка', 'разбей сундук — магнит; в вагонетку запрыгивай'], ['Красная кнопка босса', 'встань по центру, прыжок и удар сверху']],
-  bossTip: (B) => B.state === 'summon' || B.homable ? 'ПРЫЖОК · ЖМИ ПРЫЖОК ПО МОБАМ ЦЕПОЧКОЙ → В ЛИЦО МОДЕРАТОРУ' : B.state === 'freeze' ? 'ЗАВИС! ПРЫЖОК И ВНИЗ: УДАР СВЕРХУ' : B.state === 'crash' ? 'ПО ЦЕНТРУ · ПРЫЖОК И ВНИЗ: ПО КРАСНОЙ КНОПКЕ' : B.state === 'dead' ? '' : 'УВОРАЧИВАЙСЯ — ЖДИ МОБОВ',
+  help: [['Гоблин мигает', 'руби ножом или сбей атакой в прыжке, пока не взорвался', 1], ['Йети и чёрт', 'только удар сверху'], ['Курица', 'прыгни на неё — подбросит к алмазам'], ['Сундук, вагонетка', 'разбей сундук — магнит; в вагонетку запрыгивай'], ['Босс: мобы', 'сбей двух — потом прыжок и ещё прыжок: рывок в лицо'], ['Босс завис рядом', 'бей ножом или прыжок и ещё прыжок'], ['Красная кнопка босса', 'прыжок и ещё прыжок (или удар сверху)']],
+  bossTip: (B) => B.state === 'summon' ? (B.homable ? 'ПРЫЖОК · ЕЩЁ РАЗ ПРЫЖОК → В ЛИЦО МОДЕРАТОРУ' : 'СБЕЙ ДВУХ МОБОВ: НОЖ ИЛИ ПРЫЖОК СВЕРХУ') : B.state === 'freeze' ? 'ЗАВИС! БЕЙ: НОЖ · ИЛИ ПРЫЖОК И ЕЩЁ ПРЫЖОК' : B.state === 'crash' ? 'ПРЫЖОК · ЕЩЁ РАЗ ПРЫЖОК → ПО КРАСНОЙ КНОПКЕ' : B.state === 'dead' ? '' : 'УВОРАЧИВАЙСЯ — СКОРО ОН ПРИЗОВЁТ МОБОВ',
 });
 
 /* ============================================================ duck level 6: the comic prologue, drawn right here
@@ -14679,13 +14694,13 @@ function pauseHelpRows() {
     const rows = [
       ['Дорожки', T ? 'свайп влево / вправо' : '← → или A / D'],
       ['Прыжок', T ? 'кнопка «Прыжок»' : '↑, W или Пробел'],
-      [evo ? 'Подкат' : 'Кувырок', T ? 'свайп вниз — под высокими преградами' : '↓ или S — под высокими преградами'],
+      [evo ? 'Подкат' : 'Кувырок', T ? 'кнопка «Подкат» или свайп вниз — под высокими преградами' : '↓, S или кнопка «Подкат» — под высокими преградами'],
     ];
     if (evo) rows.push(
       ['Двойной прыжок', 'прыжок ещё раз в воздухе'],
       ['Планирование', 'держи прыжок, пока падаешь'],
       ['Атака в прыжке', 'рядом враг — прыжок в воздухе бросает утку на него; так можно бить цепочкой'],
-      ['Удар сверху', T ? 'в воздухе свайп вниз — ломает крепкое' : 'в воздухе ↓ или S — ломает крепкое'],
+      ['Удар сверху', T ? 'в воздухе кнопка «Подкат» или свайп вниз — ломает крепкое' : 'в воздухе ↓ или S — ломает крепкое'],
       ['Нож', T ? 'кнопка «Нож»' : 'F, Enter или клик мышью'],
       ['Кофейный передоз', 'включается сам, когда шкала внизу полная']);
     else rows.push(['Атака в прыжке', 'в воздухе нажми прыжок ещё раз'], ['Рывок', T ? 'полоска «Рывок», когда она полная' : 'Shift, когда полоска полная']);
@@ -14839,7 +14854,7 @@ function updateRunCtl(run) {
   if (key === runUi) return;
   runUi = key;
   $('hud').classList.toggle('runner', show);
-  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch); $('btnKnife').hidden = !(show && runCfg().evo >= 2);
+  $('dashBar').hidden = !show; $('btnJump').hidden = !(show && isTouch); $('btnKnife').hidden = !(show && runCfg().evo >= 2); $('btnDown').hidden = !(show && runCfg().evo >= 2);
   $('dashFill').style.width = (act ? 100 : p) + '%';
   const evo = show && runCfg().evo >= 2;
   if ($('dashBar').dataset.evo !== String(evo)) { $('dashBar').dataset.evo = String(evo); $('dashBar').querySelector('.dash-lbl').textContent = evo ? 'КОФЕЙНЫЙ ПЕРЕДОЗ' : 'РЫВОК'; $('dashBar').setAttribute('aria-label', evo ? 'Кофейный передоз' : 'Рывок'); }
@@ -14850,6 +14865,7 @@ function updateRunCtl(run) {
 $('btnJump').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runJump(); });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('btnJump').addEventListener(ev, () => runJumpUp());
 $('btnKnife').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runKnife(); });
+$('btnDown').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runRoll(); e.currentTarget.blur(); });
 $('btnKnife').addEventListener('click', (e) => { if (e.detail === 0) runKnife(); e.currentTarget.blur(); });
 if (isTouch) $('knifeKey').hidden = true;
 $('dashBar').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); runBoost(); });
