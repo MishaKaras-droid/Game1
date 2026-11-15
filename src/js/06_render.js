@@ -61,7 +61,7 @@ function updateParts(dt) {
   G.parts = G.parts.filter((p) => p.age < p.life);
   for (const t of G.texts) { t.t += dt; t.y -= 34 * dt; }
   G.texts = G.texts.filter((t) => t.t < t.life);
-  for (const b of G.banners) b.t += dt;
+  for (const b of G.banners) b.t += G.realDt !== undefined ? G.realDt / Math.max(1, DEBUG.substeps) : dt;
   G.banners = G.banners.filter((b) => b.t < b.life);
 }
 function drawParts(c) {
@@ -299,6 +299,14 @@ function drawHUD(c, t) {
   }
 }
 function drawBanners(c, t) {
+  // a soft dark rim shows that time is slowed for reading
+  const rk = 1 - (G.readK === undefined ? 1 : G.readK);
+  if (rk > 0.05 && G.phase !== 'outro') {
+    c.save(); c.setTransform(view.px, 0, 0, view.px, 0, 0);
+    const g = c.createRadialGradient(SW / 2, SH / 2, SH * 0.42, SW / 2, SH / 2, SW * 0.66);
+    g.addColorStop(0, 'rgba(20,16,40,0)'); g.addColorStop(1, 'rgba(20,16,40,' + (rk * 0.5).toFixed(3) + ')');
+    c.fillStyle = g; c.fillRect(0, 0, SW, SH); c.restore();
+  }
   for (const b of G.banners) {
     const appear = easeOut(Math.min(1, b.t * 4)), a = clamp(Math.min(appear, (b.life - b.t) * 3), 0, 1);
     c.save(); c.globalAlpha = a;

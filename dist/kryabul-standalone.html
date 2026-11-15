@@ -2122,7 +2122,17 @@ function spread(x, y, n, step, speed, o, base) {
   for (let i = 0; i < n; i++) ebullet(x, y, base + (i - (n - 1) / 2) * step, speed, o);
 }
 function ring(x, y, n, speed, o, off) { for (let i = 0; i < n; i++) ebullet(x, y, (off || 0) + (i / n) * TAU, speed, o); }
+// reading time: a message seen for the first time slows the world down for a moment (once per text per game)
+const READ_SLOW = 0.3;
+function noteRead(text, k) {
+  if (!G || !text) return;
+  if (!G.seen) G.seen = new Set();
+  if (G.seen.has(text)) return;
+  G.seen.add(text);
+  G.readT = Math.max(G.readT || 0, Math.min(3.4, (0.7 + text.length * 0.032) * (k || 1)));
+}
 function banner(text, sub, life, style) {
+  noteRead(text + (sub ? ' ' + sub : ''), 1);
   if (G.run && style === 'small') G.banners = G.banners.filter((b) => b.style !== 'small');
   G.banners.push({ text, sub, t: 0, life: life || 2.4, style: style || 'title' }); }
 function floatText(x, y, text, col, size) { if (G.texts.length < 40) G.texts.push({ x, y, text, col: col || '#fff', t: 0, life: 1, size: size || 18 }); }
@@ -2598,7 +2608,7 @@ function* moveTo(b, x, y, dur) {
   let t = 0;
   while (t < dur) { t += yield; const k = easeInOut(t / dur); b.x = lerp(sx, x, k); b.y = lerp(sy, y, k); }
 }
-function say(b, text) { b.speech = { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
+function say(b, text) { noteRead(text, 0.9); b.speech = { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
 const bossY = (b) => rand(BOSS[b.kind].y[0], H - BOSS[b.kind].y[1]);
 function* dash(b, speed) {
   b.telegraph = 0.85; sfx('charge');
@@ -3851,7 +3861,7 @@ function startRunBoss() {
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { G.run.boss.speech = { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
+function shawSay(text) { noteRead(text, 0.9); G.run.boss.speech = { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
@@ -7199,7 +7209,7 @@ function duckModelPose(D, R, t) {
   m.lean.rotation.z = run * 0.08 + (air ? Math.sin(t * 9) * 0.06 : 0);
   m.lean.rotation.x = air ? -0.05 : -0.14;
   // knife slash: a quick twist of the whole body
-  m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / 0.22) * Math.PI) * -0.9 : 0;
+  m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / SLASH_T) * Math.PI) * -0.9 : 0;
   // wings come out for the glide and the double jump
   const fly = R.gliding || R.flap > 0;
   for (let i = 0; i < 2; i++) { const w = m.wings[i], sd = i ? 1 : -1; w.visible = fly; if (fly) w.rotation.z = sd * (0.2 + Math.sin(t * (R.gliding ? 16 : 26)) * 0.75); }
@@ -7243,13 +7253,14 @@ const RUN_CFG4 = {
    Controls: jump (hold = glide, press again in the air = double jump or homing attack), roll, lanes, knife (F / click / «Нож»). */
 
 /* ---------- knife: slashes whatever is right in front of the duck, in her lane */
+const SLASH_T = 0.3;
 const KNIFE_OK = ['capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
 function runKnife() {
   const R = G && G.run;
   if (!R || runCfg().evo < 2 || state !== 'play' || G.phase !== 'run' || R.end || !G.player.alive || R.phase === 'intro') return;
   if (R.knifeCd > 0) return;
-  R.knifeCd = 0.28; R.slash = 0.22; sfx('knife');
-  let hit = 0;
+  R.knifeCd = 0.3; R.slash = SLASH_T; sfx('knife'); sfx('swoosh');
+  let hit = 0, last = null;
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j], dz = o.d - R.s;
     if (dz > 4.6) break;
@@ -7257,9 +7268,10 @@ function runKnife() {
     if (o.fall !== undefined && o.ft < 0.5) continue;
     if (Math.abs((o.h || 0) - R.y) > 2.3) continue;
     if (o.parry) { runParry(o); hit++; continue; }
-    if (KNIFE_OK.includes(o.type)) { runDestroy(o); addScore(50); hit++; }
+    if (KNIFE_OK.includes(o.type)) { last = runProj(o.x, (o.h || 0) + 1, o.d - R.s + RUN.PZ); runDestroy(o, last); addScore(50); hit++; }
   }
-  if (hit) { G.shake = Math.max(G.shake, 5); sfx('clink'); }
+  if (hit) { G.shake = Math.max(G.shake, 6); G.hitStop = 0.07; sfx('clink'); if (last) floatText(last.sx, last.sy - 30, 'ХРЯСЬ!', '#fff', 26); }
+  else { const a = runPlayerScreen(); floatText(a.sx + 40, a.sy - a.k * 1.6, 'вжух', '#e9d8ff', 18); }
 }
 // a pink projectile hit in time flies back into the boss
 function runParry(o) {
@@ -7428,9 +7440,9 @@ function overlay4(c, t) {
     c.fillStyle = g; c.fillRect(0, 0, SW, SH);
     if (R.fever < 1.5 && Math.floor(t * 6) % 2) { c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, 'ПЕРЕДОЗ ЗАКАНЧИВАЕТСЯ!', SW / 2, SH * 0.2, '#ffd27a', 5); }
   }
-  if (R.slash > 0) {
-    const a = runPlayerScreen(), k = a.k * (R.fever > 0 ? 1.8 : 1), e = 1 - R.slash / 0.22;
-    c.save(); c.globalAlpha = Math.min(1, R.slash / 0.12); c.lineCap = 'round';
+  if (R.slash > 0 && !R3E.slashFx) {
+    const a = runPlayerScreen(), k = a.k * (R.fever > 0 ? 1.8 : 1), e = 1 - R.slash / SLASH_T;
+    c.save(); c.globalAlpha = Math.min(1, R.slash / 0.15); c.lineCap = 'round';
     P(c); c.arc(a.sx, a.sy - k * 0.9, k * 1.35, -Math.PI * (0.95 - e * 0.25), -Math.PI * (0.15 + (1 - e) * 0.2)); c.lineWidth = Math.max(6, k * 0.22); c.strokeStyle = 'rgba(255,255,255,0.95)'; c.stroke();
     c.lineWidth = Math.max(2, k * 0.07); c.strokeStyle = '#c9a8ff'; c.stroke();
     c.restore();
@@ -7469,6 +7481,35 @@ function frame4b(dt, t, F) {
       s.scale.setScalar(1.2 + Math.random() * 0.8);
     }
   } else if (!(R.boost > 0)) for (const s of R3E.trail) if (!s.visible) s.material.color.set('#8fe8ff');
+  slashFrame(R, D, F);
+}
+function slashFrame(R, D, F) {
+  if (!R3E.slashFx) {
+    const grp = new THREE.Group(), arm = new THREE.Group();
+    const steel = new THREE.MeshBasicMaterial({ color: '#f4f7fb' }), edge = new THREE.MeshBasicMaterial({ color: '#9fb3c8' });
+    const ink = new THREE.MeshBasicMaterial({ color: '#221d2e', side: THREE.BackSide });
+    const part = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); arm.add(m); const o = new THREE.Mesh(geo, ink); o.scale.setScalar(1.18); m.add(o); return m; };
+    // a big, readable kitchen knife: wide blade standing on edge, purple handle
+    part(new THREE.BoxGeometry(0.07, 0.42, 1.5), steel, 0, 0, -1.15);
+    part(new THREE.BoxGeometry(0.075, 0.1, 1.45), edge, 0, 0.17, -1.12);
+    const tip = part(new THREE.ConeGeometry(0.21, 0.5, 4), steel, 0, -0.02, -2.1); tip.rotation.x = -Math.PI / 2; tip.scale.set(0.35, 1, 1);
+    part(new THREE.BoxGeometry(0.16, 0.24, 0.55), new THREE.MeshBasicMaterial({ color: '#7e4fa0' }), 0, -0.02, -0.12);
+    const trail = new THREE.Mesh(new THREE.RingGeometry(0.7, 2.5, 40, 1, 0, Math.PI), new THREE.MeshBasicMaterial({ color: '#b98cff', transparent: true, opacity: 0.5, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    trail.rotation.x = -Math.PI / 2;
+    grp.add(arm); grp.add(trail); grp.visible = false; R3.scene.add(grp);
+    R3E.slashFx = { grp, arm, trail };
+  }
+  const X = R3E.slashFx;
+  X.grp.visible = R.slash > 0 && G.player.alive;
+  if (!X.grp.visible) return;
+  const e = 1 - R.slash / SLASH_T, sc = D.root.scale.x;
+  X.grp.position.copy(D.root.position).addScaledVector(F.u, 0.95 * sc);
+  orient(X.grp, F); X.grp.rotateX(0.55); X.grp.scale.setScalar(sc);
+  // the blade swings from the right side, across the front, to the left
+  X.arm.rotation.y = lerp(-1.6, 1.6, easeOut(Math.min(1, e * 1.25)));
+  X.arm.rotation.z = -0.25;
+  X.trail.material.opacity = Math.max(0, 0.5 * (1 - e));
+  X.trail.scale.setScalar(1 + e * 0.25);
 }
 
 /* ============================================================ particles & effects */
@@ -7534,7 +7575,7 @@ function updateParts(dt) {
   G.parts = G.parts.filter((p) => p.age < p.life);
   for (const t of G.texts) { t.t += dt; t.y -= 34 * dt; }
   G.texts = G.texts.filter((t) => t.t < t.life);
-  for (const b of G.banners) b.t += dt;
+  for (const b of G.banners) b.t += G.realDt !== undefined ? G.realDt / Math.max(1, DEBUG.substeps) : dt;
   G.banners = G.banners.filter((b) => b.t < b.life);
 }
 function drawParts(c) {
@@ -7772,6 +7813,14 @@ function drawHUD(c, t) {
   }
 }
 function drawBanners(c, t) {
+  // a soft dark rim shows that time is slowed for reading
+  const rk = 1 - (G.readK === undefined ? 1 : G.readK);
+  if (rk > 0.05 && G.phase !== 'outro') {
+    c.save(); c.setTransform(view.px, 0, 0, view.px, 0, 0);
+    const g = c.createRadialGradient(SW / 2, SH / 2, SH * 0.42, SW / 2, SH / 2, SW * 0.66);
+    g.addColorStop(0, 'rgba(20,16,40,0)'); g.addColorStop(1, 'rgba(20,16,40,' + (rk * 0.5).toFixed(3) + ')');
+    c.fillStyle = g; c.fillRect(0, 0, SW, SH); c.restore();
+  }
   for (const b of G.banners) {
     const appear = easeOut(Math.min(1, b.t * 4)), a = clamp(Math.min(appear, (b.life - b.t) * 3), 0, 1);
     c.save(); c.globalAlpha = a;
@@ -8281,7 +8330,18 @@ function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
   lastT = now;
   try {
-    if (state === 'play') { for (let i = 0; i < DEBUG.substeps && state === 'play'; i++) update(dt); render(); }
+    if (state === 'play') {
+      // reading slow-motion (new messages and dialogs), the ending text, and a tiny hit-stop for knife hits
+      if (G.heroSay && !G.heroSay.seen) { G.heroSay.seen = true; noteRead(G.heroSay.text, 0.9); }
+      G.readT = Math.max(0, (G.readT || 0) - dt);
+      const want = G.readT > 0 ? READ_SLOW : G.phase === 'outro' ? 0.7 : 1, cur = G.readK === undefined ? 1 : G.readK;
+      G.readK = lerp(cur, want, Math.min(1, dt * (want < cur ? 12 : 3)));
+      let gdt = dt * G.readK;
+      if (G.hitStop > 0) { G.hitStop -= dt; gdt *= 0.08; }
+      G.realDt = dt;
+      for (let i = 0; i < DEBUG.substeps && state === 'play'; i++) update(gdt);
+      render();
+    }
     else if (state === 'menu') drawHeroes(now / 1000);
   } catch (err) {
     console.error(err);

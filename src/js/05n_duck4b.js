@@ -2,13 +2,14 @@
    Controls: jump (hold = glide, press again in the air = double jump or homing attack), roll, lanes, knife (F / click / «Нож»). */
 
 /* ---------- knife: slashes whatever is right in front of the duck, in her lane */
+const SLASH_T = 0.3;
 const KNIFE_OK = ['capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
 function runKnife() {
   const R = G && G.run;
   if (!R || runCfg().evo < 2 || state !== 'play' || G.phase !== 'run' || R.end || !G.player.alive || R.phase === 'intro') return;
   if (R.knifeCd > 0) return;
-  R.knifeCd = 0.28; R.slash = 0.22; sfx('knife');
-  let hit = 0;
+  R.knifeCd = 0.3; R.slash = SLASH_T; sfx('knife'); sfx('swoosh');
+  let hit = 0, last = null;
   for (let j = R.i; j < R.objs.length; j++) {
     const o = R.objs[j], dz = o.d - R.s;
     if (dz > 4.6) break;
@@ -16,9 +17,10 @@ function runKnife() {
     if (o.fall !== undefined && o.ft < 0.5) continue;
     if (Math.abs((o.h || 0) - R.y) > 2.3) continue;
     if (o.parry) { runParry(o); hit++; continue; }
-    if (KNIFE_OK.includes(o.type)) { runDestroy(o); addScore(50); hit++; }
+    if (KNIFE_OK.includes(o.type)) { last = runProj(o.x, (o.h || 0) + 1, o.d - R.s + RUN.PZ); runDestroy(o, last); addScore(50); hit++; }
   }
-  if (hit) { G.shake = Math.max(G.shake, 5); sfx('clink'); }
+  if (hit) { G.shake = Math.max(G.shake, 6); G.hitStop = 0.07; sfx('clink'); if (last) floatText(last.sx, last.sy - 30, 'ХРЯСЬ!', '#fff', 26); }
+  else { const a = runPlayerScreen(); floatText(a.sx + 40, a.sy - a.k * 1.6, 'вжух', '#e9d8ff', 18); }
 }
 // a pink projectile hit in time flies back into the boss
 function runParry(o) {
@@ -187,9 +189,9 @@ function overlay4(c, t) {
     c.fillStyle = g; c.fillRect(0, 0, SW, SH);
     if (R.fever < 1.5 && Math.floor(t * 6) % 2) { c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, 'ПЕРЕДОЗ ЗАКАНЧИВАЕТСЯ!', SW / 2, SH * 0.2, '#ffd27a', 5); }
   }
-  if (R.slash > 0) {
-    const a = runPlayerScreen(), k = a.k * (R.fever > 0 ? 1.8 : 1), e = 1 - R.slash / 0.22;
-    c.save(); c.globalAlpha = Math.min(1, R.slash / 0.12); c.lineCap = 'round';
+  if (R.slash > 0 && !R3E.slashFx) {
+    const a = runPlayerScreen(), k = a.k * (R.fever > 0 ? 1.8 : 1), e = 1 - R.slash / SLASH_T;
+    c.save(); c.globalAlpha = Math.min(1, R.slash / 0.15); c.lineCap = 'round';
     P(c); c.arc(a.sx, a.sy - k * 0.9, k * 1.35, -Math.PI * (0.95 - e * 0.25), -Math.PI * (0.15 + (1 - e) * 0.2)); c.lineWidth = Math.max(6, k * 0.22); c.strokeStyle = 'rgba(255,255,255,0.95)'; c.stroke();
     c.lineWidth = Math.max(2, k * 0.07); c.strokeStyle = '#c9a8ff'; c.stroke();
     c.restore();
@@ -228,4 +230,33 @@ function frame4b(dt, t, F) {
       s.scale.setScalar(1.2 + Math.random() * 0.8);
     }
   } else if (!(R.boost > 0)) for (const s of R3E.trail) if (!s.visible) s.material.color.set('#8fe8ff');
+  slashFrame(R, D, F);
+}
+function slashFrame(R, D, F) {
+  if (!R3E.slashFx) {
+    const grp = new THREE.Group(), arm = new THREE.Group();
+    const steel = new THREE.MeshBasicMaterial({ color: '#f4f7fb' }), edge = new THREE.MeshBasicMaterial({ color: '#9fb3c8' });
+    const ink = new THREE.MeshBasicMaterial({ color: '#221d2e', side: THREE.BackSide });
+    const part = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); arm.add(m); const o = new THREE.Mesh(geo, ink); o.scale.setScalar(1.18); m.add(o); return m; };
+    // a big, readable kitchen knife: wide blade standing on edge, purple handle
+    part(new THREE.BoxGeometry(0.07, 0.42, 1.5), steel, 0, 0, -1.15);
+    part(new THREE.BoxGeometry(0.075, 0.1, 1.45), edge, 0, 0.17, -1.12);
+    const tip = part(new THREE.ConeGeometry(0.21, 0.5, 4), steel, 0, -0.02, -2.1); tip.rotation.x = -Math.PI / 2; tip.scale.set(0.35, 1, 1);
+    part(new THREE.BoxGeometry(0.16, 0.24, 0.55), new THREE.MeshBasicMaterial({ color: '#7e4fa0' }), 0, -0.02, -0.12);
+    const trail = new THREE.Mesh(new THREE.RingGeometry(0.7, 2.5, 40, 1, 0, Math.PI), new THREE.MeshBasicMaterial({ color: '#b98cff', transparent: true, opacity: 0.5, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    trail.rotation.x = -Math.PI / 2;
+    grp.add(arm); grp.add(trail); grp.visible = false; R3.scene.add(grp);
+    R3E.slashFx = { grp, arm, trail };
+  }
+  const X = R3E.slashFx;
+  X.grp.visible = R.slash > 0 && G.player.alive;
+  if (!X.grp.visible) return;
+  const e = 1 - R.slash / SLASH_T, sc = D.root.scale.x;
+  X.grp.position.copy(D.root.position).addScaledVector(F.u, 0.95 * sc);
+  orient(X.grp, F); X.grp.rotateX(0.55); X.grp.scale.setScalar(sc);
+  // the blade swings from the right side, across the front, to the left
+  X.arm.rotation.y = lerp(-1.6, 1.6, easeOut(Math.min(1, e * 1.25)));
+  X.arm.rotation.z = -0.25;
+  X.trail.material.opacity = Math.max(0, 0.5 * (1 - e));
+  X.trail.scale.setScalar(1 + e * 0.25);
 }

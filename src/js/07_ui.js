@@ -382,7 +382,18 @@ function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
   lastT = now;
   try {
-    if (state === 'play') { for (let i = 0; i < DEBUG.substeps && state === 'play'; i++) update(dt); render(); }
+    if (state === 'play') {
+      // reading slow-motion (new messages and dialogs), the ending text, and a tiny hit-stop for knife hits
+      if (G.heroSay && !G.heroSay.seen) { G.heroSay.seen = true; noteRead(G.heroSay.text, 0.9); }
+      G.readT = Math.max(0, (G.readT || 0) - dt);
+      const want = G.readT > 0 ? READ_SLOW : G.phase === 'outro' ? 0.7 : 1, cur = G.readK === undefined ? 1 : G.readK;
+      G.readK = lerp(cur, want, Math.min(1, dt * (want < cur ? 12 : 3)));
+      let gdt = dt * G.readK;
+      if (G.hitStop > 0) { G.hitStop -= dt; gdt *= 0.08; }
+      G.realDt = dt;
+      for (let i = 0; i < DEBUG.substeps && state === 'play'; i++) update(gdt);
+      render();
+    }
     else if (state === 'menu') drawHeroes(now / 1000);
   } catch (err) {
     console.error(err);

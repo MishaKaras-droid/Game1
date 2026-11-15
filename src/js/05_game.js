@@ -79,7 +79,17 @@ function spread(x, y, n, step, speed, o, base) {
   for (let i = 0; i < n; i++) ebullet(x, y, base + (i - (n - 1) / 2) * step, speed, o);
 }
 function ring(x, y, n, speed, o, off) { for (let i = 0; i < n; i++) ebullet(x, y, (off || 0) + (i / n) * TAU, speed, o); }
+// reading time: a message seen for the first time slows the world down for a moment (once per text per game)
+const READ_SLOW = 0.3;
+function noteRead(text, k) {
+  if (!G || !text) return;
+  if (!G.seen) G.seen = new Set();
+  if (G.seen.has(text)) return;
+  G.seen.add(text);
+  G.readT = Math.max(G.readT || 0, Math.min(3.4, (0.7 + text.length * 0.032) * (k || 1)));
+}
 function banner(text, sub, life, style) {
+  noteRead(text + (sub ? ' ' + sub : ''), 1);
   if (G.run && style === 'small') G.banners = G.banners.filter((b) => b.style !== 'small');
   G.banners.push({ text, sub, t: 0, life: life || 2.4, style: style || 'title' }); }
 function floatText(x, y, text, col, size) { if (G.texts.length < 40) G.texts.push({ x, y, text, col: col || '#fff', t: 0, life: 1, size: size || 18 }); }
@@ -555,7 +565,7 @@ function* moveTo(b, x, y, dur) {
   let t = 0;
   while (t < dur) { t += yield; const k = easeInOut(t / dur); b.x = lerp(sx, x, k); b.y = lerp(sy, y, k); }
 }
-function say(b, text) { b.speech = { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
+function say(b, text) { noteRead(text, 0.9); b.speech = { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
 const bossY = (b) => rand(BOSS[b.kind].y[0], H - BOSS[b.kind].y[1]);
 function* dash(b, speed) {
   b.telegraph = 0.85; sfx('charge');

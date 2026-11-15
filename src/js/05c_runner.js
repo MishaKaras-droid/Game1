@@ -230,7 +230,7 @@ function startRunBoss() {
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { G.run.boss.speech = { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
+function shawSay(text) { noteRead(text, 0.9); G.run.boss.speech = { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);

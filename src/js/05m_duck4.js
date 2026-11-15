@@ -564,7 +564,7 @@ function duckModelPose(D, R, t) {
   m.lean.rotation.z = run * 0.08 + (air ? Math.sin(t * 9) * 0.06 : 0);
   m.lean.rotation.x = air ? -0.05 : -0.14;
   // knife slash: a quick twist of the whole body
-  m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / 0.22) * Math.PI) * -0.9 : 0;
+  m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / SLASH_T) * Math.PI) * -0.9 : 0;
   // wings come out for the glide and the double jump
   const fly = R.gliding || R.flap > 0;
   for (let i = 0; i < 2; i++) { const w = m.wings[i], sd = i ? 1 : -1; w.visible = fly; if (fly) w.rotation.z = sd * (0.2 + Math.sin(t * (R.gliding ? 16 : 26)) * 0.75); }
