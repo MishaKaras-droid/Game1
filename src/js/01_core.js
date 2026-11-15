@@ -73,6 +73,7 @@ const hooks = { key: null, keyUp: null, blur: null, tap: null, swipe: null, tapU
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return; // typing a nickname
   const onButton = tag === 'BUTTON';
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) || (e.code === 'Space' && !onButton)) e.preventDefault();
   keys[e.code] = true;
