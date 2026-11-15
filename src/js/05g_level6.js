@@ -1,5 +1,5 @@
 /* ============================================================ level 6 (carp): dark deep, shawarma shop, sink, boss rush */
-LEVEL_INFO[6] = { duck: null, fish: { name: 'Все боссы против тебя', boss: 'perch', song: 'sea3' } };
+LEVEL_INFO[6] = { duck: null, fish: { name: 'Все боссы против тебя', boss: 'perch', song: 'rush' } };
 const LEVEL6_LEN = 98;
 const RUSH = ['pike', 'catfish', 'mega', 'kraken', 'swordfish', 'perch'];
 // earlier bosses come at 45% health; the perch is 50% stronger than the strongest of them

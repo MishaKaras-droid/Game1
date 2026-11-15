@@ -1,5 +1,5 @@
 /* ============================================================ level 11 (carp): rivers, whirlpool, lake 228, crayfish boss */
-LEVEL_INFO[11] = { duck: null, fish: { name: 'Озеро 228', boss: 'crayboss', song: 'sea3' } };
+LEVEL_INFO[11] = { duck: null, fish: { name: 'Озеро 228', boss: 'crayboss', song: 'lake228', bossSong: 'bossRus' } };
 const LEVEL11_LEN = 66;
 Object.assign(BOSS, { crayboss: { name: 'Красный рак', label: 'КРАСНЫЙ РАК', hp: 780, restX: 260, y: [150, 150], head: [-150, -70] } });
 Object.assign(BOSS_HIT, { crayboss: [[-150, -55, 40], [-150, 55, 40], [-20, 0, 54], [110, 0, 44], [200, 0, 30]] });

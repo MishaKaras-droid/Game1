@@ -1,5 +1,5 @@
 /* ============================================================ level 5 (carp): pipes, eel burrow, lake, swordfish */
-LEVEL_INFO[5] = { duck: null, fish: { name: 'Удачи, брат', boss: 'swordfish', song: 'sea3' } };
+LEVEL_INFO[5] = { duck: null, fish: { name: 'Удачи, брат', boss: 'swordfish', song: 'bro' } };
 const LEVEL5_LEN = 97;
 Object.assign(BOSS, {
   eel: { name: 'Электрический угорь', label: 'ЭЛЕКТРИЧЕСКИЙ УГОРЬ', hp: 300, restX: 230, y: [120, 120], head: [-60, -40], mini: true },

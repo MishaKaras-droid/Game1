@@ -1,5 +1,5 @@
 /* ============================================================ level 4 (carp): pipes, oceanarium, kraken */
-LEVEL_INFO[4] = { duck: null, fish: { name: 'Ожидается каточка', boss: 'kraken', song: 'sea3' } };
+LEVEL_INFO[4] = { duck: null, fish: { name: 'Ожидается каточка', boss: 'kraken', song: 'katka' } };
 const LEVEL4_LEN = 116;
 Object.assign(BOSS, { kraken: { name: 'Кракен', label: 'КРАКЕН', hp: 820, restX: 240, y: [170, 150], head: [10, -150] } });
 Object.assign(BOSS_HIT, { kraken: [[40, -60, 92], [-70, 50, 52], [-170, 70, 40]] });

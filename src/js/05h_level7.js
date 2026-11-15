@@ -1,5 +1,5 @@
 /* ============================================================ level 7 (carp): the Amazon, lake 67, black alligator */
-LEVEL_INFO[7] = { duck: null, fish: { name: 'Амазонка', boss: 'gator', song: 'sea3' } };
+LEVEL_INFO[7] = { duck: null, fish: { name: 'Амазонка', boss: 'gator', song: 'amazon', bossSong: 'bossJungle' } };
 const LEVEL7_LEN = 76;
 Object.assign(BOSS, { gator: { name: 'Чёрный аллигатор', label: 'ЧЁРНЫЙ АЛЛИГАТОР', hp: 608, restX: 250, y: [130, 120], head: [-190, -50] } });
 Object.assign(BOSS_HIT, { gator: [[-180, 0, 40], [-70, 0, 50], [50, 0, 50], [170, 0, 32]] });

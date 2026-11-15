@@ -1,5 +1,5 @@
 /* ============================================================ duck level 3: flight, landing, Sonic-style run, shawarma boss */
-LEVEL_INFO[3].duck = { name: 'Посадка и забег', boss: 'shawarma', song: 'sky2' };
+LEVEL_INFO[3].duck = { name: 'Посадка и забег', boss: 'shawarma', song: 'run', bossSong: 'bossShawa' };
 const LEVEL3_DUCK = [
   [2.0, () => F.swarm(6, 0.3)],
   [4.5, () => F.line('grunt', 5, 0.7)],
@@ -106,7 +106,7 @@ function startRunner(atBoss) {
   if (R.three) r3Reset();
   G.enemies.length = 0; G.eb.length = 0; G.pickups.length = 0; G.parts.length = 0; G.banners.length = 0;
   G.player.inv = 0; G.player.alive = true;
-  if (!atBoss) Sound.music('sky2');
+  if (!atBoss) Sound.music(G.LI.song);
 }
 function runProj(x, h, z) { return G.run && G.run.three && R3.camera ? runProj3(x, h, z) : runProj2D(x, h, z); }
 function runProj2D(x, h, z) {
@@ -240,7 +240,7 @@ function startRunBoss() {
   G.checkpoint = { score: G.score, power: G.power };
   R.objs = R.objs.filter((o) => o.d > R.s - 10); R.i = 0;
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
-  sfx('siren'); Sound.music('boss');
+  sfx('siren'); Sound.music(G.LI.bossSong || 'boss');
 }
 function shawSay(text, face) { const life = dialogLine(text); G.run.boss.speech = { text, t: life, life, who: runCfg().bossName, face }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {

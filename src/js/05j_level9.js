@@ -1,5 +1,5 @@
 /* ============================================================ level 9 (carp): Amazon rapids, crocodile burrow, vampire fish */
-LEVEL_INFO[9] = { duck: null, fish: { name: 'Бурная Амазонка', boss: 'vampire', song: 'sea3' } };
+LEVEL_INFO[9] = { duck: null, fish: { name: 'Бурная Амазонка', boss: 'vampire', song: 'rapids', bossSong: 'bossJungle' } };
 const LEVEL9_LEN = 62;
 Object.assign(BOSS, {
   crocboss: { name: 'Крокодил', label: 'КРОКОДИЛ', hp: 200, restX: 230, y: [120, 120], head: [-150, -50], mini: true },

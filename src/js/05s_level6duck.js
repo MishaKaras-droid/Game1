@@ -5,7 +5,7 @@
    golden keys, a chest is a loot magnet, a minecart is a ride. Enemies: skeletons that throw bones and swords,
    goblins that blow up into dirt blocks, demons and an ice yeti (ground pound only), peaceful sheep, pigs and
    a chicken that bounces the duck up to a sky line of diamonds. Boss: the Head Moderator in 3 phases. */
-LEVEL_INFO[6].duck = { name: 'Курсач в Кубе', boss: 'moderator', song: 'sky2' };
+LEVEL_INFO[6].duck = { name: 'Курсач в Кубе', boss: 'moderator', song: 'cube', bossSong: 'bossCube' };
 const LEVEL6_DUCK = [];
 const TRACK_PLAN6 = [
   ['straight', 80], ['curve', 130, 0.8], ['hill', 110, 0.14], ['straight', 50], ['scurve', 170, -0.7], ['straight', 60], ['hill', 120, 0.16], ['curve', 140, -0.9], ['straight', 50],

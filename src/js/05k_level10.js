@@ -1,5 +1,5 @@
 /* ============================================================ level 10 (carp): Russian rivers, cave, red salmon */
-LEVEL_INFO[10] = { duck: null, fish: { name: 'Русские реки', boss: 'salmon', song: 'sea3' } };
+LEVEL_INFO[10] = { duck: null, fish: { name: 'Русские реки', boss: 'salmon', song: 'rus', bossSong: 'bossRus' } };
 const LEVEL10_LEN = 64;
 Object.assign(BOSS, { salmon: { name: 'Красный лосось', label: 'КРАСНЫЙ ЛОСОСЬ', hp: 900, restX: 250, y: [140, 130], head: [-170, -60] } });
 Object.assign(BOSS_HIT, { salmon: [[-160, 0, 46], [-50, 0, 54], [70, 0, 48], [170, 0, 30]] });

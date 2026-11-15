@@ -3,7 +3,7 @@
    Built on the level 4 engine (city chunks, toon light, the juice controller) with the Zombie Apocalypse Kit models.
    New: slide under high barriers, ground pound for fragile stacks and crowds, homing chains, «Повышенная стипендия»
    (a coffee magnet for 10 s), the armoured taxi (15 s of invulnerable ramming) and the Troll-mutant boss in 3 phases. */
-LEVEL_INFO[5].duck = { name: 'Академический отпуск', boss: 'troll', song: 'sky2' };
+LEVEL_INFO[5].duck = { name: 'Академический отпуск', boss: 'troll', song: 'zombie', bossSong: 'bossFugue' };
 const LEVEL5_DUCK = [];
 const TRACK_PLAN5 = [
   ['straight', 70], ['curve', 140, -0.8], ['hill', 110, 0.14], ['straight', 50], ['scurve', 170, 0.7], ['straight', 40], ['loop', 90], ['straight', 50],

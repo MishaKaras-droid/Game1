@@ -1,5 +1,5 @@
 /* ============================================================ level 8 (carp): lake 67, mangrove river, the great anaconda */
-LEVEL_INFO[8] = { duck: null, fish: { name: 'Это будет нелегко', boss: 'anaconda', song: 'sea3' } };
+LEVEL_INFO[8] = { duck: null, fish: { name: 'Это будет нелегко', boss: 'anaconda', song: 'mangrove', bossSong: 'bossJungle' } };
 const LEVEL8_LEN = 76;
 Object.assign(BOSS, { anaconda: { name: 'Большая анаконда · финальный босс', label: 'БОЛЬШАЯ АНАКОНДА', hp: 760, restX: 280, y: [140, 130], head: [-210, -60] } });
 Object.assign(BOSS_HIT, { anaconda: [[-205, 0, 46], [-115, 0, 40], [-30, 0, 40], [55, 0, 38], [140, 0, 36]] });

@@ -24,8 +24,8 @@ const KINDS = {
 const UPRIGHT = new Set(['drone', 'cloud', 'balloon', 'blimp', 'wasp']);
 const LEVEL_INFO = {
   1: { duck: { name: 'Небо над городом', boss: 'granny', song: 'sky' }, fish: { name: 'Тёплое море', boss: 'pike', song: 'sea' } },
-  2: { duck: { name: 'Вечер над городом и выше облаков', boss: 'car', song: 'sky2' }, fish: { name: 'Глубокие воды', boss: 'catfish', song: 'sea2' } },
-  3: { duck: null, fish: { name: 'Газ! Туннели и тёмные глубины', boss: 'mega', song: 'sea3' } },
+  2: { duck: { name: 'Вечер над городом и выше облаков', boss: 'car', song: 'dusk' }, fish: { name: 'Глубокие воды', boss: 'catfish', song: 'deep' } },
+  3: { duck: null, fish: { name: 'Газ! Туннели и тёмные глубины', boss: 'mega', song: 'gas' } },
 };
 const BOSS = {
   granny:  { name: 'Бабка на самокате', label: 'БАБКА НА САМОКАТЕ', hp: 420, restX: 190, y: [150, 135], head: [-14, -92] },
@@ -804,7 +804,7 @@ function spawnBoss(kindOpt) {
   b.brain.next();
   G.boss = b;
   G.lastHealT = G.t; G.lastBombT = G.t;
-  Sound.music(kind === 'mega' ? 'boss3' : 'boss');
+  Sound.music(kind === 'mega' || kind === 'perch' ? 'boss3' : (kind === G.LI.boss && G.LI.bossSong) || 'boss');
 }
 function damageBoss(dmg) {
   const b = G.boss;
