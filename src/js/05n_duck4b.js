@@ -5,6 +5,7 @@
 const SLASH_T = 0.3;
 const KNIFE_OK = ['capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
 function runKnife() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G && G.run;
   if (!R || runCfg().evo < 2 || state !== 'play' || G.phase !== 'run' || R.end || !G.player.alive || R.phase === 'intro') return;
   if (R.knifeCd > 0) return;

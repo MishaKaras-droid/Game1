@@ -51,6 +51,7 @@ function* crocBossBrain(b) {
   }
 }
 function useCroc() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (state !== 'play' || !G || !G.crocUnlocked || G.crocT > 0 || G.crocCharge < 100 || !G.player.alive) return;
   G.crocT = 20; G.crocCharge = 0;
   G.crocA = { x: G.player.x - 40, y: G.player.y + 90, st: 'follow', cd: 0.3, tx: 0, ty: 0, tgt: null, chomp: 0 };

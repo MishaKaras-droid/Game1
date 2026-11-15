@@ -112,6 +112,7 @@ function runProj2D(x, h, z) {
 }
 function runPlayerScreen() { const R = G.run; return runProj(R.x, R.y, RUN.PZ); }
 function runJump() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || R.phase === 'end' || !G.player.alive) return;
   R.jumpHeld = true;
   if (R.target && (R.y > 0.25 || R.target.boss)) return runHoming();
@@ -122,17 +123,20 @@ function runJump() {
 }
 function runJumpUp() { if (G && G.run) G.run.jumpHeld = false; }
 function runRoll() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
   if (R.y > 0.05) { R.vy = -30; R.slam = true; R.jumpHeld = false; } else R.roll = 0.75;
   sfx('throw');
 }
 function runLane(dir) {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
   const n = clamp(R.lane + dir, 0, 2);
   if (n === R.lane) { G.shake = Math.max(G.shake, 3); return; }
   R.lane = n; sfx('click');
 }
 function runBoost() {
+  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || !G.player.alive || R.end || R.phase === 'intro') return;
   if (runCfg().evo >= 2) return runFeverBtn();
   if (R.boost > 0) return;
@@ -230,7 +234,7 @@ function startRunBoss() {
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { noteRead(text, 0.9); G.run.boss.speech = { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
+function shawSay(text) { const first = readQueue({ kind: 'say', who: runCfg().bossName, text }); G.run.boss.speech = first ? null : { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
