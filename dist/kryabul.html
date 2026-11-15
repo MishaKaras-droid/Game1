@@ -12536,7 +12536,8 @@ function trollUpdate(B, dt) {
       B.z = lerp(B.z, 15, Math.min(1, dt * 2));
       if (!B.slammed && B.t > 1.0) {
         B.slammed = true; trollAnim('Jump_Land', true); G.shake = 14; sfx('boom');
-        for (let k = 0; k < 3; k++) R.objs.push({ type: 'quake', d: R.s + B.z - 3, x: laneX(k), h: 0, v: -15 });
+        // the shockwave rolls out from under the troll's feet, slow enough to see it coming and jump
+        for (let k = 0; k < 3; k++) R.objs.push({ type: 'quake', d: R.s + B.z, x: laneX(k), h: 0, v: -6 });
         R.objs.sort((a, b) => a.d - b.d); R.i = 0;
       }
       if (B.t > 1.9) trollPhase(B, 'stun');
