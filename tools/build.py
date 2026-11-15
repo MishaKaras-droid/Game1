@@ -23,6 +23,14 @@ IMAGES = {  # key in ASSETS.img -> file
     "eelFace": "eel_face.png",
     "anacondaFace": "anaconda_face.png",
     "crocFace": "croc_face.png",
+    # level 5: meme faces in the troll's balloon when it is hit, and the «произошёл троллинг» cat after the win
+    "trollFace1": "troll_face1.png",
+    "trollFace2": "troll_face2.png",
+    "trollFace3": "troll_face3.png",
+    "trollFace4": "troll_face4.png",
+    "trollFace5": "troll_face5.png",
+    "trollFace6": "troll_face6.png",
+    "catTrolling": "cat_trolling.png",
 }
 
 

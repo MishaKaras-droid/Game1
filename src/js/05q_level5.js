@@ -113,14 +113,14 @@ const HINT5 = {
 
 /* ============================================================ the Troll-mutant boss (3D, three phases in a cycle) */
 const TROLL_LINES = {
-  intro: 'ГРРР! Кто тут прогуливает пары?!',
-  throw: ['Лови хлам!', 'Диван тебе!', 'Шины полетели!'],
-  summon: ['Студенты, ко мне!', 'Окружить утку!'],
-  slam: ['ТОПОТ!', 'Землетрясение!'],
-  stun: ['Ой… застрял…', 'Нога… в асфальте…'],
-  back: ['Ещё раз!', 'Не уйдёшь!'],
-  hurt: ['АЙ!', 'Больно же!', 'Моя голова!'],
-  dead: 'Ладно… иди на пары…',
+  intro: 'Соискательница?! Твой автореферат — в спам!',
+  throw: ['Лови рецензию!', 'Диван научной школы!', 'Шины от научрука!', 'Держи список литературы — весь!', 'Это тебе от оппонента!'],
+  summon: ['Студенты, кто не сдал — за мной!', 'Кафедра, фас!', 'Зачётки к осмотру!'],
+  slam: ['ТОПОТ ДИССОВЕТА!', 'Учёный совет постановил: ТОПОТ!'],
+  stun: ['Ой… нога застряла в ВАКе…', 'Застрял… как диссер на рецензии…'],
+  back: ['Перепиши введение!', 'Вопросы из зала!', 'Где актуальность?!'],
+  hurt: ['Ты чего?! Я ж просто троллил!', 'Ай! Это не по ГОСТу!', 'Мой индекс Хирша!', 'Ну хватит, я ж пошутил!', 'Минус в карму!', 'Жалоба в деканат!'],
+  dead: 'Ладно… пиши свою диссертацию…',
 };
 function trollPhase(B, st) {
   const R = G.run;
@@ -133,7 +133,7 @@ function trollPhase(B, st) {
 function trollAnim(name, once) { const T = R3E.troll; if (T && T.play) { const a = T.play(name, once, 0.25); if (a && once) a.timeScale = 1.2; } }
 function trollThrow(B) {
   const R = G.run, kind = ['jbarrel', 'jtrash', 'jcouch', 'jtires'][(B.vol + B.round) % 4];
-  const lanes = [0, 1, 2].sort(() => Math.random() - 0.5), n = B.hp <= 2 ? 2 : (Math.random() < 0.5 ? 1 : 2), d = R.s + B.z - 2;
+  const lanes = [0, 1, 2].sort(() => Math.random() - 0.5), n = B.hp <= 2 ? (Math.random() < 0.6 ? 2 : 1) : (Math.random() < 0.3 ? 2 : 1), d = R.s + B.z - 2;
   if (B.vol === 0 || Math.random() < 0.35) shawSay(pick(TROLL_LINES.throw));
   trollAnim('Punch', true);
   for (let i = 0; i < n; i++) {
@@ -158,7 +158,7 @@ function trollUpdate(B, dt) {
       B.atkT -= dt;
       if (B.atkT <= 0) {
         if (B.vol >= (B.hp <= 2 ? 5 : 4)) trollPhase(B, 'summon');
-        else { trollThrow(B); B.vol++; B.atkT = B.hp <= 2 ? 0.95 : 1.25; }
+        else { trollThrow(B); B.vol++; B.atkT = B.hp <= 2 ? 1.15 : 1.45; }
       }
       break;
     case 'summon': {
@@ -208,11 +208,12 @@ function trollHit(kind) {
   addScore(1500, q.sx, q.sy);
   floatText(q.sx, q.sy - 60, kind === 'pound' ? 'УДАР СВЕРХУ!' : 'ЦЕПОЧКА В ТРОЛЛЯ!', '#ffd43b', 28);
   if (B.hp <= 0) {
-    B.state = 'dead'; B.t = 0; trollAnim('Death', true); shawSay(TROLL_LINES.dead); addScore(10000, q.sx, q.sy - 40); Sound.music(null);
+    B.state = 'dead'; B.t = 0; trollAnim('Death', true); shawSay(TROLL_LINES.dead, 'trollFace3'); addScore(10000, q.sx, q.sy - 40); Sound.music(null);
     R.splats = []; for (let i = 0; i < 7; i++) R.splats.push({ x: rand(0.1, 0.9) * SW, y: rand(0.1, 0.8) * SH, r: rand(30, 70), col: pick(['#9dff6a', '#ffd43b', '#9dff6a']), t: 0 });
     return;
   }
-  trollAnim('HitReact', true); shawSay(pick(TROLL_LINES.hurt));
+  // a hit: the troll's balloon shows one of the classic meme faces
+  trollAnim('HitReact', true); shawSay(pick(TROLL_LINES.hurt), 'trollFace' + (1 + Math.floor(Math.random() * 6)));
   B.state = 'hurt'; B.t = 0; B.next = kind === 'chain' ? 'slam' : 'throw'; if (kind === 'pound') B.round++;
 }
 // the chain: minions broken by homing dashes (at least two) open a dash into the troll once the wave is gone
@@ -378,11 +379,19 @@ function drawEnd5(c, t) {
   c.save(); c.translate(SW * 0.76, SH - 70); c.rotate(-1.3); drawTroll2D(c, 0, 0, 120, t, {}); c.restore();
   c.font = '30px ' + FONT_DISPLAY; c.textAlign = 'center'; c.fillStyle = '#16121f';
   for (let i = 0; i < 3; i++) { const k = (t * 0.6 + i / 3) % 1; c.globalAlpha = 1 - k; c.fillText('z', SW * 0.82 + k * 40, SH - 170 - k * 60 - i * 6); } c.globalAlpha = 1;
-  // students are back: a sign
-  c.save(); c.translate(SW * 0.6, SH - 230); c.rotate(0.04);
-  P(c); rr(c, -110, -30, 220, 60, 8); fs(c, '#fffaf0', 4); c.font = '900 20px ' + FONT_UI; c.fillStyle = '#c92a2a'; c.textBaseline = 'middle'; c.fillText('ВСЕ НА ПАРЫ!', 0, 2); c.restore();
+  // the students are back at their lectures
+  c.save(); c.translate(SW * 0.56, SH - 150); c.rotate(0.04);
+  P(c); rr(c, -120, -28, 240, 56, 8); fs(c, '#fffaf0', 4); c.font = '900 19px ' + FONT_UI; c.fillStyle = '#c92a2a'; c.textBaseline = 'middle'; c.fillText('СТУДЕНТЫ — НА ПАРЫ!', 0, 2); c.restore();
   const bob = Math.abs(Math.sin(t * 4)) * 40;
   drawDuckHero(c, SW * 0.34, SH - 200 - bob, t, { h: 210, flapSpeed: 16, tilt: Math.sin(t * 4) * 0.08 });
+  const cat = IMG.catTrolling, et = G.run && G.run.end ? G.run.end.t : 3;
+  if (cat && et > 1.6) {
+    const k = easeOut(clamp((et - 1.6) / 0.45, 0, 1)), ch = Math.min(220, SH * 0.42), cw = (cat.width * ch) / cat.height;
+    c.save(); c.translate(SW * 0.8, SH * 0.36); c.rotate(0.06 + (1 - k) * 0.6); c.scale(0.3 + 0.7 * k, 0.3 + 0.7 * k); c.globalAlpha = k;
+    c.fillStyle = 'rgba(22,18,31,0.85)'; c.fillRect(-cw / 2 - 6, -ch / 2 - 6, cw + 24, ch + 24);
+    c.fillStyle = '#fff'; c.fillRect(-cw / 2 - 12, -ch / 2 - 12, cw + 24, ch + 24); c.lineWidth = 4; c.strokeStyle = '#16121f'; c.strokeRect(-cw / 2 - 12, -ch / 2 - 12, cw + 24, ch + 24);
+    c.drawImage(cat, -cw / 2, -ch / 2, cw, ch); c.restore();
+  }
   for (let i = 0; i < 16; i++) { const x = ((i * 137 + t * 90) % SW), y = ((i * 71 + t * 120) % SH); P(c); starPath(c, x, y, 6, 2.5); c.fillStyle = ['#ffd43b', '#9dff6a', '#7ee7f2'][i % 3]; c.fill(); }
 }
 
@@ -390,7 +399,7 @@ function drawEnd5(c, t) {
 const RUN_CFG5 = Object.assign({}, RUN_CFG4, {
   evo: 2, bossAt: BOSS5_AT, surfaces: [[0, 'city']], build: buildTrack5, plan: () => TRACK_PLAN5,
   bossName: 'Тролль-мутант', bossLabel: 'АКАДЕМИЧЕСКИЙ ТРОЛЛЬ', voice: 'drone', lines: TROLL_LINES, bossHp: 6,
-  drawBoss: drawTroll2D, drawEnd: drawEnd5, endSay: 'Тролль повержен! Академический отпуск окончен — все на пары!', deathFx: 'paper',
+  drawBoss: drawTroll2D, drawEnd: drawEnd5, endSay: 'Тролль повержен! Теперь можно спокойно дописывать диссертацию!', deathFx: 'paper',
   ctxHints: { plastic: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], trash: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], hbar: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'], zombie: ['knife', 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов' : 'F или клик мышью — руби врагов'], chubby: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — бросок на врага' : 'В прыжке нажми прыжок ещё раз — бросок на врага'], crate: ['pound', 'УДАР СВЕРХУ', isTouch ? 'В прыжке свайп вниз — ломает ящики' : 'В прыжке стрелка вниз — ломает ящики'] },
   targets: ['zombie', 'minion', 'chubby'], collide: collide5, tick: tick5, pickup: pickup5, knifeNo: KNIFE_NO5,
   floatTypes: ['stipend', 'jtrash'], moveTypes: ['zombie', 'minion', 'chubby', 'jbarrel', 'jtires', 'jtrash', 'jcouch', 'quake'], bounce: [], bounceH: {},

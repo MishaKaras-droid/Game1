@@ -138,11 +138,12 @@ function wrapText(c, text, maxW) {
   return lines;
 }
 // speech bubble in screen space; side -1 = bubble to the left of the speaker, +1 = right
-function speechAt(c, text, ax, ay, tLeft, total, side, who) {
+function speechAt(c, text, ax, ay, tLeft, total, side, who, face) {
   c.font = '800 19px ' + FONT_UI;
   const lines = wrapText(c, text, 250);
   let w = 0; for (const l of lines) w = Math.max(w, c.measureText(l).width);
-  w += 34; const h = lines.length * 24 + (who ? 30 : 20);
+  const fw = face ? 78 : 0;
+  w += 34 + fw; const h = Math.max(face ? 90 : 0, lines.length * 24 + (who ? 30 : 20));
   const bx = clamp(side < 0 ? ax - w - 26 : ax + 26, 10, SW - w - 10), by = clamp(ay - h - 20, 96, SH - h - 10);
   const k = clamp(Math.min((total - tLeft) * 7, tLeft * 4), 0, 1);
   const t1 = clamp(side < 0 ? bx + w - 30 : bx + 30, bx + 20, bx + w - 20), t2 = t1 + (side < 0 ? -28 : 28);
@@ -155,7 +156,9 @@ function speechAt(c, text, ax, ay, tLeft, total, side, who) {
   P(c); c.rect(Math.min(t1, t2) + 3, by + h - 6, 22, 7); c.fillStyle = '#fffdf6'; c.fill();
   if (who) { c.font = '900 13px ' + FONT_UI; const tw = c.measureText(who.toUpperCase()).width + 16; P(c); rr(c, bx + 12, by - 11, tw, 22, 6); fs(c, '#ffd43b', 3); c.fillStyle = INK; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(who.toUpperCase(), bx + 20, by); }
   c.font = '800 19px ' + FONT_UI; c.fillStyle = INK; c.textAlign = 'center'; c.textBaseline = 'middle';
-  lines.forEach((l, i) => c.fillText(l, bx + w / 2, by + (who ? 26 : 20) + i * 24));
+  if (face) { const fs0 = 70, wob = Math.sin((total - tLeft) * 18) * 0.06; c.save(); c.translate(bx + 12 + fs0 / 2, by + h / 2); c.rotate(wob); c.drawImage(face, -fs0 / 2, -fs0 / 2, fs0, fs0); c.restore(); }
+  const ty0 = by + h / 2 - ((lines.length - 1) * 24) / 2 + (who && !face ? 4 : 0);
+  lines.forEach((l, i) => c.fillText(l, bx + fw + (w - fw) / 2, face ? ty0 + i * 24 : by + (who ? 26 : 20) + i * 24));
   c.restore();
 }
 function drawSpeech(c, b) {

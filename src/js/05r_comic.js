@@ -3,6 +3,12 @@
    the speaker, the road stays visible). Repeated lines just show the balloon. */
 const DIALOG_SLOW = 0.5;
 function dialogLine(text) {
+  // a line of dialog takes the stage: an ordinary banner on screen steps aside and comes back after it
+  if (G && G.banners) for (const b of G.banners) {
+    if (b.style === 'warn' || b.style === 'red' || b.t >= b.life - 0.3) continue;
+    if (b.t < 1.4) { if (!G.bannerQ) G.bannerQ = []; if (!G.bannerQ.some((q) => q.text === b.text)) G.bannerQ.unshift(Object.assign({}, b, { t: 0 })); }
+    b.life = b.t + 0.15;
+  }
   const life = clamp(1.6 + String(text).length * 0.05, 2.3, 4.5);
   if (!G || DEBUG.noRead) return life;
   if (!G.seen) G.seen = new Set();

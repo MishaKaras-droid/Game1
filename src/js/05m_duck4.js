@@ -80,7 +80,7 @@ const THESIS_LINES = {
   tired: ['Уф… опечатка…', 'Скрепки разошлись…', 'Где мои сноски…'],
   back: ['Ещё 200 страниц!', 'Защита завтра!', 'Переделывай введение!'],
   hurt: ['Ай! Мой титульный лист!', 'Только не по оглавлению!', 'Моё научное значение!'],
-  dead: 'Я… защищена…',
+  dead: 'Ладно… допускаю к защите…',
 };
 function thesisAttack(B) {
   const R = G.run, kind = ['two', 'clip', 'edit', 'sheet', 'two', 'edit', 'laser'][(B.vol + B.round * 2) % 7];
@@ -222,7 +222,7 @@ function drawEnd4(c, t) {
   drawThesis(c, 0, 0, 200, 0, { hp: 0, state: 'tired', mouth: 0, flash: 0 }); c.restore();
   c.save(); c.translate(SW * 0.76, SH - 150); c.rotate(-0.28);
   P(c); rr(c, -96, -22, 192, 44, 8); c.fillStyle = 'rgba(255,250,240,0.85)'; c.fill(); c.lineWidth = 5; c.strokeStyle = '#d62828'; c.stroke();
-  c.font = '26px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#d62828'; c.fillText('ЗАЩИЩЕНО', 0, 2); c.restore();
+  c.font = '26px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#d62828'; c.fillText('ДОПУЩЕНО', 0, 2); c.restore();
   // Ilona the duck jumps for joy in a graduation cap
   const bob = Math.abs(Math.sin(t * 4)) * 46, dx = SW * 0.36, dy = SH - 200 - bob;
   drawDuckHero(c, dx, dy, t, { h: 210, flapSpeed: 16, tilt: Math.sin(t * 4) * 0.08 });
@@ -601,7 +601,7 @@ function drawBoostOverlay(c, t) {
 const RUN_CFG4 = {
   evo: 2, bossAt: BOSS4_AT, surfaces: [[0, 'city']], build: buildTrack4, plan: () => TRACK_PLAN4,
   bossName: 'Ожившая диссертация', bossLabel: 'ОЖИВШАЯ ДИССЕРТАЦИЯ', voice: 'babble', lines: THESIS_LINES, attack: thesisAttack,
-  drawBoss: drawThesis, bossScale: 8, drawEnd: drawEnd4, endSay: 'Ура! Защитилась! Теперь я кандидат утиных наук!', deathFx: 'paper',
+  drawBoss: drawThesis, bossScale: 8, drawEnd: drawEnd4, endSay: 'Ура! Допущена к защите! Осталось дописать пару глав!', deathFx: 'paper',
   targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk', 'clock'], collide: collide4, tick: tick4,
   floatTypes: ['bonk', 'cite', 'pen', 'two', 'edit', 'clip', 'clock'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet', 'two', 'edit', 'clip', 'clock', 'stack'],
   bounce: ['bonk', 'cite', 'clip', 'clock'], bounceH: { clock: 0.45, clip: 1.4 }, draw2D: drawRun2D4,

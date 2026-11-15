@@ -28,6 +28,7 @@ const RUN_CFG3 = {
   lines: { intro: 'Я шаверма с двойным соусом!', tired: ['Уф… устала…', 'Лаваш… порвался…'], back: ['Ха! Медленно!', 'Не догонишь!'], hurt: ['Ай! Мой лаваш!', 'Ой, соус потёк!', 'Ну всё, утка!'], dead: 'Я… всего лишь… лаваш…' },
   attack: (B) => shawAttack(B), drawBoss: (...a) => drawShawarma(...a), drawEnd: null, endSay: 'Шаверма побеждена! Теперь можно и пообедать.',
   deathFx: 'sauce', targets: ['pigeon', 'crow'], collide: null, tick: null, floatTypes: [], moveTypes: [], bounce: [], draw2D: null,
+  jump: 15.5, grav: 46,
 };
 const runCfg = () => RCF || RUN_CFG3;
 
@@ -239,7 +240,7 @@ function startRunBoss() {
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { const life = dialogLine(text); G.run.boss.speech = { text, t: life, life, who: runCfg().bossName }; sfx(runCfg().voice || 'babble'); }
+function shawSay(text, face) { const life = dialogLine(text); G.run.boss.speech = { text, t: life, life, who: runCfg().bossName, face }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
@@ -380,7 +381,7 @@ function updateRunner(dt) {
   for (let j = R.i; j < R.objs.length && !R.homing; j++) {
     const o = R.objs[j];
     if (o.d > R.s + 2) break;
-    if (o.dead || o.reflect || Math.abs(o.d - R.s) > (runCfg().evo >= 2 ? 0.7 : 0.9) || Math.abs(o.x - R.x) > 1.0) continue;
+    if (o.dead || o.reflect || Math.abs(o.d - R.s) > 0.7 || Math.abs(o.x - R.x) > 1.0) continue;
     if (o.fall !== undefined && o.ft < 1) continue;
     runCollide(o);
   }
@@ -641,7 +642,7 @@ function drawRunBoss(c, t) {
     c.font = '30px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle';
     if (Math.floor(t * 4) % 2) otext(c, isTouch ? 'ЖМИ!' : 'ЖМИ ПРОБЕЛ!', q.sx, q.sy - base.k * 7.4, '#ffe14d', 7);
   }
-  if (B.speech) speechAt(c, B.speech.text, q.sx - base.k * 1.5, q.sy - base.k * 6, B.speech.t, B.speech.life || 2.3, -1, B.speech.who);
+  if (B.speech) speechAt(c, B.speech.text, q.sx - base.k * 1.5, q.sy - base.k * 6, B.speech.t, B.speech.life || 2.3, -1, B.speech.who, B.speech.face && IMG[B.speech.face]);
 }
 function drawRunHud(c, t) {
   const R = G.run;
