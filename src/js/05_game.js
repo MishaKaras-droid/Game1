@@ -79,12 +79,22 @@ function spread(x, y, n, step, speed, o, base) {
   for (let i = 0; i < n; i++) ebullet(x, y, base + (i - (n - 1) / 2) * step, speed, o);
 }
 function ring(x, y, n, speed, o, off) { for (let i = 0; i < n; i++) ebullet(x, y, (off || 0) + (i / n) * TAU, speed, o); }
-// a message seen for the first time goes to the comic pause (05r_comic.js); repeats are ordinary banners,
-// and a new banner pushes the previous one out quickly so two never sit on top of each other
+// banners never stop the game and never stack: a new one waits for the current one to leave
+// (at most two wait, the same text is not queued twice); warnings replace the current banner at once
+// while a boss is talking its balloon owns the top of the screen: ordinary banners wait for it
+function speechBusy() { const b = G && (G.run ? G.run.boss : G.boss); return !!(b && b.speech && b.speech.t > 0.25); }
 function banner(text, sub, life, style) {
-  if (readQueue({ title: text, sub, style: style || 'title' })) return;
+  style = style || 'title';
+  const item = { text, sub, t: 0, life: life || 2.4, style };
+  const busy = G.banners.some((b) => b.t < b.life - 0.3) || speechBusy(), urgent = style === 'warn' || style === 'red';
+  if (busy && !urgent) {
+    if (!G.bannerQ) G.bannerQ = [];
+    if (G.bannerQ.some((q) => q.text === text) || G.banners.some((b) => b.text === text)) return;
+    G.bannerQ.push(item); if (G.bannerQ.length > 2) G.bannerQ.shift();
+    return;
+  }
   for (const b of G.banners) b.life = Math.min(b.life, b.t + 0.2);
-  G.banners.push({ text, sub, t: 0, life: life || 2.4, style: style || 'title' }); }
+  G.banners.push(item); }
 function floatText(x, y, text, col, size) { if (G.texts.length < 40) G.texts.push({ x, y, text, col: col || '#fff', t: 0, life: 1, size: size || 18 }); }
 function addScore(n, x, y) { G.score += n; if (n >= 100 && x !== undefined) floatText(x, y - 10, '+' + n, '#fff6e5', n >= 1000 ? 22 : 16); }
 
@@ -467,7 +477,6 @@ function charmEnemy(e) {
   sfx('heal');
 }
 function useBomb() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (G && G.run) {
     if (state !== 'play' || G.bombs <= 0 || !G.player.alive || G.run.end) return;
     G.bombs--; updateBombBtn(); runBomb();
@@ -559,7 +568,7 @@ function* moveTo(b, x, y, dur) {
   let t = 0;
   while (t < dur) { t += yield; const k = easeInOut(t / dur); b.x = lerp(sx, x, k); b.y = lerp(sy, y, k); }
 }
-function say(b, text) { const first = readQueue({ kind: 'say', who: BOSS[b.kind] ? BOSS[b.kind].name : '', text }); b.speech = first ? null : { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
+function say(b, text) { const life = dialogLine(text); b.speech = { text, t: life, life, who: BOSS[b.kind] ? BOSS[b.kind].name : '' }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
 const bossY = (b) => rand(BOSS[b.kind].y[0], H - BOSS[b.kind].y[1]);
 function* dash(b, speed) {
   b.telegraph = 0.85; sfx('charge');

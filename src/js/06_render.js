@@ -63,6 +63,7 @@ function updateParts(dt) {
   G.texts = G.texts.filter((t) => t.t < t.life);
   for (const b of G.banners) b.t += G.realDt !== undefined ? G.realDt / Math.max(1, DEBUG.substeps) : dt;
   G.banners = G.banners.filter((b) => b.t < b.life);
+  if (G.bannerQ && G.bannerQ.length && !G.banners.some((b) => b.t < b.life - 0.3) && !speechBusy()) { const nb = G.bannerQ.shift(); nb.t = 0; G.banners.push(nb); }
 }
 function drawParts(c) {
   for (const p of G.parts) {
@@ -137,27 +138,29 @@ function wrapText(c, text, maxW) {
   return lines;
 }
 // speech bubble in screen space; side -1 = bubble to the left of the speaker, +1 = right
-function speechAt(c, text, ax, ay, tLeft, total, side) {
-  c.font = '21px ' + FONT_HAND;
-  const lines = wrapText(c, text, 240);
+function speechAt(c, text, ax, ay, tLeft, total, side, who) {
+  c.font = '800 19px ' + FONT_UI;
+  const lines = wrapText(c, text, 250);
   let w = 0; for (const l of lines) w = Math.max(w, c.measureText(l).width);
-  w += 30; const h = lines.length * 25 + 18;
-  const bx = clamp(side < 0 ? ax - w - 26 : ax + 26, 10, SW - w - 10), by = clamp(ay - h - 20, 74, SH - h - 10);
+  w += 34; const h = lines.length * 24 + (who ? 30 : 20);
+  const bx = clamp(side < 0 ? ax - w - 26 : ax + 26, 10, SW - w - 10), by = clamp(ay - h - 20, 96, SH - h - 10);
   const k = clamp(Math.min((total - tLeft) * 7, tLeft * 4), 0, 1);
   const t1 = clamp(side < 0 ? bx + w - 30 : bx + 30, bx + 20, bx + w - 20), t2 = t1 + (side < 0 ? -28 : 28);
   c.save(); c.globalAlpha = k;
   c.translate(bx + w / 2, by + h / 2); c.scale(0.7 + 0.3 * k, 0.7 + 0.3 * k); c.translate(-(bx + w / 2), -(by + h / 2));
-  P(c); rr(c, bx, by, w, h, 14);
+  P(c); rr(c, bx + 6, by + 7, w, h, 16); c.fillStyle = 'rgba(22,18,31,0.85)'; c.fill();
+  P(c); rr(c, bx, by, w, h, 16);
   c.moveTo(t1, by + h - 1); c.lineTo(ax, ay - 4); c.lineTo(t2, by + h - 1);
-  fs(c, '#fff', 3.5);
-  P(c); c.rect(Math.min(t1, t2) + 2, by + h - 5, 24, 6); c.fillStyle = '#fff'; c.fill();
-  c.fillStyle = INK; c.textAlign = 'center'; c.textBaseline = 'middle';
-  lines.forEach((l, i) => c.fillText(l, bx + w / 2, by + 21 + i * 25));
+  fs(c, '#fffdf6', 4.5);
+  P(c); c.rect(Math.min(t1, t2) + 3, by + h - 6, 22, 7); c.fillStyle = '#fffdf6'; c.fill();
+  if (who) { c.font = '900 13px ' + FONT_UI; const tw = c.measureText(who.toUpperCase()).width + 16; P(c); rr(c, bx + 12, by - 11, tw, 22, 6); fs(c, '#ffd43b', 3); c.fillStyle = INK; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(who.toUpperCase(), bx + 20, by); }
+  c.font = '800 19px ' + FONT_UI; c.fillStyle = INK; c.textAlign = 'center'; c.textBaseline = 'middle';
+  lines.forEach((l, i) => c.fillText(l, bx + w / 2, by + (who ? 26 : 20) + i * 24));
   c.restore();
 }
 function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
-  speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
+  speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, b.speech.life || 2.3, -1, b.speech.who);
 }
 const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda, crocboss: drawCrocBoss, vampire: drawVampire, salmon: drawSalmon, crayboss: drawCrayBoss };
 function drawBossEntity(c, b, t) {
@@ -420,7 +423,7 @@ function render() {
   }
   drawL4Speech(c);
   drawL6Speech(c);
-  if (G.heroSay) { const q = toScreen(G.player.x, G.player.y); speechAt(c, G.heroSay.text, q.x + 10, q.y - 46, G.heroSay.t, 3.4, 1); }
+  if (G.heroSay) { const q = toScreen(G.player.x, G.player.y); speechAt(c, G.heroSay.text, q.x + 10, q.y - 46, G.heroSay.t, 3.4, 1, G.mode === 'duck' ? 'Утка Илона' : 'Карась Миша'); }
   c.restore();
   drawTexts(c);
   if (G.slowT > 0) { const a = Math.min(1, G.slowT) * 0.16; c.fillStyle = 'rgba(80,160,255,' + a.toFixed(3) + ')'; c.fillRect(0, 0, W, H); }

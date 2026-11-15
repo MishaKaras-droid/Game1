@@ -439,7 +439,7 @@ function renderRunner3D(c) {
       c.font = '30px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle';
       if (Math.floor(t * 4) % 2) otext(c, isTouch ? 'ЖМИ «ПРЫЖОК»!' : 'ЖМИ ПРОБЕЛ!', q.sx, q.sy - Math.max(70, q.k * 4), '#ffe14d', 7);
     }
-    if (B.speech) speechAt(c, B.speech.text, q.sx - 40, q.sy - Math.max(40, q.k * 3), B.speech.t, 2.3, -1);
+    if (B.speech) speechAt(c, B.speech.text, q.sx - 40, q.sy - Math.max(40, q.k * 3), B.speech.t, B.speech.life || 2.3, -1, B.speech.who);
   }
   if (R.streak) { const s = R.streak; c.globalAlpha = s.t / 0.25; line(c, [s.x0, s.y0, s.x1, s.y1], 14, '#ffe14d'); line(c, [s.x0, s.y0, s.x1, s.y1], 6, '#fff'); c.globalAlpha = 1; }
   drawParts(c);

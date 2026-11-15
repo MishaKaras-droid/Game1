@@ -48,9 +48,9 @@ function collide4(o, R) {
     case 'capy': return air > 0.7;
     case 'floppa': if (air > 0.6) { runDestroy(o); R.vy = 12; return true; } return false;
     case 'bonk': return Math.abs(air - o.h) > 1.0;
-    case 'car': return air > 1.15;
+    case 'car': return air > 1.0;
     case 'clock': if (air > 0.55) { runDestroy(o); R.vy = Math.max(R.vy, 11); return true; } return false;
-    case 'books': case 'stack': return air > 0.8;
+    case 'books': case 'stack': return air > 0.7;
     case 'two': case 'edit': return rolling || air > 2.3;
     case 'clip': return Math.abs(air - o.h) > 0.9;
     case 'sheet': return air > 0.3;
@@ -112,16 +112,7 @@ const MEME_HINT = {
 function tick4(R) {
   updateFever(R, R.dtLast || 0);
   thesisReflect(R);
-  if (R.cards === undefined) R.cards = R.s > 100 ? 2 : 0;
-  // the title card goes first; the control hints wait until it is gone
-  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('ГОРОД', 'Эволюция графики: тени · мультяшный свет · 3D-утка', 2.6, 'green'); sfx('power'); }
-  if (R.cards === 1 && R.t > 2.9) { R.cards = 2; banner('ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел', 2.4, 'small'); }
-  if (R.cards < 2) return;
-  tick4b(R);
-  for (let j = R.i; j < R.objs.length; j++) {
-    const o = R.objs[j], dz = o.d - R.s; if (dz > 45) break;
-    if (dz > 20 && MEME_HINT[o.type] && !R.hints['m_' + o.type]) { R.hints['m_' + o.type] = 1; banner(MEME_HINT[o.type][0], MEME_HINT[o.type][1], 2.4, 'small'); break; }
-  }
+  if (!R.cards && R.t > 0.3 && R.s < 100) { R.cards = 2; banner('ГОРОД', 'Уровень 4', 1.8, 'green'); }
 }
 
 /* ============================================================ 2D art: meme sprites (front view) */
@@ -551,7 +542,8 @@ function duckModelInstall(D) {
   const M = duckParts(); if (!M) return false;
   while (D.body.children.length) D.body.remove(D.body.children[0]);
   const g = new THREE.Group(); g.scale.setScalar(1.5 / M.H); g.rotation.y = Math.PI;
-  const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.outline); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
+  if (!R3E.duckInk) R3E.duckInk = R3E.outline.clone();   // the duck's own ink, so the overdose can make it glow
+  const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.duckInk); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
   mk(M.body); const feet = [mk(M.footL), mk(M.footR)];
   // pivots: juice (squash & stretch, tilt) and lean both sit at the feet (y = 0), so the duck squashes into the road
   const lean = new THREE.Group(); lean.add(g); const juice = new THREE.Group(); juice.add(lean); D.body.add(juice);
@@ -559,7 +551,7 @@ function duckModelInstall(D) {
   for (const sd of [-1, 1]) {
     const piv = new THREE.Group(); piv.position.set(sd * 0.3, 0.9, 0.12);
     const w = new THREE.Mesh(R3.geo.sphere, wm); w.scale.set(0.42, 0.08, 0.22); w.position.set(sd * 0.38, 0, 0); w.userData.noOutline = true;
-    const wo = new THREE.Mesh(R3.geo.sphere, R3E.outline); wo.scale.setScalar(1.12); wo.userData.isOutline = true; w.add(wo);
+    const wo = new THREE.Mesh(R3.geo.sphere, R3E.duckInk); wo.scale.setScalar(1.12); wo.userData.isOutline = true; w.add(wo);
     piv.add(w); piv.visible = false; lean.add(piv); wings.push(piv);
   }
   D.model = { g, lean, feet, wings, juice };
@@ -576,7 +568,7 @@ function duckModelPose(D, R, t) {
   // knife slash: a quick twist of the whole body
   m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / SLASH_T) * Math.PI) * -0.9 : 0;
   // wings come out for the glide and the double jump
-  const fly = R.gliding || R.flap > 0;
+  const fly = R.gliding || R.flap > 0 || R.fever > 0;
   for (let i = 0; i < 2; i++) { const w = m.wings[i], sd = i ? 1 : -1; w.visible = fly; if (fly) w.rotation.z = sd * (0.2 + Math.sin(t * (R.gliding ? 16 : 26)) * 0.75); }
   if (R.gliding) m.lean.rotation.x = 0.1;
   const land = R.landT > 0 ? R.landT : 0; m.lean.scale.set(1 + land * 0.25, 1 - land * 0.3, 1 + land * 0.25);
@@ -613,5 +605,6 @@ const RUN_CFG4 = {
   targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk', 'clock'], collide: collide4, tick: tick4,
   floatTypes: ['bonk', 'cite', 'pen', 'two', 'edit', 'clip', 'clock'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet', 'two', 'edit', 'clip', 'clock', 'stack'],
   bounce: ['bonk', 'cite', 'clip', 'clock'], bounceH: { clock: 0.45, clip: 1.4 }, draw2D: drawRun2D4,
+  ctxHints: { cone: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], barrier: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], bar: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'], capy: ['knife', 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов' : 'F или клик мышью — руби врагов'], floppa: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — бросок на врага' : 'В прыжке нажми прыжок ещё раз — бросок на врага'] },
   jump: 15.5, grav: 46, bossHp: 6, openPhase: (B) => thesisOpen(B), updOpen: (B, dt) => thesisUpdOpen(B, dt), overlay: (c, t) => overlay4(c, t),
 };

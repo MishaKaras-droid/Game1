@@ -330,8 +330,6 @@ document.addEventListener('webkitfullscreenchange', () => { updateFsPrompt(); se
 updateFsPrompt();
 
 hooks.key = (code, e, onButton) => {
-  // while a comic panel is up, keys only turn the page (pause and mute still work)
-  if (state === 'play' && comicActive() && code !== 'Escape' && code !== 'KeyP' && code !== 'KeyM') { comicSkip(); return; }
   if (state === 'play' && G && G.run && code !== 'Escape' && code !== 'KeyP' && code !== 'KeyM') { runnerKey(code); return; }
   if (state === 'play') {
     if (code === 'Space' || code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
@@ -351,7 +349,7 @@ hooks.key = (code, e, onButton) => {
   }
 };
 hooks.blur = () => { if (state === 'play') pauseGame(); };
-hooks.tap = (e) => { if (state !== 'play' || !G) return; if (comicActive()) { comicSkip(); return; } if (!G.run) doBurst(); else if (e && e.pointerType === 'mouse' && runCfg().evo >= 2) runKnife(); };
+hooks.tap = (e) => { if (state !== 'play' || !G) return; if (!G.run) doBurst(); else if (e && e.pointerType === 'mouse' && runCfg().evo >= 2) runKnife(); };
 hooks.keyUp = (code) => { if (state === 'play' && G && G.run) runnerKeyUp(code); };
 hooks.swipe = (dir) => { if (state !== 'play' || !G || !G.run) return; if (dir === 'down') runRoll(); else if (dir !== 'up') runLane(dir === 'left' ? -1 : 1); };
 document.addEventListener('visibilitychange', () => {
@@ -392,17 +390,18 @@ function loop(now) {
   lastT = now;
   try {
     if (state === 'play') {
-      // comic pause for new messages (the game stands still), a smooth ramp back, slower ending text, knife hit-stop
-      if (G.heroSay && !G.heroSay.seen) { G.heroSay.seen = true; readQueue({ kind: 'say', who: G.mode === 'duck' ? 'Утка Илона' : 'Карась Миша', text: G.heroSay.text }); }
-      const paused = comicStep(dt), cur = G.readK === undefined ? 1 : G.readK;
-      G.readK = paused ? 0 : lerp(cur, G.phase === 'outro' ? 0.7 : 1, Math.min(1, dt * 2.6));
-      if (!paused && G.readK > 0.985 && G.phase !== 'outro') G.readK = 1;
+      // a new line of dialog slows the world down while it is read (no pause); the ending text runs slower; knife hit-stop
+      if (G.heroSay && !G.heroSay.seen) { G.heroSay.seen = true; dialogLine(G.heroSay.text); }
+      G.dlgT = Math.max(0, (G.dlgT || 0) - dt);
+      const want = G.dlgT > 0 ? DIALOG_SLOW : G.phase === 'outro' ? 0.7 : 1, cur = G.readK === undefined ? 1 : G.readK;
+      G.readK = lerp(cur, want, Math.min(1, dt * (want < cur ? 6 : 2.5)));
+      if (want === 1 && G.readK > 0.985) G.readK = 1;
       let gdt = dt * G.readK;
       if (G.hitStop > 0) { G.hitStop -= dt; gdt *= 0.08; }
       G.realDt = dt;
       if (gdt > 0) for (let i = 0; i < DEBUG.substeps && state === 'play'; i++) update(gdt);
       render();
-      drawComic(ctx);
+      drawDialogRim(ctx);
     }
     else if (state === 'menu') drawHeroes(now / 1000);
   } catch (err) {

@@ -113,7 +113,6 @@ function runProj2D(x, h, z) {
 }
 function runPlayerScreen() { const R = G.run; return runProj(R.x, R.y, RUN.PZ); }
 function runJump() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || R.phase === 'end' || !G.player.alive) return;
   if (R.juice) return juiceJump(R);
   R.jumpHeld = true;
@@ -123,16 +122,18 @@ function runJump() {
   if (C.evo >= 2 && !R.dj && R.y > 0.15) { R.dj = true; R.vy = Math.max(R.vy, 11.5); R.slam = false; R.flap = 0.4; sfx('swoosh'); sfx('quack'); return; }
   if (R.vy < 0 && R.y < 1.3) R.jumpBuf = 0.2;
 }
+function runHint(R, key, title, sub) {
+  if (R.hints[key] || R.t - (R.lastHint === undefined ? -99 : R.lastHint) < 7) return false;
+  R.hints[key] = 1; R.lastHint = R.t; banner(title, sub, 2.6, 'small'); return true;
+}
 function runJumpUp() { if (G && G.run) G.run.jumpHeld = false; }
 function runRoll() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
   if (R.juice) return juiceDown(R);
   if (R.y > 0.05) { R.vy = -30; R.slam = true; R.jumpHeld = false; } else R.roll = 0.75;
   sfx('throw');
 }
 function runLane(dir) {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
   if (R.juice) return juiceLane(R, dir);
   const n = clamp(R.lane + dir, 0, 2);
@@ -140,7 +141,6 @@ function runLane(dir) {
   R.lane = n; sfx('click');
 }
 function runBoost() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || !G.player.alive || R.end || R.phase === 'intro') return;
   if (runCfg().evo >= 2) return runFeverBtn();
   if (R.boost > 0) return;
@@ -239,7 +239,7 @@ function startRunBoss() {
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { const first = readQueue({ kind: 'say', who: runCfg().bossName, text }); G.run.boss.speech = first ? null : { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
+function shawSay(text) { const life = dialogLine(text); G.run.boss.speech = { text, t: life, life, who: runCfg().bossName }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
@@ -357,9 +357,11 @@ function updateRunner(dt) {
   R.jumpBuf = Math.max(0, (R.jumpBuf || 0) - dt); R.knifeCd = Math.max(0, (R.knifeCd || 0) - dt); R.slash = Math.max(0, (R.slash || 0) - dt); R.flap = Math.max(0, (R.flap || 0) - dt);
   R.roll = Math.max(0, R.roll - dt); R.boost = Math.max(0, R.boost - dt); R.inv = Math.max(0, R.inv - dt);
   if (surf === 'sand' && Math.random() < dt * 12 && R.y === 0) { const a = runPlayerScreen(); part({ type: 'smoke', x: a.sx + rand(-20, 20), y: a.sy, r: 3, r1: 12, col: 'rgba(240,220,170,A)', life: 0.4, vx: rand(-40, 40), vy: rand(-40, 0) }); }
-  // hints for the controls
-  const hint = (key, at, title, sub) => { if (!R.hints[key] && R.s > at) { R.hints[key] = 1; banner(title, sub, 2.6, 'small'); } };
-  if (R.phase === 'run') {
+  // hints for the controls: once each, at least 7 s apart; levels 4+ show them when the obstacle that needs them comes up
+  const hint = (key, at, title, sub) => { if (R.s > at) runHint(R, key, title, sub); };
+  if (R.phase === 'run' && runCfg().ctxHints) {
+    for (let j = R.i; j < R.objs.length; j++) { const o = R.objs[j], dz = o.d - R.s; if (dz > 34) break; const h = dz > 14 && !o.dead && runCfg().ctxHints[o.type]; if (h && runHint(R, h[0], h[1], h[2])) break; }
+  } else if (R.phase === 'run') {
     hint('jump', 25, 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел');
     hint('roll', 255, R.juice ? 'ПОДКАТ' : 'КУВЫРОК', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой');
     hint('lane', 425, 'ДОРОЖКИ', isTouch ? 'Свайп влево или вправо' : 'Стрелки влево и вправо');
@@ -378,7 +380,7 @@ function updateRunner(dt) {
   for (let j = R.i; j < R.objs.length && !R.homing; j++) {
     const o = R.objs[j];
     if (o.d > R.s + 2) break;
-    if (o.dead || o.reflect || Math.abs(o.d - R.s) > 0.9 || Math.abs(o.x - R.x) > 1.0) continue;
+    if (o.dead || o.reflect || Math.abs(o.d - R.s) > (runCfg().evo >= 2 ? 0.7 : 0.9) || Math.abs(o.x - R.x) > 1.0) continue;
     if (o.fall !== undefined && o.ft < 1) continue;
     runCollide(o);
   }
@@ -639,7 +641,7 @@ function drawRunBoss(c, t) {
     c.font = '30px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle';
     if (Math.floor(t * 4) % 2) otext(c, isTouch ? 'ЖМИ!' : 'ЖМИ ПРОБЕЛ!', q.sx, q.sy - base.k * 7.4, '#ffe14d', 7);
   }
-  if (B.speech) speechAt(c, B.speech.text, q.sx - base.k * 1.5, q.sy - base.k * 6, B.speech.t, 2.3, -1);
+  if (B.speech) speechAt(c, B.speech.text, q.sx - base.k * 1.5, q.sy - base.k * 6, B.speech.t, B.speech.life || 2.3, -1, B.speech.who);
 }
 function drawRunHud(c, t) {
   const R = G.run;
@@ -678,7 +680,7 @@ function drawRunEnd(c, t) {
   }
   for (let i = 0; i < 14; i++) { const x = ((i * 137 + t * 90) % SW), y = ((i * 71 + t * 120) % SH); P(c); starPath(c, x, y, 6, 2.5); c.fillStyle = ['#ffd43b', '#ff8fa3', '#7ee7f2'][i % 3]; c.fill(); }
   c.font = '54px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, 'ПОБЕДА!', SW / 2, 70, '#ffd43b', 10);
-  if (G.heroSay) speechAt(c, G.heroSay.text, SW * 0.36 + 70, SH - 330, G.heroSay.t, 3.6, 1);
+  if (G.heroSay) speechAt(c, G.heroSay.text, SW * 0.36 + 70, SH - 330, G.heroSay.t, 3.6, 1, 'Утка Илона');
   if (k < 1.4) { c.fillStyle = 'rgba(255,255,255,' + clamp(1 - (k - 0.8) / 0.6, 0, 1).toFixed(3) + ')'; c.fillRect(0, 0, SW, SH); }
 }
 function renderRunner(c) {

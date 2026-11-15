@@ -5,7 +5,6 @@
 const SLASH_T = 0.3;
 const KNIFE_OK = ['zombie', 'minion', 'trash', 'jbarrel', 'jtrash', 'jtires', 'capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
 function runKnife() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G && G.run;
   if (!R || runCfg().evo < 2 || state !== 'play' || G.phase !== 'run' || R.end || !G.player.alive || R.phase === 'intro') return;
   if (R.knifeCd > 0) return;
@@ -54,7 +53,7 @@ const FEVER_T = 6.5;
 function startFever() {
   const R = G.run; if (R.fever > 0) return;
   R.fever = FEVER_T; R.meter = 100; R.boost = 0; R.boostDrain = false;
-  banner('КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Утка огромная и неуязвимая — сноси всё!', 2.2, 'red');
+  banner('КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Неуязвима — сноси всё!', 1.6, 'red');
   sfx('power'); sfx('quack2'); G.shake = 10; G.flash = 0.35; G.flashColor = '#ffb347';
 }
 function runFeverBtn() {
@@ -71,19 +70,12 @@ function feverSmash(o) {
 function updateFever(R, dt) {
   if (R.fever > 0) {
     R.fever -= dt; R.meter = Math.max(0, (100 * R.fever) / FEVER_T);
-    if (R.fever <= 0) { R.fever = 0; R.meter = 0; R.inv = 1.2; banner('Передоз прошёл', 'Собирай кофе снова', 1.4, 'small'); }
+    if (R.fever <= 0) { R.fever = 0; R.meter = 0; R.inv = 1.2; }
   } else if (R.meter >= 100 && R.phase !== 'intro' && !R.end && G.player.alive) startFever();
 }
 
 /* ---------- control hints that unlock as you run */
-function tick4b(R) {
-  const hint = (key, ok, title, sub) => { if (!R.hints[key] && ok) { R.hints[key] = 1; banner(title, sub, 2.8, 'small'); } };
-  if (R.phase !== 'run') return;
-  hint('knife', R.s > 120, 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов и препятствия' : 'F или клик мышью — руби врагов и препятствия');
-  hint('glide', R.s > 330, 'ПЛАНИРОВАНИЕ', 'Держи прыжок в воздухе — утка машет крыльями и медленно снижается');
-  hint('djump', R.s > 480, 'ДВОЙНОЙ ПРЫЖОК', 'Нажми прыжок ещё раз в воздухе');
-  hint('fever', R.meter >= 50, 'КОФЕЙНЫЙ ПЕРЕДОЗ', 'Собери полную шкалу кофе — утка станет огромной и неуязвимой');
-}
+function tick4b() {}
 
 /* ---------- boss: the book opens, hit the «УТВЕРЖДЕНО» stamp with a jump attack, dodge the falling textbooks */
 function thesisOpen(B) {
@@ -224,13 +216,20 @@ function frame4b(dt, t, F) {
   const R = G.run, D = R3.duck, p = D.root.position;
   const fv = R.fever > 0 ? 1 : 0;
   R3.feverK = lerp(R3.feverK || 0, fv, Math.min(1, dt * 4));
-  D.root.scale.setScalar(1 + R3.feverK * 0.8);
+  const fk = R3.feverK;
+  D.root.scale.setScalar(1 + fk * 1.2);
+  const pulse = 0.75 + Math.sin(t * 14) * 0.25;
+  if (DUCK3.parts) DUCK3.parts.mat.emissive.setRGB(fk * 0.75 * pulse, fk * 0.28 * pulse, 0);
+  if (R3E.duckInk) R3E.duckInk.color.setRGB(0.13 + fk * 0.87, 0.11 + fk * 0.14 * pulse, 0.15 * (1 - fk));
+  if (!R3E.feverAura) { R3E.feverAura = new THREE.Sprite(new THREE.SpriteMaterial({ map: R3E.lampGlow.map, color: '#ff6a00', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); R3.scene.add(R3E.feverAura); }
+  R3E.feverAura.visible = fk > 0.05;
+  if (R3E.feverAura.visible) { R3E.feverAura.position.copy(p).addScaledVector(F.u, 1.6 * (1 + fk * 1.2)); R3E.feverAura.scale.setScalar(6.5 * fk * (0.9 + pulse * 0.2)); R3E.feverAura.material.opacity = 0.7 * fk; }
   if (fv) {
-    for (let k = 0; k < 2; k++) {
+    for (let k = 0; k < 4; k++) {
       const s = R3E.trail[R3E.trailI++ % R3E.trail.length];
       s.visible = true; s.userData.life = 0.3; s.material.color.set(Math.random() < 0.5 ? '#ff7a1a' : '#ffd43b');
-      s.position.copy(p).addScaledVector(F.u, 0.6 + Math.random() * 2.2).addScaledVector(F.r, (Math.random() - 0.5) * 1.8).addScaledVector(F.f, -0.4);
-      s.scale.setScalar(1.2 + Math.random() * 0.8);
+      s.position.copy(p).addScaledVector(F.u, 0.6 + Math.random() * 3.6).addScaledVector(F.r, (Math.random() - 0.5) * 3).addScaledVector(F.f, -0.4);
+      s.scale.setScalar(1.6 + Math.random() * 1.4);
     }
   } else if (!(R.boost > 0)) for (const s of R3E.trail) if (!s.visible) s.material.color.set('#8fe8ff');
   slashFrame(R, D, F);

@@ -6676,12 +6676,22 @@ function spread(x, y, n, step, speed, o, base) {
   for (let i = 0; i < n; i++) ebullet(x, y, base + (i - (n - 1) / 2) * step, speed, o);
 }
 function ring(x, y, n, speed, o, off) { for (let i = 0; i < n; i++) ebullet(x, y, (off || 0) + (i / n) * TAU, speed, o); }
-// a message seen for the first time goes to the comic pause (05r_comic.js); repeats are ordinary banners,
-// and a new banner pushes the previous one out quickly so two never sit on top of each other
+// banners never stop the game and never stack: a new one waits for the current one to leave
+// (at most two wait, the same text is not queued twice); warnings replace the current banner at once
+// while a boss is talking its balloon owns the top of the screen: ordinary banners wait for it
+function speechBusy() { const b = G && (G.run ? G.run.boss : G.boss); return !!(b && b.speech && b.speech.t > 0.25); }
 function banner(text, sub, life, style) {
-  if (readQueue({ title: text, sub, style: style || 'title' })) return;
+  style = style || 'title';
+  const item = { text, sub, t: 0, life: life || 2.4, style };
+  const busy = G.banners.some((b) => b.t < b.life - 0.3) || speechBusy(), urgent = style === 'warn' || style === 'red';
+  if (busy && !urgent) {
+    if (!G.bannerQ) G.bannerQ = [];
+    if (G.bannerQ.some((q) => q.text === text) || G.banners.some((b) => b.text === text)) return;
+    G.bannerQ.push(item); if (G.bannerQ.length > 2) G.bannerQ.shift();
+    return;
+  }
   for (const b of G.banners) b.life = Math.min(b.life, b.t + 0.2);
-  G.banners.push({ text, sub, t: 0, life: life || 2.4, style: style || 'title' }); }
+  G.banners.push(item); }
 function floatText(x, y, text, col, size) { if (G.texts.length < 40) G.texts.push({ x, y, text, col: col || '#fff', t: 0, life: 1, size: size || 18 }); }
 function addScore(n, x, y) { G.score += n; if (n >= 100 && x !== undefined) floatText(x, y - 10, '+' + n, '#fff6e5', n >= 1000 ? 22 : 16); }
 
@@ -7064,7 +7074,6 @@ function charmEnemy(e) {
   sfx('heal');
 }
 function useBomb() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (G && G.run) {
     if (state !== 'play' || G.bombs <= 0 || !G.player.alive || G.run.end) return;
     G.bombs--; updateBombBtn(); runBomb();
@@ -7156,7 +7165,7 @@ function* moveTo(b, x, y, dur) {
   let t = 0;
   while (t < dur) { t += yield; const k = easeInOut(t / dur); b.x = lerp(sx, x, k); b.y = lerp(sy, y, k); }
 }
-function say(b, text) { const first = readQueue({ kind: 'say', who: BOSS[b.kind] ? BOSS[b.kind].name : '', text }); b.speech = first ? null : { text, t: 2.3 }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
+function say(b, text) { const life = dialogLine(text); b.speech = { text, t: life, life, who: BOSS[b.kind] ? BOSS[b.kind].name : '' }; sfx(b.kind === 'granny' ? 'babble' : b.kind === 'car' ? 'honk' : b.kind === 'mega' ? 'don' : b.kind === 'anaconda' ? 'hiss' : 'blub'); }
 const bossY = (b) => rand(BOSS[b.kind].y[0], H - BOSS[b.kind].y[1]);
 function* dash(b, speed) {
   b.telegraph = 0.85; sfx('charge');
@@ -7782,7 +7791,6 @@ function* squidBrain(b) {
 
 /* ---------- squid helper (super ability charged like an X-ray meter) */
 function useSquid() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (state !== 'play' || !G || !G.squidUnlocked || G.squidT > 0 || G.squidCharge < 100 || !G.player.alive) return;
   G.squidT = 20; G.squidCharge = 0;
   G.squid = { x: G.player.x - 40, y: G.player.y - 90, strikeT: 0, strike: null };
@@ -8293,7 +8301,6 @@ function runProj2D(x, h, z) {
 }
 function runPlayerScreen() { const R = G.run; return runProj(R.x, R.y, RUN.PZ); }
 function runJump() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || R.phase === 'end' || !G.player.alive) return;
   if (R.juice) return juiceJump(R);
   R.jumpHeld = true;
@@ -8303,16 +8310,18 @@ function runJump() {
   if (C.evo >= 2 && !R.dj && R.y > 0.15) { R.dj = true; R.vy = Math.max(R.vy, 11.5); R.slam = false; R.flap = 0.4; sfx('swoosh'); sfx('quack'); return; }
   if (R.vy < 0 && R.y < 1.3) R.jumpBuf = 0.2;
 }
+function runHint(R, key, title, sub) {
+  if (R.hints[key] || R.t - (R.lastHint === undefined ? -99 : R.lastHint) < 7) return false;
+  R.hints[key] = 1; R.lastHint = R.t; banner(title, sub, 2.6, 'small'); return true;
+}
 function runJumpUp() { if (G && G.run) G.run.jumpHeld = false; }
 function runRoll() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
   if (R.juice) return juiceDown(R);
   if (R.y > 0.05) { R.vy = -30; R.slam = true; R.jumpHeld = false; } else R.roll = 0.75;
   sfx('throw');
 }
 function runLane(dir) {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || G.phase !== 'run' || !G.player.alive) return;
   if (R.juice) return juiceLane(R, dir);
   const n = clamp(R.lane + dir, 0, 2);
@@ -8320,7 +8329,6 @@ function runLane(dir) {
   R.lane = n; sfx('click');
 }
 function runBoost() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G.run; if (!R || !G.player.alive || R.end || R.phase === 'intro') return;
   if (runCfg().evo >= 2) return runFeverBtn();
   if (R.boost > 0) return;
@@ -8419,7 +8427,7 @@ function startRunBoss() {
   banner('ВНИМАНИЕ!', runCfg().bossName, 2.4, 'warn');
   sfx('siren'); Sound.music('boss');
 }
-function shawSay(text) { const first = readQueue({ kind: 'say', who: runCfg().bossName, text }); G.run.boss.speech = first ? null : { text, t: 2.3 }; sfx(runCfg().voice || 'babble'); }
+function shawSay(text) { const life = dialogLine(text); G.run.boss.speech = { text, t: life, life, who: runCfg().bossName }; sfx(runCfg().voice || 'babble'); }
 function updateRunBoss(dt) {
   const R = G.run, B = R.boss; if (!B) return;
   B.t += dt; B.flash = Math.max(0, B.flash - dt);
@@ -8537,9 +8545,11 @@ function updateRunner(dt) {
   R.jumpBuf = Math.max(0, (R.jumpBuf || 0) - dt); R.knifeCd = Math.max(0, (R.knifeCd || 0) - dt); R.slash = Math.max(0, (R.slash || 0) - dt); R.flap = Math.max(0, (R.flap || 0) - dt);
   R.roll = Math.max(0, R.roll - dt); R.boost = Math.max(0, R.boost - dt); R.inv = Math.max(0, R.inv - dt);
   if (surf === 'sand' && Math.random() < dt * 12 && R.y === 0) { const a = runPlayerScreen(); part({ type: 'smoke', x: a.sx + rand(-20, 20), y: a.sy, r: 3, r1: 12, col: 'rgba(240,220,170,A)', life: 0.4, vx: rand(-40, 40), vy: rand(-40, 0) }); }
-  // hints for the controls
-  const hint = (key, at, title, sub) => { if (!R.hints[key] && R.s > at) { R.hints[key] = 1; banner(title, sub, 2.6, 'small'); } };
-  if (R.phase === 'run') {
+  // hints for the controls: once each, at least 7 s apart; levels 4+ show them when the obstacle that needs them comes up
+  const hint = (key, at, title, sub) => { if (R.s > at) runHint(R, key, title, sub); };
+  if (R.phase === 'run' && runCfg().ctxHints) {
+    for (let j = R.i; j < R.objs.length; j++) { const o = R.objs[j], dz = o.d - R.s; if (dz > 34) break; const h = dz > 14 && !o.dead && runCfg().ctxHints[o.type]; if (h && runHint(R, h[0], h[1], h[2])) break; }
+  } else if (R.phase === 'run') {
     hint('jump', 25, 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел');
     hint('roll', 255, R.juice ? 'ПОДКАТ' : 'КУВЫРОК', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой');
     hint('lane', 425, 'ДОРОЖКИ', isTouch ? 'Свайп влево или вправо' : 'Стрелки влево и вправо');
@@ -8558,7 +8568,7 @@ function updateRunner(dt) {
   for (let j = R.i; j < R.objs.length && !R.homing; j++) {
     const o = R.objs[j];
     if (o.d > R.s + 2) break;
-    if (o.dead || o.reflect || Math.abs(o.d - R.s) > 0.9 || Math.abs(o.x - R.x) > 1.0) continue;
+    if (o.dead || o.reflect || Math.abs(o.d - R.s) > (runCfg().evo >= 2 ? 0.7 : 0.9) || Math.abs(o.x - R.x) > 1.0) continue;
     if (o.fall !== undefined && o.ft < 1) continue;
     runCollide(o);
   }
@@ -8819,7 +8829,7 @@ function drawRunBoss(c, t) {
     c.font = '30px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle';
     if (Math.floor(t * 4) % 2) otext(c, isTouch ? 'ЖМИ!' : 'ЖМИ ПРОБЕЛ!', q.sx, q.sy - base.k * 7.4, '#ffe14d', 7);
   }
-  if (B.speech) speechAt(c, B.speech.text, q.sx - base.k * 1.5, q.sy - base.k * 6, B.speech.t, 2.3, -1);
+  if (B.speech) speechAt(c, B.speech.text, q.sx - base.k * 1.5, q.sy - base.k * 6, B.speech.t, B.speech.life || 2.3, -1, B.speech.who);
 }
 function drawRunHud(c, t) {
   const R = G.run;
@@ -8858,7 +8868,7 @@ function drawRunEnd(c, t) {
   }
   for (let i = 0; i < 14; i++) { const x = ((i * 137 + t * 90) % SW), y = ((i * 71 + t * 120) % SH); P(c); starPath(c, x, y, 6, 2.5); c.fillStyle = ['#ffd43b', '#ff8fa3', '#7ee7f2'][i % 3]; c.fill(); }
   c.font = '54px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle'; otext(c, 'ПОБЕДА!', SW / 2, 70, '#ffd43b', 10);
-  if (G.heroSay) speechAt(c, G.heroSay.text, SW * 0.36 + 70, SH - 330, G.heroSay.t, 3.6, 1);
+  if (G.heroSay) speechAt(c, G.heroSay.text, SW * 0.36 + 70, SH - 330, G.heroSay.t, 3.6, 1, 'Утка Илона');
   if (k < 1.4) { c.fillStyle = 'rgba(255,255,255,' + clamp(1 - (k - 0.8) / 0.6, 0, 1).toFixed(3) + ')'; c.fillRect(0, 0, SW, SH); }
 }
 function renderRunner(c) {
@@ -9733,7 +9743,7 @@ function renderRunner3D(c) {
       c.font = '30px ' + FONT_DISPLAY; c.textAlign = 'center'; c.textBaseline = 'middle';
       if (Math.floor(t * 4) % 2) otext(c, isTouch ? 'ЖМИ «ПРЫЖОК»!' : 'ЖМИ ПРОБЕЛ!', q.sx, q.sy - Math.max(70, q.k * 4), '#ffe14d', 7);
     }
-    if (B.speech) speechAt(c, B.speech.text, q.sx - 40, q.sy - Math.max(40, q.k * 3), B.speech.t, 2.3, -1);
+    if (B.speech) speechAt(c, B.speech.text, q.sx - 40, q.sy - Math.max(40, q.k * 3), B.speech.t, B.speech.life || 2.3, -1, B.speech.who);
   }
   if (R.streak) { const s = R.streak; c.globalAlpha = s.t / 0.25; line(c, [s.x0, s.y0, s.x1, s.y1], 14, '#ffe14d'); line(c, [s.x0, s.y0, s.x1, s.y1], 6, '#fff'); c.globalAlpha = 1; }
   drawParts(c);
@@ -9868,7 +9878,6 @@ function* eelBrain(b) {
   }
 }
 function useEel() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (state !== 'play' || !G || !G.eelUnlocked || G.eelT > 0 || G.eelCharge < 100 || !G.player.alive) return;
   G.eelT = 20; G.eelCharge = 0;
   G.eel = { x: G.player.x - 60, y: G.player.y + 80, strikeT: 0, bolts: [] };
@@ -10749,7 +10758,6 @@ function* crocBossBrain(b) {
   }
 }
 function useCroc() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   if (state !== 'play' || !G || !G.crocUnlocked || G.crocT > 0 || G.crocCharge < 100 || !G.player.alive) return;
   G.crocT = 20; G.crocCharge = 0;
   G.crocA = { x: G.player.x - 40, y: G.player.y + 90, st: 'follow', cd: 0.3, tx: 0, ty: 0, tgt: null, chomp: 0 };
@@ -11264,9 +11272,9 @@ function collide4(o, R) {
     case 'capy': return air > 0.7;
     case 'floppa': if (air > 0.6) { runDestroy(o); R.vy = 12; return true; } return false;
     case 'bonk': return Math.abs(air - o.h) > 1.0;
-    case 'car': return air > 1.15;
+    case 'car': return air > 1.0;
     case 'clock': if (air > 0.55) { runDestroy(o); R.vy = Math.max(R.vy, 11); return true; } return false;
-    case 'books': case 'stack': return air > 0.8;
+    case 'books': case 'stack': return air > 0.7;
     case 'two': case 'edit': return rolling || air > 2.3;
     case 'clip': return Math.abs(air - o.h) > 0.9;
     case 'sheet': return air > 0.3;
@@ -11328,16 +11336,7 @@ const MEME_HINT = {
 function tick4(R) {
   updateFever(R, R.dtLast || 0);
   thesisReflect(R);
-  if (R.cards === undefined) R.cards = R.s > 100 ? 2 : 0;
-  // the title card goes first; the control hints wait until it is gone
-  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('ГОРОД', 'Эволюция графики: тени · мультяшный свет · 3D-утка', 2.6, 'green'); sfx('power'); }
-  if (R.cards === 1 && R.t > 2.9) { R.cards = 2; banner('ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел', 2.4, 'small'); }
-  if (R.cards < 2) return;
-  tick4b(R);
-  for (let j = R.i; j < R.objs.length; j++) {
-    const o = R.objs[j], dz = o.d - R.s; if (dz > 45) break;
-    if (dz > 20 && MEME_HINT[o.type] && !R.hints['m_' + o.type]) { R.hints['m_' + o.type] = 1; banner(MEME_HINT[o.type][0], MEME_HINT[o.type][1], 2.4, 'small'); break; }
-  }
+  if (!R.cards && R.t > 0.3 && R.s < 100) { R.cards = 2; banner('ГОРОД', 'Уровень 4', 1.8, 'green'); }
 }
 
 /* ============================================================ 2D art: meme sprites (front view) */
@@ -11767,7 +11766,8 @@ function duckModelInstall(D) {
   const M = duckParts(); if (!M) return false;
   while (D.body.children.length) D.body.remove(D.body.children[0]);
   const g = new THREE.Group(); g.scale.setScalar(1.5 / M.H); g.rotation.y = Math.PI;
-  const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.outline); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
+  if (!R3E.duckInk) R3E.duckInk = R3E.outline.clone();   // the duck's own ink, so the overdose can make it glow
+  const mk = (p) => { const m = new THREE.Mesh(p.geo, M.mat); m.userData.noOutline = true; const o = new THREE.Mesh(p.ogeo, R3E.duckInk); o.userData.isOutline = true; m.add(o); m.position.fromArray(p.pivot); g.add(m); return m; };
   mk(M.body); const feet = [mk(M.footL), mk(M.footR)];
   // pivots: juice (squash & stretch, tilt) and lean both sit at the feet (y = 0), so the duck squashes into the road
   const lean = new THREE.Group(); lean.add(g); const juice = new THREE.Group(); juice.add(lean); D.body.add(juice);
@@ -11775,7 +11775,7 @@ function duckModelInstall(D) {
   for (const sd of [-1, 1]) {
     const piv = new THREE.Group(); piv.position.set(sd * 0.3, 0.9, 0.12);
     const w = new THREE.Mesh(R3.geo.sphere, wm); w.scale.set(0.42, 0.08, 0.22); w.position.set(sd * 0.38, 0, 0); w.userData.noOutline = true;
-    const wo = new THREE.Mesh(R3.geo.sphere, R3E.outline); wo.scale.setScalar(1.12); wo.userData.isOutline = true; w.add(wo);
+    const wo = new THREE.Mesh(R3.geo.sphere, R3E.duckInk); wo.scale.setScalar(1.12); wo.userData.isOutline = true; w.add(wo);
     piv.add(w); piv.visible = false; lean.add(piv); wings.push(piv);
   }
   D.model = { g, lean, feet, wings, juice };
@@ -11792,7 +11792,7 @@ function duckModelPose(D, R, t) {
   // knife slash: a quick twist of the whole body
   m.lean.rotation.y = R.slash > 0 ? Math.sin((1 - R.slash / SLASH_T) * Math.PI) * -0.9 : 0;
   // wings come out for the glide and the double jump
-  const fly = R.gliding || R.flap > 0;
+  const fly = R.gliding || R.flap > 0 || R.fever > 0;
   for (let i = 0; i < 2; i++) { const w = m.wings[i], sd = i ? 1 : -1; w.visible = fly; if (fly) w.rotation.z = sd * (0.2 + Math.sin(t * (R.gliding ? 16 : 26)) * 0.75); }
   if (R.gliding) m.lean.rotation.x = 0.1;
   const land = R.landT > 0 ? R.landT : 0; m.lean.scale.set(1 + land * 0.25, 1 - land * 0.3, 1 + land * 0.25);
@@ -11829,6 +11829,7 @@ const RUN_CFG4 = {
   targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk', 'clock'], collide: collide4, tick: tick4,
   floatTypes: ['bonk', 'cite', 'pen', 'two', 'edit', 'clip', 'clock'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet', 'two', 'edit', 'clip', 'clock', 'stack'],
   bounce: ['bonk', 'cite', 'clip', 'clock'], bounceH: { clock: 0.45, clip: 1.4 }, draw2D: drawRun2D4,
+  ctxHints: { cone: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], barrier: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], bar: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'], capy: ['knife', 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов' : 'F или клик мышью — руби врагов'], floppa: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — бросок на врага' : 'В прыжке нажми прыжок ещё раз — бросок на врага'] },
   jump: 15.5, grav: 46, bossHp: 6, openPhase: (B) => thesisOpen(B), updOpen: (B, dt) => thesisUpdOpen(B, dt), overlay: (c, t) => overlay4(c, t),
 };
 
@@ -11839,7 +11840,6 @@ const RUN_CFG4 = {
 const SLASH_T = 0.3;
 const KNIFE_OK = ['zombie', 'minion', 'trash', 'jbarrel', 'jtrash', 'jtires', 'capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
 function runKnife() {
-  if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G && G.run;
   if (!R || runCfg().evo < 2 || state !== 'play' || G.phase !== 'run' || R.end || !G.player.alive || R.phase === 'intro') return;
   if (R.knifeCd > 0) return;
@@ -11888,7 +11888,7 @@ const FEVER_T = 6.5;
 function startFever() {
   const R = G.run; if (R.fever > 0) return;
   R.fever = FEVER_T; R.meter = 100; R.boost = 0; R.boostDrain = false;
-  banner('КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Утка огромная и неуязвимая — сноси всё!', 2.2, 'red');
+  banner('КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Неуязвима — сноси всё!', 1.6, 'red');
   sfx('power'); sfx('quack2'); G.shake = 10; G.flash = 0.35; G.flashColor = '#ffb347';
 }
 function runFeverBtn() {
@@ -11905,19 +11905,12 @@ function feverSmash(o) {
 function updateFever(R, dt) {
   if (R.fever > 0) {
     R.fever -= dt; R.meter = Math.max(0, (100 * R.fever) / FEVER_T);
-    if (R.fever <= 0) { R.fever = 0; R.meter = 0; R.inv = 1.2; banner('Передоз прошёл', 'Собирай кофе снова', 1.4, 'small'); }
+    if (R.fever <= 0) { R.fever = 0; R.meter = 0; R.inv = 1.2; }
   } else if (R.meter >= 100 && R.phase !== 'intro' && !R.end && G.player.alive) startFever();
 }
 
 /* ---------- control hints that unlock as you run */
-function tick4b(R) {
-  const hint = (key, ok, title, sub) => { if (!R.hints[key] && ok) { R.hints[key] = 1; banner(title, sub, 2.8, 'small'); } };
-  if (R.phase !== 'run') return;
-  hint('knife', R.s > 120, 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов и препятствия' : 'F или клик мышью — руби врагов и препятствия');
-  hint('glide', R.s > 330, 'ПЛАНИРОВАНИЕ', 'Держи прыжок в воздухе — утка машет крыльями и медленно снижается');
-  hint('djump', R.s > 480, 'ДВОЙНОЙ ПРЫЖОК', 'Нажми прыжок ещё раз в воздухе');
-  hint('fever', R.meter >= 50, 'КОФЕЙНЫЙ ПЕРЕДОЗ', 'Собери полную шкалу кофе — утка станет огромной и неуязвимой');
-}
+function tick4b() {}
 
 /* ---------- boss: the book opens, hit the «УТВЕРЖДЕНО» stamp with a jump attack, dodge the falling textbooks */
 function thesisOpen(B) {
@@ -12058,13 +12051,20 @@ function frame4b(dt, t, F) {
   const R = G.run, D = R3.duck, p = D.root.position;
   const fv = R.fever > 0 ? 1 : 0;
   R3.feverK = lerp(R3.feverK || 0, fv, Math.min(1, dt * 4));
-  D.root.scale.setScalar(1 + R3.feverK * 0.8);
+  const fk = R3.feverK;
+  D.root.scale.setScalar(1 + fk * 1.2);
+  const pulse = 0.75 + Math.sin(t * 14) * 0.25;
+  if (DUCK3.parts) DUCK3.parts.mat.emissive.setRGB(fk * 0.75 * pulse, fk * 0.28 * pulse, 0);
+  if (R3E.duckInk) R3E.duckInk.color.setRGB(0.13 + fk * 0.87, 0.11 + fk * 0.14 * pulse, 0.15 * (1 - fk));
+  if (!R3E.feverAura) { R3E.feverAura = new THREE.Sprite(new THREE.SpriteMaterial({ map: R3E.lampGlow.map, color: '#ff6a00', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); R3.scene.add(R3E.feverAura); }
+  R3E.feverAura.visible = fk > 0.05;
+  if (R3E.feverAura.visible) { R3E.feverAura.position.copy(p).addScaledVector(F.u, 1.6 * (1 + fk * 1.2)); R3E.feverAura.scale.setScalar(6.5 * fk * (0.9 + pulse * 0.2)); R3E.feverAura.material.opacity = 0.7 * fk; }
   if (fv) {
-    for (let k = 0; k < 2; k++) {
+    for (let k = 0; k < 4; k++) {
       const s = R3E.trail[R3E.trailI++ % R3E.trail.length];
       s.visible = true; s.userData.life = 0.3; s.material.color.set(Math.random() < 0.5 ? '#ff7a1a' : '#ffd43b');
-      s.position.copy(p).addScaledVector(F.u, 0.6 + Math.random() * 2.2).addScaledVector(F.r, (Math.random() - 0.5) * 1.8).addScaledVector(F.f, -0.4);
-      s.scale.setScalar(1.2 + Math.random() * 0.8);
+      s.position.copy(p).addScaledVector(F.u, 0.6 + Math.random() * 3.6).addScaledVector(F.r, (Math.random() - 0.5) * 3).addScaledVector(F.f, -0.4);
+      s.scale.setScalar(1.6 + Math.random() * 1.4);
     }
   } else if (!(R.boost > 0)) for (const s of R3E.trail) if (!s.visible) s.material.color.set('#8fe8ff');
   slashFrame(R, D, F);
@@ -12378,11 +12378,12 @@ function collide5(o, R) {
   switch (o.type) {
     case 'zombie': case 'minion': if (air > 0.7 && R.vy < 2) { runDestroy(o); R.vy = Math.max(R.vy, 11); return true; } return air > 1.7;
     case 'chubby': if (air > 1.0 && R.vy < 0) { R.vy = 13; floatText(SW / 2, SH * 0.5, 'ПРУЖИНИТ!', '#7ea7ff', 20); o.hitDone = true; return true; } return air > 1.9;
-    case 'hbar': return rolling || air > 2.6;
-    case 'plastic': return air > 0.75;
-    case 'couch': return air > 0.85;
-    case 'crate': return air > 2.4;
-    case 'taxi': return air > 1.15;
+    // everything can be jumped; slide and ground pound are the safer ways under/through the tall ones
+    case 'hbar': return rolling || air > 1.85;
+    case 'plastic': return air > 0.65;
+    case 'couch': return air > 0.75;
+    case 'crate': return air > 2.0;
+    case 'taxi': return air > 1.0;
     case 'trash': return air > 0.5;
     case 'jbarrel': case 'jtires': return air > 0.7;
     case 'jtrash': return rolling || air > 2.3;
@@ -12396,12 +12397,12 @@ function pickup5(o, R) {
   if (o.type === 'stipend') {
     if (Math.abs(R.y - (o.h || 0)) > 2.2) return true;
     o.dead = true; R.magnet = 10; addScore(500);
-    banner('ПОВЫШЕННАЯ СТИПЕНДИЯ!', 'Кофе сам летит к утке 10 секунд', 2.2, 'green'); sfx('power'); sfx('heal');
+    banner('СТИПЕНДИЯ!', 'Кофе летит к тебе 10 с', 1.6, 'green'); sfx('power'); sfx('heal');
     return true;
   }
   if (o.type === 'armor') {
     o.dead = true; R.armor = 15; R.inv = 0; addScore(500);
-    banner('БРОНЕ-ТАКСИ!', 'Тарань всё подряд 15 секунд!', 2.2, 'red'); sfx('power'); sfx('honk'); G.shake = 9;
+    banner('БРОНЕ-ТАКСИ!', 'Тарань всё 15 с', 1.6, 'red'); sfx('power'); sfx('honk'); G.shake = 9;
     return true;
   }
   return false;
@@ -12412,9 +12413,7 @@ const KNIFE_NO5 = { chubby: 'ТОЛСТЫЙ! Бей сверху ↓', crate: '�
 function tick5(R) {
   const dt = R.dtLast || 0;
   updateFever(R, dt);
-  if (R.cards === undefined) R.cards = R.s > 100 ? 2 : 0;
-  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('АКАДЕМИЧЕСКИЙ ОТПУСК', 'Город захватили зомби-студенты. Беги, утка!', 3, 'red'); sfx('drone'); }
-  if (R.cards === 1 && R.t > 1.0) { R.cards = 2; banner('ПРЫЖОК И ПОДКАТ', isTouch ? '«Прыжок» — прыжок, свайп вниз — подкат под высоким барьером' : 'Пробел — прыжок, стрелка вниз — подкат под высоким барьером', 2.6, 'small'); }
+  if (!R.cards && R.t > 0.3 && R.s < 100) { R.cards = 2; banner('АКАДЕМИЧЕСКИЙ ОТПУСК', 'Уровень 5', 1.8, 'green'); }
   if (R.magnet > 0) {
     R.magnet -= dt;
     for (let j = R.i; j < R.objs.length; j++) {
@@ -12423,23 +12422,14 @@ function tick5(R) {
       o.x = lerp(o.x, R.x, Math.min(1, dt * 7)); o.h = lerp(o.h, R.y + 0.4, Math.min(1, dt * 7)); o.d -= dt * 9;
       if (o.mesh) placeObj(o);
     }
-    if (R.magnet <= 0) banner('Стипендия кончилась', '', 1.2, 'small');
   }
-  if (R.armor > 0) { R.armor -= dt; if (R.armor <= 0) { R.armor = 0; R.inv = 1.2; banner('Такси сломалось', 'Снова пешком!', 1.4, 'small'); } }
-  if (R.cards < 2 || R.phase !== 'run') return;
-  const hint = (key, ok, title, sub) => { if (!R.hints[key] && ok) { R.hints[key] = 1; banner(title, sub, 2.8, 'small'); } };
-  hint('knife', R.s > 110, 'НОЖ', isTouch ? 'Кнопка «Нож» — руби зомби и мусор' : 'F или клик мышью — руби зомби и мусор');
-  hint('chain', R.s > 260, 'ЦЕПНАЯ АТАКА', 'В прыжке жми прыжок ещё раз — утка бросается на зомби и летит к следующему');
-  hint('pound', R.s > 420, 'УДАР СВЕРХУ', isTouch ? 'В прыжке свайп вниз — ломает хрупкие ящики и бьёт по площади' : 'В прыжке стрелка вниз — ломает хрупкие ящики и бьёт по площади');
-  for (let j = R.i; j < R.objs.length; j++) {
-    const o = R.objs[j], dz = o.d - R.s; if (dz > 45) break;
-    if (dz > 20 && HINT5[o.type] && !R.hints['m_' + o.type]) { R.hints['m_' + o.type] = 1; banner(HINT5[o.type][0], HINT5[o.type][1], 2.6, 'small'); break; }
-  }
+  if (R.armor > 0) { R.armor -= dt; if (R.armor <= 0) { R.armor = 0; R.inv = 1.2; } }
+
 }
 const HINT5 = {
   zombie: ['ЗОМБИ-СТУДЕНТ', 'Прыгни сверху, руби ножом или атакуй в прыжке'],
   chubby: ['СИНИЙ ТОЛСТЯК', 'Нож не берёт! Удар сверху или перепрыгни'],
-  hbar: ['ВЫСОКИЙ БАРЬЕР', 'Только подкатом — утка сжимается вдвое'],
+  hbar: ['ВЫСОКИЙ БАРЬЕР', 'Подкат или высокий прыжок'],
   crate: ['ХРУПКИЕ ЯЩИКИ', 'Слишком высоко — прыгни и бей сверху ↓'],
   couch: ['ДИВАН', 'Перепрыгни'],
   taxi: ['ЖЁЛТОЕ ТАКСИ', 'Объезжай или перепрыгни'],
@@ -12461,9 +12451,9 @@ const TROLL_LINES = {
 function trollPhase(B, st) {
   const R = G.run;
   B.state = st; B.t = 0; if (st === 'summon') B.chainOpened = false; B.vol = 0; B.atkT = 0.6; B.spawned = false; B.slammed = false; B.chainKills = 0;
-  if (st === 'throw') { if (!R.hints.p1) { R.hints.p1 = 1; banner('ФАЗА 1: ХЛАМ', 'Тролль швыряет мусор: прыгай, подкатывайся, руби ножом', 2.6, 'green'); } }
-  if (st === 'summon') { if (!R.hints.p2) { R.hints.p2 = 1; banner('ФАЗА 2: МИНЬОНЫ', 'Цепочка прыжков по зомби — последний прыжок прямо в Тролля!', 2.8, 'green'); } shawSay(pick(TROLL_LINES.summon)); trollAnim('Wave', true); }
-  if (st === 'slam') { if (!R.hints.p3) { R.hints.p3 = 1; banner('ФАЗА 3: ТОПОТ', 'Перепрыгни волну, потом прыгни и бей сверху по застрявшему Троллю', 2.8, 'green'); } shawSay(pick(TROLL_LINES.slam)); }
+  if (st === 'throw') { if (!R.hints.p1) { R.hints.p1 = 1; banner('ФАЗА 1: ХЛАМ', 'Прыгай, подкатывайся, руби', 2, 'green'); } }
+  if (st === 'summon') { if (!R.hints.p2) { R.hints.p2 = 1; banner('ФАЗА 2: МИНЬОНЫ', 'Цепочка по зомби — и в Тролля!', 2.2, 'green'); } shawSay(pick(TROLL_LINES.summon)); trollAnim('Wave', true); }
+  if (st === 'slam') { if (!R.hints.p3) { R.hints.p3 = 1; banner('ФАЗА 3: ТОПОТ', 'Перепрыгни волну — и удар сверху!', 2.2, 'green'); } shawSay(pick(TROLL_LINES.slam)); }
   if (st === 'stun') { shawSay(pick(TROLL_LINES.stun)); trollAnim('Idle'); }
 }
 function trollAnim(name, once) { const T = R3E.troll; if (T && T.play) { const a = T.play(name, once, 0.25); if (a && once) a.timeScale = 1.2; } }
@@ -12558,7 +12548,6 @@ function onChain5(o) {
   B.chainKills = (B.chainKills || 0) + 1;
   if (B.chainKills < 2 || R.objs.some((m) => m.minion && !m.dead && m.d > R.s - 1)) return;
   B.homable = true; B.chainT = 2.4;
-  if (!R.hints.chainBoss) { R.hints.chainBoss = 1; banner('ПОСЛЕДНИЙ ПРЫЖОК!', 'Жми прыжок — цепочка прямо в Тролля!', 2, 'small'); }
 }
 function onPound5(R) { const B = R.boss; if (B && B.state === 'stun' && B.z < 11) trollHit('pound'); }
 
@@ -12590,7 +12579,7 @@ function makeObj5(o, g, add) {
       const z = kit('barrierHigh', 1.8, { by: 'len' });
       if (z) z.root.position.y = 1.15; else box('#ff7a1a', 1.9, 0.5, 0.2, 1.5);
       for (const sx of [-0.95, 0.95]) add(G3.box, M.dark, 0.12, 2.0, 0.12, sx, 1.0, 0);
-      label('ПОДКАТ ↓', '#e8590c', 2.45);
+      label('ПОДКАТ ↓ / ПРЫЖОК', '#e8590c', 2.45);
       break;
     }
     case 'plastic': { if (!kit('plastic', 1.9, { by: 'len' })) box('#ffd43b', 1.8, 0.8, 0.5, 0.4); break; }
@@ -12604,7 +12593,7 @@ function makeObj5(o, g, add) {
     case 'crate': {
       const P = ZK.models.pallet;
       for (let k = 0; k < 5; k++) { const z = zkMake('pallet', 1.7, { by: 'len' }); if (!z) { box('#c9a26a', 1.6, 2.3, 1.2, 1.15); break; } z.root.position.y = k * (P ? (P.size.y * 1.7) / Math.max(P.size.x, P.size.z) : 0.25) * 1.0; z.root.rotation.y = k * 0.15; g.add(z.root); }
-      label('БЕЙ СВЕРХУ ↓', '#c92a2a', 2.75);
+      label('ВЫСОКО! БЕЙ СВЕРХУ ↓', '#c92a2a', 2.75);
       break;
     }
     case 'taxi': { if (!kit('taxi', 3.8, { by: 'len', turn: Math.PI })) box('#ffcf33', 1.7, 1.2, 3.4, 0.6); break; }
@@ -12728,139 +12717,43 @@ const RUN_CFG5 = Object.assign({}, RUN_CFG4, {
   evo: 2, bossAt: BOSS5_AT, surfaces: [[0, 'city']], build: buildTrack5, plan: () => TRACK_PLAN5,
   bossName: 'Тролль-мутант', bossLabel: 'АКАДЕМИЧЕСКИЙ ТРОЛЛЬ', voice: 'drone', lines: TROLL_LINES, bossHp: 6,
   drawBoss: drawTroll2D, drawEnd: drawEnd5, endSay: 'Тролль повержен! Академический отпуск окончен — все на пары!', deathFx: 'paper',
+  ctxHints: { plastic: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], trash: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], hbar: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'], zombie: ['knife', 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов' : 'F или клик мышью — руби врагов'], chubby: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — бросок на врага' : 'В прыжке нажми прыжок ещё раз — бросок на врага'], crate: ['pound', 'УДАР СВЕРХУ', isTouch ? 'В прыжке свайп вниз — ломает ящики' : 'В прыжке стрелка вниз — ломает ящики'] },
   targets: ['zombie', 'minion', 'chubby'], collide: collide5, tick: tick5, pickup: pickup5, knifeNo: KNIFE_NO5,
   floatTypes: ['stipend', 'jtrash'], moveTypes: ['zombie', 'minion', 'chubby', 'jbarrel', 'jtires', 'jtrash', 'jcouch', 'quake'], bounce: [], bounceH: {},
   openPhase: null, updOpen: null, bossUpdate: trollUpdate, bossHit: () => { const B = G.run.boss; if (B && B.homable) trollHit('chain'); }, boss3d: trollFrame,
   onChain: onChain5, onPound: onPound5, overlay: overlay5, theme: THEME5, decor: decor5, frame3d: frame5,
 });
 
-/* ============================================================ comic pause for reading
-   A message or line of dialog seen for the first time pauses the game: the screen dims with a halftone,
-   the text pops up in a comic panel (one at a time, never on top of each other), then the game eases back in.
-   Space / Enter / tap continues early (after a short moment); repeats of a text show as ordinary banners. */
-function readQueue(item) {
-  if (!G || DEBUG.noRead) return false;
-  const key = (item.who || '') + '|' + (item.title || '') + '|' + (item.sub || '') + '|' + (item.text || '');
+/* ============================================================ dialog: comic balloons with a slow-down (no pause)
+   A line said for the first time slows the game to half speed while it can be read (the balloon stays next to
+   the speaker, the road stays visible). Repeated lines just show the balloon. */
+const DIALOG_SLOW = 0.5;
+function dialogLine(text) {
+  const life = clamp(1.6 + String(text).length * 0.05, 2.3, 4.5);
+  if (!G || DEBUG.noRead) return life;
   if (!G.seen) G.seen = new Set();
-  if (G.seen.has(key)) return false;
-  G.seen.add(key);
-  const chars = ((item.title || '') + (item.sub || '') + (item.text || '')).length;
-  item.hold = item.kind === 'say' ? clamp(1.6 + chars * 0.05, 2.2, 6) : clamp(1.9 + chars * 0.05, 2.6, 7);
-  if (!G.readQ) G.readQ = [];
-  G.readQ.push(item);
-  return true;
+  if (!G.seen.has(text)) { G.seen.add(text); G.dlgT = Math.max(G.dlgT || 0, life * 0.75); }
+  return life;
 }
-const comicActive = () => !!(G && G.readCur);
-function comicSkip() { const P = G && G.readCur; if (P && !P.closing && P.t > 0.6) { P.closing = true; sfx('click'); } }
-// advances the panel clock in real time; returns true while the game should stay paused
-function comicStep(dt) {
-  if (!G.readCur && G.readQ && G.readQ.length) { G.readCur = G.readQ.shift(); G.readCur.t = 0; G.readCur.out = 0; sfx('pop'); }
-  const P = G.readCur; if (!P) return false;
-  P.t += dt;
-  if (P.closing) {
-    P.out += dt;
-    if (P.out >= 0.3) { G.readCur = null; return !!(G.readQ && G.readQ.length); }
-  } else if (P.t >= P.hold) P.closing = true;
-  return true;
-}
-const easeOutBack = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-function wrapText(c, text, maxW) {
-  const out = []; let line = '';
-  for (const w of String(text).split(/\s+/)) {
-    const t = line ? line + ' ' + w : w;
-    if (c.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
-  }
-  if (line) out.push(line);
-  return out;
-}
+const comicActive = () => false;
+function comicSkip() {}
+// a light halftone rim while the world is slowed for reading
 let halftone = null;
 function halftoneLayer() {
   if (halftone && halftone.w === SW) return halftone.cv;
   const cv = document.createElement('canvas'); cv.width = SW; cv.height = SH;
   const c = cv.getContext('2d'); c.fillStyle = '#000';
   for (let y = 0; y < SH; y += 12) for (let x = (y / 12) % 2 ? 6 : 0; x < SW; x += 12) {
-    const d = Math.hypot((x - SW / 2) / SW, (y - SH / 2) / SH), r = 0.6 + d * 4.2;
-    c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+    const d = Math.hypot((x - SW / 2) / SW, (y - SH / 2) / SH), r = Math.max(0, (d - 0.32) * 9);
+    if (r > 0.2) { c.beginPath(); c.arc(x, y, Math.min(5, r), 0, TAU); c.fill(); }
   }
   halftone = { w: SW, cv };
   return cv;
 }
-const COMIC_COL = { warn: '#e03131', red: '#c92a2a', green: '#2b8a3e', small: '#7048e8', wave: '#e8590c', title: '#e8590c', sign: '#1971c2' };
-function drawComic(c) {
-  const P = G && G.readCur;
-  const nextUp = !!(G && G.readQ && G.readQ.length);
-  if (!P) return;
-  c.save(); c.setTransform(view.px, 0, 0, view.px, 0, 0);
-  // dim + halftone; stays dark between two panels in a row
-  const dimA = P.closing && !nextUp ? 1 - P.out / 0.3 : Math.min(1, P.t / 0.18);
-  c.globalAlpha = clamp(dimA, 0, 1);
-  c.fillStyle = 'rgba(14,10,30,0.62)'; c.fillRect(0, 0, SW, SH);
-  c.globalAlpha = clamp(dimA, 0, 1) * 0.22; c.drawImage(halftoneLayer(), 0, 0);
-  // the panel pops in (overshoot) and drops away
-  const pin = easeOutBack(clamp(P.t / 0.3, 0, 1)), pout = P.closing ? clamp(P.out / 0.3, 0, 1) : 0;
-  c.globalAlpha = 1 - pout;
-  const say = P.kind === 'say', W0 = Math.min(SW * 0.82, 780), pad = 30;
-  c.font = '800 25px ' + FONT_UI;
-  const titleSize = say ? 0 : (P.style === 'small' ? 46 : 54);
-  const bodyFont = say ? '800 30px ' + FONT_UI : '800 25px ' + FONT_UI, lineH = say ? 38 : 32;
-  c.font = bodyFont;
-  const lines = wrapText(c, say ? P.text : P.sub || '', W0 - pad * 2);
-  if (!say && P.title) { c.font = titleSize + 'px ' + FONT_DISPLAY; }
-  const titleW = !say && P.title ? c.measureText(P.title).width : 0, tScale = titleW > W0 - pad * 2 ? (W0 - pad * 2) / titleW : 1;
-  const hTitle = !say && P.title ? titleSize * tScale + 14 : 0, h = pad * 2 + hTitle + lines.length * lineH + 22;
-  const cx = SW / 2, cy = SH * 0.46;
-  c.translate(cx, cy + pout * 60); c.rotate(-0.025 + Math.sin(P.t * 2) * 0.004); c.scale(0.55 + 0.45 * pin, 0.55 + 0.45 * pin);
-  const x0 = -W0 / 2, y0 = -h / 2;
-  // a red starburst behind warnings, like a «БАМ!»
-  if (P.style === 'warn' || P.style === 'red') {
-    c.save(); c.rotate(P.t * 0.4); P_burst(c, 0, 0, W0 * 0.62, W0 * 0.5, 18, '#ffd43b'); c.restore();
-  }
-  // panel: ink shadow, paper, thick outline (dialog = balloon with a tail)
-  c.fillStyle = '#16121f'; roundRect(c, x0 + 9, y0 + 10, W0, h, say ? 34 : 12); c.fill();
-  c.fillStyle = say ? '#fffdf6' : '#fff4c2'; roundRect(c, x0, y0, W0, h, say ? 34 : 12); c.fill();
-  c.lineWidth = 6; c.strokeStyle = '#16121f'; c.stroke();
-  if (say) {
-    c.beginPath(); c.moveTo(x0 + 70, y0 + h - 3); c.lineTo(x0 + 34, y0 + h + 46); c.lineTo(x0 + 128, y0 + h - 3); c.closePath();
-    c.fillStyle = '#fffdf6'; c.fill(); c.stroke();
-    c.fillStyle = '#fffdf6'; c.fillRect(x0 + 74, y0 + h - 9, 50, 8);
-  }
-  let y = y0 + pad;
-  if (say && P.who) {
-    // speaker tag on the panel corner
-    c.save(); c.translate(x0 + 24, y0 - 6); c.rotate(-0.06);
-    c.font = '900 20px ' + FONT_UI; const tw = c.measureText(P.who.toUpperCase()).width + 28;
-    c.fillStyle = '#16121f'; roundRect(c, 4, -18, tw, 36, 8); c.fill();
-    c.fillStyle = '#ffd43b'; roundRect(c, 0, -22, tw, 36, 8); c.fill(); c.lineWidth = 3.5; c.strokeStyle = '#16121f'; c.stroke();
-    c.fillStyle = '#16121f'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(P.who.toUpperCase(), 14, -3);
-    c.restore();
-    y += 6;
-  }
-  c.textAlign = 'center'; c.textBaseline = 'top';
-  if (!say && P.title) {
-    c.save(); c.translate(0, y); c.scale(tScale, tScale);
-    c.font = titleSize + 'px ' + FONT_DISPLAY; c.lineJoin = 'round';
-    c.lineWidth = 8; c.strokeStyle = '#16121f'; c.strokeText(P.title, 0, 0);
-    c.fillStyle = COMIC_COL[P.style] || COMIC_COL.title; c.fillText(P.title, 0, 0);
-    c.restore();
-    y += hTitle;
-  }
-  c.font = bodyFont; c.fillStyle = '#16121f';
-  for (const L of lines) { c.fillText(L, 0, y); y += lineH; }
-  // auto-continue bar and the «next» hint
-  const k = clamp(P.t / P.hold, 0, 1);
-  c.fillStyle = 'rgba(22,18,31,0.18)'; c.fillRect(x0 + 24, y0 + h - 16, W0 - 48, 5);
-  c.fillStyle = '#16121f'; c.fillRect(x0 + 24, y0 + h - 16, (W0 - 48) * k, 5);
-  if (P.t > 0.6 && !P.closing && Math.floor(P.t * 2.5) % 2 === 0) {
-    c.font = '900 15px ' + FONT_UI; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.fillStyle = '#5c5470';
-    c.fillText(isTouch ? 'тап — дальше ▸' : 'Пробел / Enter — дальше ▸', x0 + W0 - 22, y0 + h - 22);
-  }
-  c.restore();
-}
-function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-function P_burst(c, x, y, rx, ry, n, col) {
-  c.beginPath();
-  for (let i = 0; i <= n * 2; i++) { const a = (i / (n * 2)) * TAU, r = i % 2 ? 0.72 : 1; c.lineTo(x + Math.cos(a) * rx * r, y + Math.sin(a) * ry * r); }
-  c.closePath(); c.fillStyle = col; c.fill(); c.lineWidth = 6; c.strokeStyle = '#16121f'; c.stroke();
+function drawDialogRim(c) {
+  const k = 1 - (G.readK === undefined ? 1 : G.readK);
+  if (k < 0.05 || G.phase === 'outro') return;
+  c.save(); c.setTransform(view.px, 0, 0, view.px, 0, 0); c.globalAlpha = Math.min(1, k * 2) * 0.28; c.drawImage(halftoneLayer(), 0, 0); c.restore();
 }
 
 /* ============================================================ particles & effects */
@@ -12928,6 +12821,7 @@ function updateParts(dt) {
   G.texts = G.texts.filter((t) => t.t < t.life);
   for (const b of G.banners) b.t += G.realDt !== undefined ? G.realDt / Math.max(1, DEBUG.substeps) : dt;
   G.banners = G.banners.filter((b) => b.t < b.life);
+  if (G.bannerQ && G.bannerQ.length && !G.banners.some((b) => b.t < b.life - 0.3) && !speechBusy()) { const nb = G.bannerQ.shift(); nb.t = 0; G.banners.push(nb); }
 }
 function drawParts(c) {
   for (const p of G.parts) {
@@ -13002,27 +12896,29 @@ function wrapText(c, text, maxW) {
   return lines;
 }
 // speech bubble in screen space; side -1 = bubble to the left of the speaker, +1 = right
-function speechAt(c, text, ax, ay, tLeft, total, side) {
-  c.font = '21px ' + FONT_HAND;
-  const lines = wrapText(c, text, 240);
+function speechAt(c, text, ax, ay, tLeft, total, side, who) {
+  c.font = '800 19px ' + FONT_UI;
+  const lines = wrapText(c, text, 250);
   let w = 0; for (const l of lines) w = Math.max(w, c.measureText(l).width);
-  w += 30; const h = lines.length * 25 + 18;
-  const bx = clamp(side < 0 ? ax - w - 26 : ax + 26, 10, SW - w - 10), by = clamp(ay - h - 20, 74, SH - h - 10);
+  w += 34; const h = lines.length * 24 + (who ? 30 : 20);
+  const bx = clamp(side < 0 ? ax - w - 26 : ax + 26, 10, SW - w - 10), by = clamp(ay - h - 20, 96, SH - h - 10);
   const k = clamp(Math.min((total - tLeft) * 7, tLeft * 4), 0, 1);
   const t1 = clamp(side < 0 ? bx + w - 30 : bx + 30, bx + 20, bx + w - 20), t2 = t1 + (side < 0 ? -28 : 28);
   c.save(); c.globalAlpha = k;
   c.translate(bx + w / 2, by + h / 2); c.scale(0.7 + 0.3 * k, 0.7 + 0.3 * k); c.translate(-(bx + w / 2), -(by + h / 2));
-  P(c); rr(c, bx, by, w, h, 14);
+  P(c); rr(c, bx + 6, by + 7, w, h, 16); c.fillStyle = 'rgba(22,18,31,0.85)'; c.fill();
+  P(c); rr(c, bx, by, w, h, 16);
   c.moveTo(t1, by + h - 1); c.lineTo(ax, ay - 4); c.lineTo(t2, by + h - 1);
-  fs(c, '#fff', 3.5);
-  P(c); c.rect(Math.min(t1, t2) + 2, by + h - 5, 24, 6); c.fillStyle = '#fff'; c.fill();
-  c.fillStyle = INK; c.textAlign = 'center'; c.textBaseline = 'middle';
-  lines.forEach((l, i) => c.fillText(l, bx + w / 2, by + 21 + i * 25));
+  fs(c, '#fffdf6', 4.5);
+  P(c); c.rect(Math.min(t1, t2) + 3, by + h - 6, 22, 7); c.fillStyle = '#fffdf6'; c.fill();
+  if (who) { c.font = '900 13px ' + FONT_UI; const tw = c.measureText(who.toUpperCase()).width + 16; P(c); rr(c, bx + 12, by - 11, tw, 22, 6); fs(c, '#ffd43b', 3); c.fillStyle = INK; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(who.toUpperCase(), bx + 20, by); }
+  c.font = '800 19px ' + FONT_UI; c.fillStyle = INK; c.textAlign = 'center'; c.textBaseline = 'middle';
+  lines.forEach((l, i) => c.fillText(l, bx + w / 2, by + (who ? 26 : 20) + i * 24));
   c.restore();
 }
 function drawSpeech(c, b) {
   const s = toScreen(b.x, b.y + b.oy), k = BOSS[b.kind].scale || 1, hd = BOSS[b.kind].head.map((v) => v * k);
-  speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, 2.3, -1);
+  speechAt(c, b.speech.text, s.x + hd[0], s.y + hd[1], b.speech.t, b.speech.life || 2.3, -1, b.speech.who);
 }
 const BOSS_ART = { granny: drawGranny, pike: drawPike, car: drawCar, catfish: drawCatfish, squid: drawSquid, mega: drawMega, kraken: drawKraken, eel: drawEel, swordfish: drawSwordBoss, perch: drawPerchBoss, gator: drawGator, anaconda: drawAnaconda, crocboss: drawCrocBoss, vampire: drawVampire, salmon: drawSalmon, crayboss: drawCrayBoss };
 function drawBossEntity(c, b, t) {
@@ -13285,7 +13181,7 @@ function render() {
   }
   drawL4Speech(c);
   drawL6Speech(c);
-  if (G.heroSay) { const q = toScreen(G.player.x, G.player.y); speechAt(c, G.heroSay.text, q.x + 10, q.y - 46, G.heroSay.t, 3.4, 1); }
+  if (G.heroSay) { const q = toScreen(G.player.x, G.player.y); speechAt(c, G.heroSay.text, q.x + 10, q.y - 46, G.heroSay.t, 3.4, 1, G.mode === 'duck' ? 'Утка Илона' : 'Карась Миша'); }
   c.restore();
   drawTexts(c);
   if (G.slowT > 0) { const a = Math.min(1, G.slowT) * 0.16; c.fillStyle = 'rgba(80,160,255,' + a.toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
@@ -13629,8 +13525,6 @@ document.addEventListener('webkitfullscreenchange', () => { updateFsPrompt(); se
 updateFsPrompt();
 
 hooks.key = (code, e, onButton) => {
-  // while a comic panel is up, keys only turn the page (pause and mute still work)
-  if (state === 'play' && comicActive() && code !== 'Escape' && code !== 'KeyP' && code !== 'KeyM') { comicSkip(); return; }
   if (state === 'play' && G && G.run && code !== 'Escape' && code !== 'KeyP' && code !== 'KeyM') { runnerKey(code); return; }
   if (state === 'play') {
     if (code === 'Space' || code === 'KeyX' || code === 'KeyB' || code === 'Enter') useBomb();
@@ -13650,7 +13544,7 @@ hooks.key = (code, e, onButton) => {
   }
 };
 hooks.blur = () => { if (state === 'play') pauseGame(); };
-hooks.tap = (e) => { if (state !== 'play' || !G) return; if (comicActive()) { comicSkip(); return; } if (!G.run) doBurst(); else if (e && e.pointerType === 'mouse' && runCfg().evo >= 2) runKnife(); };
+hooks.tap = (e) => { if (state !== 'play' || !G) return; if (!G.run) doBurst(); else if (e && e.pointerType === 'mouse' && runCfg().evo >= 2) runKnife(); };
 hooks.keyUp = (code) => { if (state === 'play' && G && G.run) runnerKeyUp(code); };
 hooks.swipe = (dir) => { if (state !== 'play' || !G || !G.run) return; if (dir === 'down') runRoll(); else if (dir !== 'up') runLane(dir === 'left' ? -1 : 1); };
 document.addEventListener('visibilitychange', () => {
@@ -13691,17 +13585,18 @@ function loop(now) {
   lastT = now;
   try {
     if (state === 'play') {
-      // comic pause for new messages (the game stands still), a smooth ramp back, slower ending text, knife hit-stop
-      if (G.heroSay && !G.heroSay.seen) { G.heroSay.seen = true; readQueue({ kind: 'say', who: G.mode === 'duck' ? 'Утка Илона' : 'Карась Миша', text: G.heroSay.text }); }
-      const paused = comicStep(dt), cur = G.readK === undefined ? 1 : G.readK;
-      G.readK = paused ? 0 : lerp(cur, G.phase === 'outro' ? 0.7 : 1, Math.min(1, dt * 2.6));
-      if (!paused && G.readK > 0.985 && G.phase !== 'outro') G.readK = 1;
+      // a new line of dialog slows the world down while it is read (no pause); the ending text runs slower; knife hit-stop
+      if (G.heroSay && !G.heroSay.seen) { G.heroSay.seen = true; dialogLine(G.heroSay.text); }
+      G.dlgT = Math.max(0, (G.dlgT || 0) - dt);
+      const want = G.dlgT > 0 ? DIALOG_SLOW : G.phase === 'outro' ? 0.7 : 1, cur = G.readK === undefined ? 1 : G.readK;
+      G.readK = lerp(cur, want, Math.min(1, dt * (want < cur ? 6 : 2.5)));
+      if (want === 1 && G.readK > 0.985) G.readK = 1;
       let gdt = dt * G.readK;
       if (G.hitStop > 0) { G.hitStop -= dt; gdt *= 0.08; }
       G.realDt = dt;
       if (gdt > 0) for (let i = 0; i < DEBUG.substeps && state === 'play'; i++) update(gdt);
       render();
-      drawComic(ctx);
+      drawDialogRim(ctx);
     }
     else if (state === 'menu') drawHeroes(now / 1000);
   } catch (err) {

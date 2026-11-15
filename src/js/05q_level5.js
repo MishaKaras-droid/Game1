@@ -52,11 +52,12 @@ function collide5(o, R) {
   switch (o.type) {
     case 'zombie': case 'minion': if (air > 0.7 && R.vy < 2) { runDestroy(o); R.vy = Math.max(R.vy, 11); return true; } return air > 1.7;
     case 'chubby': if (air > 1.0 && R.vy < 0) { R.vy = 13; floatText(SW / 2, SH * 0.5, 'ПРУЖИНИТ!', '#7ea7ff', 20); o.hitDone = true; return true; } return air > 1.9;
-    case 'hbar': return rolling || air > 2.6;
-    case 'plastic': return air > 0.75;
-    case 'couch': return air > 0.85;
-    case 'crate': return air > 2.4;
-    case 'taxi': return air > 1.15;
+    // everything can be jumped; slide and ground pound are the safer ways under/through the tall ones
+    case 'hbar': return rolling || air > 1.85;
+    case 'plastic': return air > 0.65;
+    case 'couch': return air > 0.75;
+    case 'crate': return air > 2.0;
+    case 'taxi': return air > 1.0;
     case 'trash': return air > 0.5;
     case 'jbarrel': case 'jtires': return air > 0.7;
     case 'jtrash': return rolling || air > 2.3;
@@ -70,12 +71,12 @@ function pickup5(o, R) {
   if (o.type === 'stipend') {
     if (Math.abs(R.y - (o.h || 0)) > 2.2) return true;
     o.dead = true; R.magnet = 10; addScore(500);
-    banner('ПОВЫШЕННАЯ СТИПЕНДИЯ!', 'Кофе сам летит к утке 10 секунд', 2.2, 'green'); sfx('power'); sfx('heal');
+    banner('СТИПЕНДИЯ!', 'Кофе летит к тебе 10 с', 1.6, 'green'); sfx('power'); sfx('heal');
     return true;
   }
   if (o.type === 'armor') {
     o.dead = true; R.armor = 15; R.inv = 0; addScore(500);
-    banner('БРОНЕ-ТАКСИ!', 'Тарань всё подряд 15 секунд!', 2.2, 'red'); sfx('power'); sfx('honk'); G.shake = 9;
+    banner('БРОНЕ-ТАКСИ!', 'Тарань всё 15 с', 1.6, 'red'); sfx('power'); sfx('honk'); G.shake = 9;
     return true;
   }
   return false;
@@ -86,9 +87,7 @@ const KNIFE_NO5 = { chubby: 'ТОЛСТЫЙ! Бей сверху ↓', crate: '�
 function tick5(R) {
   const dt = R.dtLast || 0;
   updateFever(R, dt);
-  if (R.cards === undefined) R.cards = R.s > 100 ? 2 : 0;
-  if (R.cards === 0 && R.t > 0.1) { R.cards = 1; R.hints.jump = 1; banner('АКАДЕМИЧЕСКИЙ ОТПУСК', 'Город захватили зомби-студенты. Беги, утка!', 3, 'red'); sfx('drone'); }
-  if (R.cards === 1 && R.t > 1.0) { R.cards = 2; banner('ПРЫЖОК И ПОДКАТ', isTouch ? '«Прыжок» — прыжок, свайп вниз — подкат под высоким барьером' : 'Пробел — прыжок, стрелка вниз — подкат под высоким барьером', 2.6, 'small'); }
+  if (!R.cards && R.t > 0.3 && R.s < 100) { R.cards = 2; banner('АКАДЕМИЧЕСКИЙ ОТПУСК', 'Уровень 5', 1.8, 'green'); }
   if (R.magnet > 0) {
     R.magnet -= dt;
     for (let j = R.i; j < R.objs.length; j++) {
@@ -97,23 +96,14 @@ function tick5(R) {
       o.x = lerp(o.x, R.x, Math.min(1, dt * 7)); o.h = lerp(o.h, R.y + 0.4, Math.min(1, dt * 7)); o.d -= dt * 9;
       if (o.mesh) placeObj(o);
     }
-    if (R.magnet <= 0) banner('Стипендия кончилась', '', 1.2, 'small');
   }
-  if (R.armor > 0) { R.armor -= dt; if (R.armor <= 0) { R.armor = 0; R.inv = 1.2; banner('Такси сломалось', 'Снова пешком!', 1.4, 'small'); } }
-  if (R.cards < 2 || R.phase !== 'run') return;
-  const hint = (key, ok, title, sub) => { if (!R.hints[key] && ok) { R.hints[key] = 1; banner(title, sub, 2.8, 'small'); } };
-  hint('knife', R.s > 110, 'НОЖ', isTouch ? 'Кнопка «Нож» — руби зомби и мусор' : 'F или клик мышью — руби зомби и мусор');
-  hint('chain', R.s > 260, 'ЦЕПНАЯ АТАКА', 'В прыжке жми прыжок ещё раз — утка бросается на зомби и летит к следующему');
-  hint('pound', R.s > 420, 'УДАР СВЕРХУ', isTouch ? 'В прыжке свайп вниз — ломает хрупкие ящики и бьёт по площади' : 'В прыжке стрелка вниз — ломает хрупкие ящики и бьёт по площади');
-  for (let j = R.i; j < R.objs.length; j++) {
-    const o = R.objs[j], dz = o.d - R.s; if (dz > 45) break;
-    if (dz > 20 && HINT5[o.type] && !R.hints['m_' + o.type]) { R.hints['m_' + o.type] = 1; banner(HINT5[o.type][0], HINT5[o.type][1], 2.6, 'small'); break; }
-  }
+  if (R.armor > 0) { R.armor -= dt; if (R.armor <= 0) { R.armor = 0; R.inv = 1.2; } }
+
 }
 const HINT5 = {
   zombie: ['ЗОМБИ-СТУДЕНТ', 'Прыгни сверху, руби ножом или атакуй в прыжке'],
   chubby: ['СИНИЙ ТОЛСТЯК', 'Нож не берёт! Удар сверху или перепрыгни'],
-  hbar: ['ВЫСОКИЙ БАРЬЕР', 'Только подкатом — утка сжимается вдвое'],
+  hbar: ['ВЫСОКИЙ БАРЬЕР', 'Подкат или высокий прыжок'],
   crate: ['ХРУПКИЕ ЯЩИКИ', 'Слишком высоко — прыгни и бей сверху ↓'],
   couch: ['ДИВАН', 'Перепрыгни'],
   taxi: ['ЖЁЛТОЕ ТАКСИ', 'Объезжай или перепрыгни'],
@@ -135,9 +125,9 @@ const TROLL_LINES = {
 function trollPhase(B, st) {
   const R = G.run;
   B.state = st; B.t = 0; if (st === 'summon') B.chainOpened = false; B.vol = 0; B.atkT = 0.6; B.spawned = false; B.slammed = false; B.chainKills = 0;
-  if (st === 'throw') { if (!R.hints.p1) { R.hints.p1 = 1; banner('ФАЗА 1: ХЛАМ', 'Тролль швыряет мусор: прыгай, подкатывайся, руби ножом', 2.6, 'green'); } }
-  if (st === 'summon') { if (!R.hints.p2) { R.hints.p2 = 1; banner('ФАЗА 2: МИНЬОНЫ', 'Цепочка прыжков по зомби — последний прыжок прямо в Тролля!', 2.8, 'green'); } shawSay(pick(TROLL_LINES.summon)); trollAnim('Wave', true); }
-  if (st === 'slam') { if (!R.hints.p3) { R.hints.p3 = 1; banner('ФАЗА 3: ТОПОТ', 'Перепрыгни волну, потом прыгни и бей сверху по застрявшему Троллю', 2.8, 'green'); } shawSay(pick(TROLL_LINES.slam)); }
+  if (st === 'throw') { if (!R.hints.p1) { R.hints.p1 = 1; banner('ФАЗА 1: ХЛАМ', 'Прыгай, подкатывайся, руби', 2, 'green'); } }
+  if (st === 'summon') { if (!R.hints.p2) { R.hints.p2 = 1; banner('ФАЗА 2: МИНЬОНЫ', 'Цепочка по зомби — и в Тролля!', 2.2, 'green'); } shawSay(pick(TROLL_LINES.summon)); trollAnim('Wave', true); }
+  if (st === 'slam') { if (!R.hints.p3) { R.hints.p3 = 1; banner('ФАЗА 3: ТОПОТ', 'Перепрыгни волну — и удар сверху!', 2.2, 'green'); } shawSay(pick(TROLL_LINES.slam)); }
   if (st === 'stun') { shawSay(pick(TROLL_LINES.stun)); trollAnim('Idle'); }
 }
 function trollAnim(name, once) { const T = R3E.troll; if (T && T.play) { const a = T.play(name, once, 0.25); if (a && once) a.timeScale = 1.2; } }
@@ -232,7 +222,6 @@ function onChain5(o) {
   B.chainKills = (B.chainKills || 0) + 1;
   if (B.chainKills < 2 || R.objs.some((m) => m.minion && !m.dead && m.d > R.s - 1)) return;
   B.homable = true; B.chainT = 2.4;
-  if (!R.hints.chainBoss) { R.hints.chainBoss = 1; banner('ПОСЛЕДНИЙ ПРЫЖОК!', 'Жми прыжок — цепочка прямо в Тролля!', 2, 'small'); }
 }
 function onPound5(R) { const B = R.boss; if (B && B.state === 'stun' && B.z < 11) trollHit('pound'); }
 
@@ -264,7 +253,7 @@ function makeObj5(o, g, add) {
       const z = kit('barrierHigh', 1.8, { by: 'len' });
       if (z) z.root.position.y = 1.15; else box('#ff7a1a', 1.9, 0.5, 0.2, 1.5);
       for (const sx of [-0.95, 0.95]) add(G3.box, M.dark, 0.12, 2.0, 0.12, sx, 1.0, 0);
-      label('ПОДКАТ ↓', '#e8590c', 2.45);
+      label('ПОДКАТ ↓ / ПРЫЖОК', '#e8590c', 2.45);
       break;
     }
     case 'plastic': { if (!kit('plastic', 1.9, { by: 'len' })) box('#ffd43b', 1.8, 0.8, 0.5, 0.4); break; }
@@ -278,7 +267,7 @@ function makeObj5(o, g, add) {
     case 'crate': {
       const P = ZK.models.pallet;
       for (let k = 0; k < 5; k++) { const z = zkMake('pallet', 1.7, { by: 'len' }); if (!z) { box('#c9a26a', 1.6, 2.3, 1.2, 1.15); break; } z.root.position.y = k * (P ? (P.size.y * 1.7) / Math.max(P.size.x, P.size.z) : 0.25) * 1.0; z.root.rotation.y = k * 0.15; g.add(z.root); }
-      label('БЕЙ СВЕРХУ ↓', '#c92a2a', 2.75);
+      label('ВЫСОКО! БЕЙ СВЕРХУ ↓', '#c92a2a', 2.75);
       break;
     }
     case 'taxi': { if (!kit('taxi', 3.8, { by: 'len', turn: Math.PI })) box('#ffcf33', 1.7, 1.2, 3.4, 0.6); break; }
@@ -402,6 +391,7 @@ const RUN_CFG5 = Object.assign({}, RUN_CFG4, {
   evo: 2, bossAt: BOSS5_AT, surfaces: [[0, 'city']], build: buildTrack5, plan: () => TRACK_PLAN5,
   bossName: 'Тролль-мутант', bossLabel: 'АКАДЕМИЧЕСКИЙ ТРОЛЛЬ', voice: 'drone', lines: TROLL_LINES, bossHp: 6,
   drawBoss: drawTroll2D, drawEnd: drawEnd5, endSay: 'Тролль повержен! Академический отпуск окончен — все на пары!', deathFx: 'paper',
+  ctxHints: { plastic: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], trash: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], hbar: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'], zombie: ['knife', 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов' : 'F или клик мышью — руби врагов'], chubby: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — бросок на врага' : 'В прыжке нажми прыжок ещё раз — бросок на врага'], crate: ['pound', 'УДАР СВЕРХУ', isTouch ? 'В прыжке свайп вниз — ломает ящики' : 'В прыжке стрелка вниз — ломает ящики'] },
   targets: ['zombie', 'minion', 'chubby'], collide: collide5, tick: tick5, pickup: pickup5, knifeNo: KNIFE_NO5,
   floatTypes: ['stipend', 'jtrash'], moveTypes: ['zombie', 'minion', 'chubby', 'jbarrel', 'jtires', 'jtrash', 'jcouch', 'quake'], bounce: [], bounceH: {},
   openPhase: null, updOpen: null, bossUpdate: trollUpdate, bossHit: () => { const B = G.run.boss; if (B && B.homable) trollHit('chain'); }, boss3d: trollFrame,
