@@ -301,6 +301,22 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
 .rec-best { font-family: var(--font-display); font-size: clamp(16px, 3.2vh, 22px); font-variant-numeric: tabular-nums; }
 .rec-done { font-weight: 900; font-size: 12px; color: #2f8a3a; }
 .rec-list { margin: 0; padding-left: 20px; font-weight: 800; font-size: clamp(11px, 2.1vh, 13px); opacity: .8; font-variant-numeric: tabular-nums; }
+.rec-tabs { flex-wrap: wrap; }
+.lead { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.lead li { display: flex; align-items: baseline; gap: 10px; border: 3px solid var(--ink); border-radius: 12px; padding: 6px 12px; background: #fff; font-weight: 900; }
+.lead li.me { background: var(--duck); }
+.lead .pos { width: 2.2em; opacity: .6; font-variant-numeric: tabular-nums; }
+.lead .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lead .pts { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.lead .sub { font-size: 12px; opacity: .6; }
+.ach { display: flex; gap: 10px; align-items: center; border: 3px solid var(--ink); border-radius: 12px; padding: 6px 12px; background: #fff; }
+.ach.off { opacity: .45; filter: grayscale(1); }
+.ach .ic { font-size: 24px; }
+.ach b { display: block; font-size: 14px; }
+.ach span { font-weight: 800; font-size: 12px; opacity: .75; }
+.newach { margin: 0; font-weight: 900; font-size: clamp(12px, 2.3vh, 15px); color: #2f8a3a; }
+.nick-in { border: 3px solid var(--ink); border-radius: 12px; padding: 10px 14px; font: inherit; font-weight: 900; font-size: 20px; text-align: center; width: min(320px, 100%); justify-self: center; background: #fff; color: var(--ink); }
+.nick-btn { height: 44px; border: 3px solid var(--ink); border-radius: 999px; padding: 6px 14px; background: #fff; font-weight: 900; font-size: 14px; color: var(--ink); max-width: 45vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rec-empty { font-weight: 800; font-size: 13px; opacity: .6; }
 @media (prefers-reduced-motion: reduce) { .newrec { animation: none; } }
 .stars { font-family: "Segoe UI Symbol", "Apple Symbols", "DejaVu Sans", sans-serif; font-size: clamp(26px, 6vh, 40px); line-height: 1; letter-spacing: .12em; color: var(--beak); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
@@ -463,6 +479,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
     </div>
     <h1 class="title">КРЯ<span class="amp">&amp;</span>БУЛЬ</h1>
     <div class="menu-tools">
+      <button class="nick-btn" id="btnNick" type="button">👤 Ввести ник</button>
       <button class="round" id="btnRecords" type="button" aria-label="Рекорды">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v3h3v2a5 5 0 0 1-4.3 5A5 5 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A5 5 0 0 1 8.3 13 5 5 0 0 1 4 8V6h3zM6 8a3 3 0 0 0 1 2.2V8zm12 0h-1v2.2A3 3 0 0 0 18 8z" fill="currentColor"/></svg>
       </button>
@@ -498,6 +515,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       <p id="overText"></p>
       <div class="big" id="overScore">0</div>
       <p class="small" id="overBest"></p>
+      <p class="newach" id="overAch" hidden></p>
       <div class="btns">
         <button class="btn" id="btnBossAgain" type="button">Снова к боссу</button>
         <button class="btn" id="btnAgain" type="button">Ещё раз</button>
@@ -515,6 +533,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
       <div class="big" id="winScore">0</div>
       <p class="small" id="winBest"></p>
       <p class="small" id="winLevel">Уровень 1 пройден.</p>
+      <p class="newach" id="winAch" hidden></p>
       <div class="btns">
         <button class="btn" id="btnNext" type="button">Уровень 2 ▸</button>
         <button class="btn alt" id="btnWinAgain" type="button">Сыграть ещё</button>
@@ -526,17 +545,32 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   <section id="records" class="overlay" hidden>
     <div class="panel rec-panel" role="dialog" aria-labelledby="recTitle">
       <h2 id="recTitle">Рекорды</h2>
-      <div class="tabs" role="tablist">
+      <div class="tabs rec-tabs" role="tablist">
         <button class="tab" type="button" role="tab" data-tab="duck">Утка Илона</button>
         <button class="tab" type="button" role="tab" data-tab="fish">Карась Миша</button>
+        <button class="tab" type="button" role="tab" data-tab="world">🌍 Все игроки</button>
+        <button class="tab" type="button" role="tab" data-tab="ach">Мои достижения</button>
       </div>
       <div class="rec-body" id="recBody"></div>
-      <p class="small">Рекорды хранятся только на этом устройстве, в этом браузере.</p>
+      <p class="small" id="recNote">Рекорды хранятся только на этом устройстве, в этом браузере.</p>
       <div class="btns">
         <button class="btn" id="btnRecClose" type="button">Закрыть</button>
         <button class="btn alt" id="btnRecReset" type="button">Сбросить</button>
       </div>
     </div>
+  </section>
+
+  <section id="nickDlg" class="overlay" hidden>
+    <form class="panel" id="nickForm" role="dialog" aria-labelledby="nickTitle">
+      <h2 id="nickTitle" style="font-size: clamp(24px, 6vh, 42px)">Как тебя зовут?</h2>
+      <p>Ник нужен для общей таблицы рекордов. Пароль не нужен.</p>
+      <input class="nick-in" id="nickIn" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Ник, 2–16 символов">
+      <p class="small" id="nickErr" hidden>Нужно хотя бы 2 символа.</p>
+      <div class="btns">
+        <button class="btn" type="submit">Готово</button>
+        <button class="btn alt" id="btnNickSkip" type="button">Без ника</button>
+      </div>
+    </form>
   </section>
 
   <section id="rotate" class="overlay" hidden>
