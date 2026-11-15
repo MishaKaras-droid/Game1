@@ -260,6 +260,7 @@ export class DuckJuiceController {
 /**
  * 2. АНИМИРОВАННЫЙ КОМИКС-ПРОЛОГ (HTML + CSS + SVG)
  * Показывает 3 слайда из assets/slide1.svg, slide2.svg, slide3.svg
+ * Слайд может нести вместо картинки (img) встроенную SVG-разметку (svg) — так сделан пролог уровня 6.
  * с плавным наездом камеры, тряской экрана и всплывающим текстом.
  */
 export class PrologueComicOverlay {
@@ -308,7 +309,10 @@ export class PrologueComicOverlay {
                 position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
             }
             .comic-slide.active { opacity: 1; pointer-events: auto; }
-            .comic-slide.active img { animation: kenBurnsPrologue 6s ease-out forwards; }
+            .comic-slide.active img, .comic-slide.active .comic-art { animation: kenBurnsPrologue 6s ease-out forwards; }
+            .comic-art { position: absolute; inset: 0; }
+            .comic-art > svg { width: 100%; height: 100%; display: block; }
+            .comic-slide:not(.active) .comic-art * { animation-play-state: paused !important; }
             @keyframes kenBurnsPrologue {
                 0% { transform: scale(1) translate(0, 0); }
                 100% { transform: scale(1.12) translate(-1%, -2%); }
@@ -353,7 +357,9 @@ export class PrologueComicOverlay {
 
         const slidesHtml = this.slidesData.map((s, idx) => `
             <div class="comic-slide ${idx === 0 ? 'active' : ''}" data-idx="${idx}">
-                <img src="${s.img}" alt="Слайд ${idx + 1}" style="width:100%; height:100%; object-fit:cover;">
+                ${s.svg
+                    ? `<div class="comic-art" role="img" aria-label="Слайд ${idx + 1}">${s.svg}</div>`
+                    : `<img src="${s.img}" alt="Слайд ${idx + 1}" style="width:100%; height:100%; object-fit:cover;">`}
                 <div class="comic-bubble">${s.text}</div>
             </div>
         `).join('');

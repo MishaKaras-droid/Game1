@@ -176,11 +176,11 @@ function startGame(mode, fromBoss, level) {
     if (G.level === 9) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; }
     if (G.level === 8) { G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
     if (G.level === 7) { G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
-    if (G.level === 6) { G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
-    if ((G.level === 3 || G.level === 4 || G.level === 5) && G.mode === 'duck') startRunner(true);
+    if (G.level === 6 && G.mode === 'fish') { G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; }
+    if ((G.level === 3 || G.level === 4 || G.level === 5 || G.level === 6) && G.mode === 'duck') startRunner(true);
   } else {
     if (G.level === 3 && G.mode === 'fish') { banner('ГАЗ!', 'Уровень 3 · скорость выше', 2.8); sfx('swoosh'); }
-    else if ((G.level === 4 || G.level === 5) && G.mode === 'duck') { startRunner(false); }
+    else if ((G.level === 4 || G.level === 5 || G.level === 6) && G.mode === 'duck') { startRunner(false); }
     else if (G.level === 11) { banner('УРОВЕНЬ 11', 'Бурные реки', 3, 'green'); sfx('swoosh'); G.rivers = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; G.crocUnlocked = true; G.crocCharge = 50; }
     else if (G.level === 10) { banner('ГАЗУЕМ!', 'Уровень 10 · русские реки', 3.2, 'green'); sfx('swoosh'); G.rivers = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; G.crocUnlocked = true; G.crocCharge = 50; }
     else if (G.level === 9) { banner('ГОТОВЬСЯ, БОЕЦ!', 'Уровень 9 · бурная Амазонка', 3.2, 'green'); sfx('wave'); G.rapids = true; G.squidUnlocked = true; G.squidCharge = 50; G.eelUnlocked = true; G.eelCharge = 50; }
@@ -247,6 +247,7 @@ function onWin() {
     car: '«Я твою выхлопную трубу шатала!» — сказала утка Илона. Бешеная Mitsubishi заглохла навсегда.',
     shawarma: 'Злая шаверма повержена! Утка Илона добежала до победы — и обед в кармане.',
     thesis: 'Ожившая диссертация укрощена! Соискательница Илона допущена к защите. Город празднует!',
+    moderator: 'Сервер перезагружен! Главный Модератор забанен собственной кнопкой, а соискательница Илона выбралась из кубов — к черновикам курсача.',
     troll: 'Произошёл троллинг… наоборот! Зомби снова стали студентами, а соискательница Илона вернулась к диссертации.',
     catfish: 'Сом уплыл в свою нору лечить усы. Щука больше не жалуется!',
     mega: 'Ты просто босс, ты просто начальник! Мегалодон повержен… но, кажется, это ещё не конец.',
@@ -272,10 +273,11 @@ function onWin() {
 }
 
 /* ---------- buttons */
-// duck level 5 opens with the comic prologue (src/level5_prologue_and_juice.js)
+// duck levels 5 and 6 open with a comic prologue (src/level5_prologue_and_juice.js; level 6 slides: 05t_prologue6.js)
 function startLevel(n) { tryStart('duck', false, n); }
 function startWithPrologue(mode, level) {
   if (mode === 'duck' && level === 5 && typeof PrologueComicOverlay !== 'undefined') { Sound.init(); sfx('click'); new PrologueComicOverlay({ onComplete: () => startLevel(5) }).start(); return; }
+  if (mode === 'duck' && level === 6 && typeof PrologueComicOverlay !== 'undefined' && typeof prologue6Slides === 'function') { Sound.init(); sfx('click'); new PrologueComicOverlay({ slides: prologue6Slides(), onComplete: () => startLevel(6) }).start(); return; }
   tryStart(mode, false, level);
 }
 for (const b of document.querySelectorAll('[data-level]')) b.addEventListener('click', () => startWithPrologue(b.dataset.mode, +b.dataset.level));
@@ -512,7 +514,7 @@ window.__kb = {
   god: (v) => { DEBUG.god = v !== false; },
   debug: DEBUG,
   skip: (t) => { if (G) { G.t = t; while (G.ev < G.L.length && G.L[G.ev][0] < t) G.ev++; } },
-  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if ((G.level === 3 || G.level === 4 || G.level === 5) && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 8) { G.lake67 = false; G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 9) { G.rapids = false; G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } if (G.level === 10) { G.rivers = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } if (G.level === 11) { G.rivers = false; G.lake67 = true; G.lakeSign = 'ОЗЕРО 228'; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
+  boss: () => { if (G) { if (G.mode === 'duck' && G.level === 2 && !G.vert) { G.vert = true; setWorld(); G.player.x = 120; G.player.y = H / 2; } G.t = G.len; G.ev = G.L.length; G.enemies.length = 0; G.eb.length = 0; G.tunnel = null; if ((G.level === 3 || G.level === 4 || G.level === 5 || G.level === 6) && G.mode === 'duck') { startRunner(true); return; } if (G.level === 3) { G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 4) { G.bright = true; G.aqua = null; G.squidUnlocked = true; G.squidCharge = 100; G.evOff = 0; } if (G.level === 5) { G.dark = true; G.lake = false; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 6) { G.dark = false; G.deep = false; G.lake = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 7) { G.amazon = false; G.lake67 = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 8) { G.lake67 = false; G.mangrove = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.evOff = 0; } if (G.level === 9) { G.rapids = false; G.dark = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } if (G.level === 10) { G.rivers = true; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } if (G.level === 11) { G.rivers = false; G.lake67 = true; G.lakeSign = 'ОЗЕРО 228'; G.squidUnlocked = true; G.squidCharge = 100; G.eelUnlocked = true; G.eelCharge = 100; G.crocUnlocked = true; G.crocCharge = 100; G.evOff = 0; } startWarning(); G.phaseT = 2.9; } },
   render: () => render(),
 };
 const hot = window.claude && window.claude.hot;

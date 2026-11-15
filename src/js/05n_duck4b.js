@@ -53,7 +53,8 @@ const FEVER_T = 5;
 function startFever() {
   const R = G.run; if (R.fever > 0) return;
   R.fever = FEVER_T; R.meter = 100; R.boost = 0; R.boostDrain = false;
-  banner('КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Неуязвима — сноси всё!', 1.6, 'red');
+  const fb = runCfg().feverBanner || ['КОФЕЙНЫЙ ПЕРЕДОЗ!', 'Неуязвима — сноси всё!'];
+  banner(fb[0], fb[1], 1.6, 'red');
   sfx('power'); sfx('quack2'); G.shake = 10; G.flash = 0.35; G.flashColor = '#ffb347';
 }
 function runFeverBtn() {
@@ -65,7 +66,7 @@ function runFeverBtn() {
 function feverSmash(o) {
   const R = G.run, q = runProj(o.x, (o.h || 0) + 1, o.d - R.s + RUN.PZ);
   runDestroy(o, q); R.coffee++; R.cupsTotal++; addScore(100);
-  floatText(q.sx, q.sy - 24, '+☕', '#ffd27a', 24);
+  floatText(q.sx, q.sy - 24, runCfg().lootPlus || '+☕', '#ffd27a', 24);
 }
 function updateFever(R, dt) {
   if (R.fever > 0) {
@@ -219,7 +220,7 @@ function frame4b(dt, t, F) {
   const fk = R3.feverK;
   D.root.scale.setScalar(1 + fk * 0.4);   // bigger and fiery, but the road stays visible
   const pulse = 0.75 + Math.sin(t * 14) * 0.25;
-  if (DUCK3.parts) DUCK3.parts.mat.emissive.setRGB(fk * 0.75 * pulse, fk * 0.28 * pulse, 0);
+  if (R3E.duckM || DUCK3.parts) (R3E.duckM || DUCK3.parts).mat.emissive.setRGB(fk * 0.75 * pulse, fk * 0.28 * pulse, 0);
   if (R3E.duckInk) R3E.duckInk.color.setRGB(0.13 + fk * 0.87, 0.11 + fk * 0.14 * pulse, 0.15 * (1 - fk));
   if (!R3E.feverAura) { R3E.feverAura = new THREE.Sprite(new THREE.SpriteMaterial({ map: R3E.lampGlow.map, color: '#ff6a00', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); R3.scene.add(R3E.feverAura); }
   R3E.feverAura.visible = fk > 0.05;
