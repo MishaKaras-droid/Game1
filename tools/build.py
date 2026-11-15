@@ -62,9 +62,15 @@ def main():
     duck = K / "assets" / "models" / "duck.bin.gz"
     if duck.exists():  # low-poly 3D duck (tools/duck_model.py)
         assets_js += "\nconst DUCK_PACK = " + json.dumps({"head": json.loads((K / "assets" / "models" / "duck.json").read_text()), "gz": base64.b64encode(duck.read_bytes()).decode()}) + ";"
+    duck6 = K / "assets" / "models" / "duck6.bin.gz"
+    if duck6.exists():  # the voxel duck of duck level 6 (tools/duck_model_tex.py)
+        assets_js += "\nconst DUCK_PACK6 = " + json.dumps({"head": json.loads((K / "assets" / "models" / "duck6.json").read_text()), "gz": base64.b64encode(duck6.read_bytes()).decode()}) + ";"
     zkit = K / "assets" / "models" / "zkit.bin.gz"
     if zkit.exists():  # Zombie Apocalypse Kit by Quaternius (CC0), packed by tools/pack_zombie_kit.mjs
         assets_js += "\nconst ZKIT_PACK = " + json.dumps({"head": json.loads((K / "assets" / "models" / "zkit.json").read_text()), "gz": base64.b64encode(zkit.read_bytes()).decode()}) + ";"
+    ckit = K / "assets" / "models" / "ckit.bin.gz"
+    if ckit.exists():  # Cube World Kit by Quaternius (CC0), packed by tools/pack_cube_kit.mjs (duck level 6)
+        assets_js += "\nconst CKIT_PACK = " + json.dumps({"head": json.loads((K / "assets" / "models" / "ckit.json").read_text()), "gz": base64.b64encode(ckit.read_bytes()).decode()}) + ";"
     city = K / "assets" / "models" / "city.bin.gz"
     if city.exists():  # 3D buildings for duck level 4 (packed by tools/pack_models.py)
         assets_js += "\nconst CITY_PACK = " + json.dumps({"head": json.loads(city.with_suffix("").with_suffix(".json").read_text()), "gz": base64.b64encode(city.read_bytes()).decode()}) + ";"

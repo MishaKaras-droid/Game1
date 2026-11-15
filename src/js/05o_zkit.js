@@ -20,6 +20,62 @@ const ZK = { state: 'idle', models: {}, toon: new Map() };
     }).catch((e) => { console.warn('zkit', e); ZK.state = 'none'; });
   } catch (e) { ZK.state = 'none'; }
 })();
+/* duck level 6: Cube World Kit by Quaternius (CC0), packed by tools/pack_cube_kit.mjs into CKIT_PACK.
+   Its models go into the same ZK.models table (their own keys); the atlas texture every model shares is
+   stored once in the pack head and handed to the materials through material.userData.atlas. */
+ZK.cstate = 'idle'; ZK.atlas = [];
+(function ckDecode() {
+  if (typeof CKIT_PACK === 'undefined' || typeof DecompressionStream === 'undefined' || typeof THREE === 'undefined' || !THREE.GLTFLoader) { ZK.cstate = 'none'; return; }
+  ZK.cstate = 'loading';
+  try {
+    ZK.atlas = CKIT_PACK.head.tex.map((t) => {
+      const tx = new THREE.TextureLoader().load('data:' + t.mime + ';base64,' + t.b64);
+      tx.flipY = false; tx.encoding = THREE.LinearEncoding; tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.magFilter = THREE.NearestFilter; tx.generateMipmaps = false; tx.minFilter = THREE.LinearFilter;
+      return tx;
+    });
+    // a copy of the atlas with one texel repainted (mushroom caps and the button top are red in the kit's own renders)
+    const rc = document.createElement('canvas'); rc.width = rc.height = 32;
+    ZK.atlasRed = new THREE.CanvasTexture(rc); ZK.atlasRed.flipY = false; ZK.atlasRed.wrapS = ZK.atlasRed.wrapT = THREE.RepeatWrapping; ZK.atlasRed.magFilter = THREE.NearestFilter; ZK.atlasRed.generateMipmaps = false; ZK.atlasRed.minFilter = THREE.LinearFilter;
+    const ri = new Image(); ri.onload = () => { rc.width = ri.width; rc.height = ri.height; const c = rc.getContext('2d'); c.drawImage(ri, 0, 0); c.fillStyle = '#e23b2e'; c.fillRect(Math.floor(ri.width / 32), 0, Math.ceil(ri.width / 32), Math.ceil(ri.height / 32)); ZK.atlasRed.needsUpdate = true; };
+    if (CKIT_PACK.head.tex[0]) ri.src = 'data:' + CKIT_PACK.head.tex[0].mime + ';base64,' + CKIT_PACK.head.tex[0].b64;
+    gzB64(CKIT_PACK.gz).then((buf) => {
+      const loader = new THREE.GLTFLoader(), list = CKIT_PACK.head.models;
+      let left = list.length;
+      const done = () => { if (--left === 0) ZK.cstate = 'ready'; };
+      for (const h of list) {
+        loader.parse(buf.slice(h.off, h.off + h.len), '', (gltf) => {
+          const red = h.key === 'mushroom' || h.key === 'button';   // their caps point at a charcoal texel of the atlas: use the copy where it is red
+          gltf.scene.traverse((m) => { if (m.isMesh) for (const mt of Array.isArray(m.material) ? m.material : [m.material]) if (mt.userData && mt.userData.atlas !== undefined) mt.map = (red && ZK.atlasRed) || ZK.atlas[mt.userData.atlas] || null; });
+          const box = new THREE.Box3().setFromObject(gltf.scene);
+          // skinned models: the stored box is not the character's size, so measure the skinned vertices once
+          if (gltf.animations.length) {
+            gltf.scene.updateMatrixWorld(true);
+            const sb = new THREE.Box3(), v = new THREE.Vector3();
+            gltf.scene.traverse((m) => {
+              if (!m.isSkinnedMesh) return;
+              // skin the vertices by hand (three r128 does not denormalise quantized attributes in boneTransform)
+              const G = m.geometry.attributes, pa = G.position, si = G.skinIndex, sw = G.skinWeight, n = pa.count, step = Math.max(1, Math.floor(n / 1500));
+              const den = (a) => (a.normalized ? 1 / (a.array instanceof Int16Array ? 32767 : a.array instanceof Uint16Array ? 65535 : a.array instanceof Int8Array ? 127 : 255) : 1);
+              const kp = den(pa), kw = den(sw), bones = m.skeleton.bones, inv = m.skeleton.boneInverses, mats = bones.map((b, q) => new THREE.Matrix4().multiplyMatrices(b.matrixWorld, inv[q]));
+              const p0 = new THREE.Vector3(), t = new THREE.Vector3();
+              for (let i = 0; i < n; i += step) {
+                p0.fromBufferAttribute(pa, i).multiplyScalar(kp).applyMatrix4(m.bindMatrix); v.set(0, 0, 0);
+                let ws = 0;
+                const W = [sw.getX(i), sw.getY(i), sw.getZ(i), sw.getW(i)], J = [si.getX(i), si.getY(i), si.getZ(i), si.getW(i)];
+                for (let c = 0; c < 4; c++) { const w = W[c] * kw; if (w <= 0) continue; ws += w; v.addScaledVector(t.copy(p0).applyMatrix4(mats[J[c]]), w); }
+                if (ws > 0) sb.expandByPoint(v.multiplyScalar(1 / ws));
+              }
+            });
+            if (!sb.isEmpty()) box.copy(sb);
+          }
+          const size = box.getSize(new THREE.Vector3());
+          ZK.models[h.key] = { skinBox: gltf.animations.length > 0, scene: gltf.scene, clips: gltf.animations, size, min: box.min.clone(), center: box.getCenter(new THREE.Vector3()) };
+          done();
+        }, (e) => { console.warn('ckit model', h.key, e); done(); });
+      }
+    }).catch((e) => { console.warn('ckit', e); ZK.cstate = 'none'; });
+  } catch (e) { ZK.cstate = 'none'; }
+})();
 const zkReady = (key) => !!ZK.models[key];
 // kit materials -> the toon look of the new levels (skinning flag kept for animated meshes)
 function zkToon(mat, skinned) {
@@ -67,7 +123,7 @@ function zkMake(key, height, opts) {
     inst.mixer.update(0); root.updateMatrixWorld(true);
     let minY = Infinity; const v = new THREE.Vector3();
     obj.traverse((b) => { if (b.isBone) { v.setFromMatrixPosition(b.matrixWorld); if (v.y < minY) minY = v.y; } });
-    if (isFinite(minY)) obj.position.y += height * 0.035 - minY;
+    if (isFinite(minY) && !M.skinBox) obj.position.y += height * 0.035 - minY;
   } else inst.play = () => null;
   root.userData.zk = inst;
   return inst;

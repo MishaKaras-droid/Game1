@@ -90,7 +90,7 @@ function drawLandFade(c) {
 
 /* ---------- the run */
 function startRunner(atBoss) {
-  RCF = G.level === 5 && typeof RUN_CFG5 !== 'undefined' ? RUN_CFG5 : G.level === 4 && typeof RUN_CFG4 !== 'undefined' ? RUN_CFG4 : RUN_CFG3;
+  RCF = G.level === 6 && typeof RUN_CFG6 !== 'undefined' ? RUN_CFG6 : G.level === 5 && typeof RUN_CFG5 !== 'undefined' ? RUN_CFG5 : G.level === 4 && typeof RUN_CFG4 !== 'undefined' ? RUN_CFG4 : RUN_CFG3;
   planRanges.cache = null;
   const R = {
     s: 0, speed: atBoss ? RUN.BASE : 8, x: 0, vx: 0, lane: 1, y: 0, vy: 0, roll: 0, slam: false, boost: 0, inv: 0,
@@ -173,6 +173,7 @@ function runDestroy(o, q) {
   q = q || runProj(o.x, o.h + 0.3, o.d - G.run.s + RUN.PZ);
   const enemyHit = runCfg().targets.includes(o.type), meme = enemyHit && o.type !== 'pigeon' && o.type !== 'crow', paper = ['sheet', 'cite', 'two', 'clip', 'edit', 'stack', 'books'].includes(o.type);
   addScore(enemyHit ? 150 : 50, q.sx, q.sy);
+  if (runCfg().fx && runCfg().fx(o, q)) { sfx('pop'); return; }
   if (G.run.boostDrain && G.run.boost > 0) boostChain(G.run, q);
   if (meme || paper) { burst(q.sx, q.sy, 12, { type: 'star', col: paper ? '#fffaf0' : '#ffd43b', smin: 80, smax: 260, lmin: 0.5, lmax: 0.9, rmin: 5, rmax: 9 }); sfx('pop'); return; }
   burst(q.sx, q.sy, 10, enemyHit ? { type: 'feather', col: o.type === 'crow' ? '#3a3646' : '#a7b0bf', smin: 60, smax: 220, lmin: 0.6, lmax: 1.1, rmin: 5, rmax: 9 } : { type: 'chunk', col: '#e63946', g: 500, smin: 80, smax: 260, lmin: 0.5, lmax: 0.9, rmin: 4, rmax: 8 });
@@ -185,8 +186,8 @@ function runHit() {
   G.shake = 10; sfx('hurt'); sfx('quack');
   if (R.coffee > 0) {
     // like Sonic's rings: you drop your coffee instead of losing a heart
-    for (let i = 0; i < Math.min(12, R.coffee); i++) { const ang = rand(Math.PI * 1.1, Math.PI * 1.9); part({ type: 'cup', x: a.sx, y: a.sy - a.k * 0.5, vx: Math.cos(ang) * rand(120, 320), vy: Math.sin(ang) * rand(200, 420), g: 700, r: a.k * 0.22, life: 1.1 }); }
-    floatText(a.sx, a.sy - a.k * 1.3, 'Кофе рассыпан!', '#ffd0a0', 20);
+    for (let i = 0; i < Math.min(12, R.coffee); i++) { const ang = rand(Math.PI * 1.1, Math.PI * 1.9); part({ type: runCfg().lootPart || 'cup', col: '#5fe3e8', x: a.sx, y: a.sy - a.k * 0.5, vx: Math.cos(ang) * rand(120, 320), vy: Math.sin(ang) * rand(200, 420), g: 700, r: a.k * 0.22, life: 1.1 }); }
+    floatText(a.sx, a.sy - a.k * 1.3, runCfg().lootLost || 'Кофе рассыпан!', '#ffd0a0', 20);
     R.coffee = 0; R.inv = 1.5;
     return;
   }
@@ -647,7 +648,7 @@ function drawRunBoss(c, t) {
 function drawRunHud(c, t) {
   const R = G.run;
   c.textBaseline = 'middle';
-  drawCoffee(c, 28, 112, t, 0.55);
+  if (runCfg().hudIcon) runCfg().hudIcon(c, 28, 112, t); else drawCoffee(c, 28, 112, t, 0.55);
   c.font = '22px ' + FONT_DISPLAY; c.textAlign = 'left'; otext(c, '× ' + R.coffee, 46, 114, '#fff6e5', 5);
   if (R.boss) {
     const bw = Math.min(380, SW * 0.4), bx = SW / 2 - bw / 2, by = 60;

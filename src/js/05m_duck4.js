@@ -356,11 +356,17 @@ function r3EvoSetup(on) {
   R3.sky.material.map = on ? (TH2._sky || R3E.skyTex) : R3.tex.sky; R3.sky.material.needsUpdate = true;
   R3.scene.fog.color.set(on ? TH2.fog || '#ffd2b0' : '#cfeeff'); R3.scene.fog.near = on ? TH2.near || 60 : 70; R3.scene.fog.far = on ? TH2.far || 260 : 300;
   R3.water.visible = !on; if (R3E.ground) R3E.ground.visible = on;
+  if (TH2.cloud && !TH2._cloud) TH2._cloud = TH2.cloud();
+  for (const c of R3.clouds || []) { c.material.map = TH2._cloud || R3.tex.cloud; c.material.needsUpdate = true; }
   for (const m of Object.values(R3.mat)) m.needsUpdate = true;
   R3.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
   for (const s of R3E.trail || []) s.visible = false;
+  // 3D bosses of other levels do not stay in the scene
+  for (const k of ['troll', 'mod', 'modHelm', 'modCmd', 'modBtn']) if (R3E[k]) R3E[k].root.visible = false;
+  if (R3E.modStuck) R3E.modStuck.visible = false;
 }
 function buildCityChunk(ci) {
+  if (runCfg().chunk) return runCfg().chunk(ci);   // a level with its own world (level 6: cubes)
   const T = R3.track, d0 = ci * 100, d1 = d0 + 100;
   trackEnsure(T, d1 + 2);
   const g = new THREE.Group(), H = RUN.HALF, rows = { road: [], curbL: [], curbR: [], shL: [], shR: [], skL: [], skR: [], railL: [], railR: [] };
@@ -491,16 +497,24 @@ function gzB64(b64) {
   for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
   return new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
 }
-const DUCK3 = { state: 'idle' };
+const DUCK3 = { state: 'idle' }, DUCK3_ = DUCK3;
 (function duckDecode() {
   if (typeof DUCK_PACK === 'undefined' || typeof DecompressionStream === 'undefined') { DUCK3.state = 'none'; return; }
   DUCK3.state = 'loading';
   try { gzB64(DUCK_PACK.gz).then((buf) => { DUCK3.buf = buf; DUCK3.state = 'raw'; }).catch(() => { DUCK3.state = 'none'; }); } catch (e) { DUCK3.state = 'none'; }
 })();
+// duck level 6 has its own model: the voxel «Pixelblade Duckling» (textured Meshy FBX -> tools/duck_model_tex.py -> DUCK_PACK6)
+const DUCK6 = { state: 'idle' };
+(function duck6Decode() {
+  if (typeof DUCK_PACK6 === 'undefined' || typeof DecompressionStream === 'undefined') { DUCK6.state = 'none'; return; }
+  DUCK6.state = 'loading';
+  try { gzB64(DUCK_PACK6.gz).then((buf) => { DUCK6.buf = buf; DUCK6.state = 'raw'; }).catch(() => { DUCK6.state = 'none'; }); } catch (e) { DUCK6.state = 'none'; }
+})();
 function duckParts() {
+  const alt = runCfg().duckAlt && (DUCK6.parts || DUCK6.state === 'raw'), DUCK3 = alt ? DUCK6 : DUCK3_, PACK = alt ? DUCK_PACK6 : DUCK_PACK;
   if (DUCK3.parts) return DUCK3.parts;
   if (DUCK3.state !== 'raw') return null;
-  const h = DUCK_PACK.head, buf = DUCK3.buf, nv = h.nv, nt = h.nt;
+  const h = PACK.head, buf = DUCK3.buf, nv = h.nv, nt = h.nt;
   const Q = new Int16Array(buf, 0, nv * 3), I = new Uint16Array(buf, h.ioff, nt * 3), C = new Uint8Array(buf, h.coff, nt * 3);
   const P = new Float32Array(nv * 3); for (let i = 0; i < nv * 3; i++) P[i] = Q[i] / h.q + h.lo[i % 3];
   const H = h.size[1], footTop = H * 0.115, cy = (f) => (P[I[f * 3] * 3 + 1] + P[I[f * 3 + 1] * 3 + 1] + P[I[f * 3 + 2] * 3 + 1]) / 3;
@@ -540,6 +554,7 @@ function duckParts() {
 // swap the sphere duck for the model (level 4+); the energy ball for rolls and Boost stays
 function duckModelInstall(D) {
   const M = duckParts(); if (!M) return false;
+  R3E.duckM = M;
   while (D.body.children.length) D.body.remove(D.body.children[0]);
   const g = new THREE.Group(); g.scale.setScalar(1.5 / M.H); g.rotation.y = Math.PI;
   if (!R3E.duckInk) R3E.duckInk = R3E.outline.clone();   // the duck's own ink, so the overdose can make it glow

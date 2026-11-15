@@ -244,6 +244,7 @@ function buildDuck() {
 /* ---------- objects on the track */
 function makeObj(o) {
   const G3 = R3.geo, M = R3.mat, g = new THREE.Group(), add = (geo, mat, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); g.add(m); return m; };
+  if (runCfg().make && runCfg().make(o, g, add)) return g;   // a level may draw any object its own way
   switch (o.type) {
     case 'cup': { const s = new THREE.Group(); const a = (geo, mat, y) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; s.add(m); }; a(G3.cupBody, M.white, 0); a(G3.sleeve, M.sleeve, -0.02); a(G3.lid, M.lid, 0.32); a(G3.lidTop, M.lid, 0.39); s.scale.setScalar(1.1); g.add(s); g.userData.spin = s; break; }
     case 'barrier': add(G3.box, M.wood, 0.14, 0.95, 0.14, -0.7, 0.47, 0); add(G3.box, M.wood, 0.14, 0.95, 0.14, 0.7, 0.47, 0); add(G3.box, M.barrier, 1.8, 0.32, 0.12, 0, 0.82, 0); break;
