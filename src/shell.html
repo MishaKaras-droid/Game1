@@ -342,6 +342,10 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
   .chips { justify-self: center; justify-content: center; }
   .chip { font-size: clamp(12px, 3.8vw, 18px); }
   #menu { --split: 46%; }
+  /* five duck levels: tablets put «Уровень» on its own line, phones squeeze the chips into one row */
+  .sky .chips { flex-wrap: nowrap; gap: 5px; }
+  .sky .chip { padding: 5px clamp(6px, 2vw, 12px); }
+  .sky .chips::before { font-size: clamp(11px, 3.2vw, 16px); margin-right: 2px; }
   .fs-prompt { max-width: calc(100% - 200px); font-size: 11px; padding: 6px 10px; }
   .fs-prompt .fs-long { display: none; }
   .hero.duck { width: min(48vw, 20vh, 300px); }
@@ -428,6 +432,7 @@ button:focus-visible { outline: 3px dashed var(--handle); outline-offset: 3px; }
           <button class="chip" type="button" data-mode="duck" data-level="2"><span class="lv">Уровень </span>2 ▸</button>
           <button class="chip" type="button" data-mode="duck" data-level="3"><span class="lv">Уровень </span>3 ▸</button>
           <button class="chip" type="button" data-mode="duck" data-level="4"><span class="lv">Уровень </span>4 ▸</button>
+          <button class="chip" type="button" data-mode="duck" data-level="5"><span class="lv">Уровень </span>5 ▸</button>
         </span>
       </div>
     </div>

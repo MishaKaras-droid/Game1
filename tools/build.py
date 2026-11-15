@@ -100,8 +100,9 @@ def main():
     full = ('<!doctype html>\n<html lang="ru">\n<head>\n<meta charset="utf-8">\n'
             + page[:head_end] + "\n</head>\n<body>\n" + page[head_end:] + "\n</body>\n</html>\n")
     (out / "kryabul-standalone.html").write_text(full)
+    (K / "index.html").write_text(full)  # GitHub Pages entry point
     print("images:", {k: len(v) // 1024 for k, v in img.items()}, "KB")
-    print("page:", len(page) // 1024, "KB")
+    print("page:", len(page) // 1024, "KB  (dist/kryabul.html, dist/kryabul-standalone.html, index.html)")
 
 
 main()

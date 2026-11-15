@@ -3,7 +3,7 @@
 
 /* ---------- knife: slashes whatever is right in front of the duck, in her lane */
 const SLASH_T = 0.3;
-const KNIFE_OK = ['capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
+const KNIFE_OK = ['zombie', 'minion', 'trash', 'jbarrel', 'jtrash', 'jtires', 'capy', 'floppa', 'bonk', 'clock', 'books', 'stack', 'cone', 'barrier', 'sheet', 'cite', 'two', 'clip', 'edit', 'pen', 'pigeon', 'crow', 'pepper', 'puddle'];
 function runKnife() {
   if (comicActive()) { comicSkip(); return; }   // a comic panel is up: buttons turn the page
   const R = G && G.run;
@@ -18,6 +18,8 @@ function runKnife() {
     if (o.fall !== undefined && o.ft < 0.5) continue;
     if (Math.abs((o.h || 0) - R.y) > 2.3) continue;
     if (o.parry) { runParry(o); hit++; continue; }
+    const no = runCfg().knifeNo && runCfg().knifeNo[o.type];
+    if (no) { if (!R.knifeMsgT || R.t - R.knifeMsgT > 0.6) { R.knifeMsgT = R.t; const q = runProj(o.x, (o.h || 0) + 1.6, o.d - R.s + RUN.PZ); floatText(q.sx, q.sy - 20, no, '#ffd8a8', 20); sfx('clink'); } continue; }
     if (KNIFE_OK.includes(o.type)) { last = runProj(o.x, (o.h || 0) + 1, o.d - R.s + RUN.PZ); runDestroy(o, last); addScore(50); hit++; }
   }
   if (hit) { G.shake = Math.max(G.shake, 6); G.hitStop = 0.07; sfx('clink'); if (last) floatText(last.sx, last.sy - 30, 'ХРЯСЬ!', '#fff', 26); }

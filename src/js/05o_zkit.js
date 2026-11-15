@@ -26,6 +26,8 @@ function zkToon(mat, skinned) {
   const key = mat.uuid + (skinned ? 's' : '');
   let t = ZK.toon.get(key);
   if (!t) {
+    // the game renders without sRGB output: keep the atlas colours as they are (like our canvas textures)
+    if (mat.map) { mat.map.encoding = THREE.LinearEncoding; mat.map.needsUpdate = true; }
     t = new THREE.MeshToonMaterial({ color: mat.color ? mat.color.clone() : new THREE.Color('#fff'), map: mat.map || null, gradientMap: R3E.grad || null, emissive: mat.emissive ? mat.emissive.clone() : new THREE.Color(0) });
     t.skinning = !!skinned;
     ZK.toon.set(key, t);
@@ -41,7 +43,7 @@ function zkMake(key, height, opts) {
   obj.traverse((m) => {
     if (!m.isMesh) return;
     m.material = Array.isArray(m.material) ? m.material.map((x) => zkToon(x, m.isSkinnedMesh)) : zkToon(m.material, m.isSkinnedMesh);
-    m.castShadow = opts.shadow !== false; m.receiveShadow = true;
+    m.castShadow = opts.shadow !== false; m.receiveShadow = true; m.userData.shared = true;   // kit geometry is shared: never dispose it
     if (m.isSkinnedMesh) m.frustumCulled = false;
   });
   const k = height / (opts.by === 'len' ? Math.max(M.size.x, M.size.z) : M.size.y);
@@ -60,6 +62,12 @@ function zkMake(key, height, opts) {
       a.play(); inst.cur = a; return a;
     };
     if (opts.anim) { inst.play(opts.anim); if (opts.phase) inst.mixer.update(opts.phase); }
+    // skinned models: the bind-pose box does not match the animated skeleton, so stand the lowest bone
+    // (the ankles) a little above the road instead
+    inst.mixer.update(0); root.updateMatrixWorld(true);
+    let minY = Infinity; const v = new THREE.Vector3();
+    obj.traverse((b) => { if (b.isBone) { v.setFromMatrixPosition(b.matrixWorld); if (v.y < minY) minY = v.y; } });
+    if (isFinite(minY)) obj.position.y += height * 0.035 - minY;
   } else inst.play = () => null;
   root.userData.zk = inst;
   return inst;
