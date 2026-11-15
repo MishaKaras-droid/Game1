@@ -32,10 +32,53 @@ function refreshRecords() {
   }
 }
 const fmtDate = (d) => { try { return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: '2-digit' }); } catch (e) { return ''; } };
+let worldMode = 'duck', recReq = 0;
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function renderWorld(body) {
+  const tabs = el('div', 'tabs');
+  for (const [m, label] of [['duck', 'Утка'], ['fish', 'Карась'], ['ach', 'По достижениям']]) {
+    const b = el('button', 'tab', label); b.type = 'button'; b.setAttribute('aria-selected', String(worldMode === m));
+    b.addEventListener('click', () => { worldMode = m; renderRecords(); });
+    tabs.append(b);
+  }
+  const list = el('ol', 'lead'), status = el('p', 'rec-empty', 'Загружаю…');
+  body.append(tabs, status, list);
+  const me = getNick().toLowerCase(), req = ++recReq;
+  const p = worldMode === 'ach' ? fetchAchCounts() : fetchLeaders(worldMode);
+  p.then((rows) => {
+    if (req !== recReq) return;
+    status.textContent = rows.length ? '' : 'Пока пусто. Будь первым!';
+    status.hidden = !rows.length ? false : true;
+    rows.forEach((r, i) => {
+      const nick = worldMode === 'ach' ? r[0] : r.nick;
+      const li = el('li', nick.toLowerCase() === me ? 'me' : '');
+      const who = el('span', 'nm', nick);
+      if (worldMode !== 'ach') who.append(el('span', 'sub', ' · ур. ' + r.level + (r.won ? ' ✓' : '')));
+      li.append(el('span', 'pos', (i + 1) + '.'), who, el('span', 'pts', worldMode === 'ach' ? r[1] + ' / ' + ACHIEVEMENTS.length : fmt(r.score)));
+      list.append(li);
+    });
+  }).catch(() => { if (req === recReq) status.textContent = 'Нет связи с таблицей. Проверь интернет.'; });
+}
+function renderAch(body) {
+  const got = myAch();
+  for (const a of ACHIEVEMENTS) {
+    const row = el('div', 'ach' + (got[a.code] ? '' : ' off')), txt = el('div');
+    txt.append(el('b', '', a.name), el('span', '', a.desc + (got[a.code] ? ' · ' + fmtDate(got[a.code]) : '')));
+    row.append(el('span', 'ic', a.icon), txt);
+    body.append(row);
+  }
+}
 function renderRecords() {
   const all = loadRec(), cl = all._cleared || {}, body = $('recBody');
-  for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.tab === recTab));
+  for (const t of document.querySelectorAll('.rec-tabs .tab')) t.setAttribute('aria-selected', String(t.dataset.tab === recTab));
   body.textContent = '';
+  $('btnRecReset').hidden = recTab === 'world' || recTab === 'ach';
+  const nick = getNick();
+  $('recNote').textContent = recTab === 'world' ? (nick ? 'Ты в таблице как «' + nick + '». Лучший результат каждого игрока.' : 'Введи ник в меню, чтобы попасть в таблицу.')
+    : recTab === 'ach' ? 'Открыто ' + Object.keys(myAch()).length + ' из ' + ACHIEVEMENTS.length + '.'
+    : 'Эти рекорды хранятся только на этом устройстве.';
+  if (recTab === 'world') { renderWorld(body); return; }
+  if (recTab === 'ach') { renderAch(body); return; }
   for (const l of levelsOf(recTab)) {
     const key = recTab + '-' + l, list = all[key] || [], row = document.createElement('div');
     row.className = 'rec-row';
@@ -82,11 +125,36 @@ async function keepAwake(on) {
 function goMenu() {
   state = 'menu'; G = null; r3Show(false);
   Sound.music(null); Sound.resume(); keepAwake(false);
-  refreshRecords(); updateSoundUi();
+  refreshRecords(); updateSoundUi(); updateNickBtn(); flushQueue();
   show('menu');
   sizeHeroes();
 }
+function showNewAch(id, list) {
+  $(id).hidden = !list.length;
+  $(id).textContent = list.length ? 'Новое достижение: ' + list.map((a) => a.icon + ' ' + a.name).join(', ') : '';
+}
+let nickThen = null;
+function updateNickBtn() { const n = getNick(); $('btnNick').textContent = '👤 ' + (n || 'Ввести ник'); }
+function openNick(then) {
+  nickThen = then || null;
+  $('nickIn').value = getNick(); $('nickErr').hidden = true;
+  $('nickDlg').hidden = false;
+  setTimeout(() => $('nickIn').focus(), 30);
+}
+function closeNick() {
+  $('nickDlg').hidden = true; store.set('nickAsked', true); updateNickBtn();
+  const t = nickThen; nickThen = null; if (t) t(); else $('btnNick').focus();
+}
+$('nickForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const n = cleanNick($('nickIn').value);
+  if (n.length < 2) { $('nickErr').hidden = false; return; }
+  setNick(n); syncAchievements(); sfx('click'); closeNick();
+});
+$('btnNickSkip').addEventListener('click', () => { sfx('click'); closeNick(); });
+$('btnNick').addEventListener('click', () => { sfx('click'); openNick(null); });
 function tryStart(mode, fromBoss, level) {
+  if (!getNick() && !store.get('nickAsked', false)) { openNick(() => tryStart(mode, fromBoss, level)); return; }
   Sound.init(); sfx('click');
   if (isTouch) goFullscreen();
   pending = { mode, fromBoss: !!fromBoss, level: level || 1 };
@@ -151,6 +219,8 @@ function onGameOver() {
   G.ended = true; state = 'over';
   sfx('lose'); keepAwake(false); Sound.music(null);
   const rec = addRecord(G.mode, G.level, G.score, false, 0), b = rec.best;
+  submitScore(G.mode, G.level, G.score, false, 0);
+  showNewAch('overAch', checkAchievements({ mode: G.mode, level: G.level, score: G.score, won: false, hp: 0, stars: 0 }));
   $('overNew').hidden = !rec.isBest;
   $('overText').textContent = G.mode === 'duck' ? 'Утка Илона устала. Глоток кофе — и снова в небо!' : 'Карась Миша уплыл перекусить. Ещё попытка?';
   $('overScore').textContent = fmt(G.score);
@@ -168,6 +238,8 @@ function onWin() {
   sfx('win'); keepAwake(false);
   const stars = G.hp >= 4 ? 3 : G.hp >= 2 ? 2 : 1;
   const rec = addRecord(G.mode, G.level, G.score, true, stars), b = rec.best;
+  submitScore(G.mode, G.level, G.score, true, stars);
+  showNewAch('winAch', checkAchievements({ mode: G.mode, level: G.level, score: G.score, won: true, hp: G.hp, stars }));
   $('winNew').hidden = !rec.isBest;
   $('winText').textContent = {
     granny: 'Бабка на самокате улетела восвояси. Небо над городом снова спокойное!',
@@ -208,7 +280,7 @@ $('btnRecReset').addEventListener('click', () => {
   if (!recResetArmed) { recResetArmed = true; renderRecords(); return; }
   store.set(RKEY, {}); store.set('best.duck', 0); store.set('best.fish', 0); recResetArmed = false; renderRecords();
 });
-for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => { recTab = t.dataset.tab; recResetArmed = false; renderRecords(); });
+for (const t of document.querySelectorAll('.rec-tabs .tab')) t.addEventListener('click', () => { recTab = t.dataset.tab; recResetArmed = false; renderRecords(); });
 $('btnSound2').addEventListener('click', toggleMute);
 $('btnResume').addEventListener('click', resumeGame);
 $('btnRestart').addEventListener('click', () => { const m = G ? G.mode : 'duck', l = G ? G.level : 1; Sound.resume(); startGame(m, false, l); });
