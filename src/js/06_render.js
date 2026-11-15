@@ -144,7 +144,7 @@ function speechAt(c, text, ax, ay, tLeft, total, side, who, face) {
   let w = 0; for (const l of lines) w = Math.max(w, c.measureText(l).width);
   const fw = face ? 78 : 0;
   w += 34 + fw; const h = Math.max(face ? 90 : 0, lines.length * 24 + (who ? 30 : 20));
-  const bx = clamp(side < 0 ? ax - w - 26 : ax + 26, 10, SW - w - 10), by = clamp(ay - h - 20, 96, SH - h - 10);
+  const bx = clamp(side < 0 ? ax - w - 26 : ax + 26, 10, SW - w - 10), by = clamp(ay - h - 20, 122, SH - h - 10);
   const k = clamp(Math.min((total - tLeft) * 7, tLeft * 4), 0, 1);
   const t1 = clamp(side < 0 ? bx + w - 30 : bx + 30, bx + 20, bx + w - 20), t2 = t1 + (side < 0 ? -28 : 28);
   c.save(); c.globalAlpha = k;

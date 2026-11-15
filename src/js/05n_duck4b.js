@@ -49,7 +49,7 @@ function thesisReflect(R) {
 }
 
 /* ---------- coffee overdose (fever): a full coffee gauge makes the duck huge, fiery and unstoppable */
-const FEVER_T = 6.5;
+const FEVER_T = 5;
 function startFever() {
   const R = G.run; if (R.fever > 0) return;
   R.fever = FEVER_T; R.meter = 100; R.boost = 0; R.boostDrain = false;
@@ -217,7 +217,7 @@ function frame4b(dt, t, F) {
   const fv = R.fever > 0 ? 1 : 0;
   R3.feverK = lerp(R3.feverK || 0, fv, Math.min(1, dt * 4));
   const fk = R3.feverK;
-  D.root.scale.setScalar(1 + fk * 1.2);
+  D.root.scale.setScalar(1 + fk * 0.4);   // bigger and fiery, but the road stays visible
   const pulse = 0.75 + Math.sin(t * 14) * 0.25;
   if (DUCK3.parts) DUCK3.parts.mat.emissive.setRGB(fk * 0.75 * pulse, fk * 0.28 * pulse, 0);
   if (R3E.duckInk) R3E.duckInk.color.setRGB(0.13 + fk * 0.87, 0.11 + fk * 0.14 * pulse, 0.15 * (1 - fk));

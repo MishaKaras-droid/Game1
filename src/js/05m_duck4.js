@@ -34,7 +34,7 @@ function buildTrack4() {
       case 'dash': add({ type: 'dash', d, x: laneX(L) }); cups(d + 4, L, 8, 3.5, 0.5); for (let k = 0; k < 3; k++) if (k !== L) add({ type: 'cone', d: d + 14, x: laneX(k) }); break;
       case 'spring': add({ type: 'spring', d, x: laneX(L) }); cups(d + 5, L, 8, 3.2, 1.5, 4.2); add({ type: 'car', d: d + 14, x: laneX(L) }); break;
       case 'clock': add({ type: 'clock', d: d + 6, x: laneX(L), v: -4, ph: Rn() * 3 }); add({ type: 'clock', d: d + 14, x: laneX(L2), v: -4, ph: Rn() * 3 }); cups(d - 6, L3, 6, 3, 0.5); break;
-      case 'books': add({ type: 'books', d, x: laneX(L) }); add({ type: 'books', d: d + 8, x: laneX(L2) }); cups(d - 8, L, 6, 2.6, 0.5, 2.4); break;
+      case 'books': add({ type: 'books', d, x: laneX(L) }); add({ type: 'books', d, x: laneX(L2) }); add({ type: 'car', d, x: laneX(L3) }); cups(d + 4, L, 6, 2.6, 0.5); break;
       case 'study': add({ type: 'books', d, x: laneX(L) }); add({ type: 'clock', d: d + 10, x: laneX(L2), v: -3.5, ph: 1 }); add({ type: 'bar', d: d + 4, x: laneX(L3) }); cups(d - 6, L3, 4, 2.5, 0.35); break;
       case 'mix': add({ type: 'floppa', d, x: laneX(L) }); add({ type: 'capy', d: d + 12, x: laneX(L2), v: -3 }); add({ type: 'bonk', d: d + 6, x: laneX(L3), ph: 1 }); break;
     }
@@ -50,7 +50,8 @@ function collide4(o, R) {
     case 'bonk': return Math.abs(air - o.h) > 1.0;
     case 'car': return air > 1.0;
     case 'clock': if (air > 0.55) { runDestroy(o); R.vy = Math.max(R.vy, 11); return true; } return false;
-    case 'books': case 'stack': return air > 0.7;
+    case 'books': return air > 2.4;   // a tall wall of textbooks: cut it with the knife
+    case 'stack': return air > 0.7;
     case 'two': case 'edit': return rolling || air > 2.3;
     case 'clip': return Math.abs(air - o.h) > 0.9;
     case 'sheet': return air > 0.3;
@@ -83,7 +84,7 @@ const THESIS_LINES = {
   dead: 'Ладно… допускаю к защите…',
 };
 function thesisAttack(B) {
-  const R = G.run, kind = ['two', 'clip', 'edit', 'sheet', 'two', 'edit', 'laser'][(B.vol + B.round * 2) % 7];
+  const R = G.run, kind = ['edit', 'two', 'edit', 'clip', 'edit', 'sheet', 'laser'][(B.vol + B.round * 2) % 7];
   const lanes = [0, 1, 2].sort(() => Math.random() - 0.5), n = B.hp <= 2 ? 2 : (Math.random() < 0.5 ? 1 : 2);
   B.mouth = 1;
   const d = R.s + B.z;
@@ -162,7 +163,7 @@ function sprCite(c) {
 }
 const SPR4 = { capy: sprCapy, floppa: sprFloppa, bonk: sprBonk, cite: sprCite };
 // sprite height in metres for the whole 240 px canvas, and the anchor (0.04 = stands on the road, 0.5 = flies)
-const SPR4CFG = { capy: [2.0, 0.04], floppa: [2.4, 0.04], bonk: [2.0, 0.04], cite: [1.3, 0.04], clock: [2.3, 0.04], books: [2.5, 0.04], two: [2.6, 0.5], clip: [2.4, 0.04], edit: [2.8, 0.5] };
+const SPR4CFG = { capy: [2.0, 0.04], floppa: [2.4, 0.04], bonk: [2.0, 0.04], cite: [1.3, 0.04], clock: [2.3, 0.04], books: [4.4, 0.04], two: [2.6, 0.5], clip: [2.4, 0.04], edit: [2.8, 0.5] };
 function drawRun2D4(c, o, base, k, t) {
   const f = SPR4[o.type]; if (!f) return;
   const q = runProj(o.x, o.h || 0, o.d - G.run.s + RUN.PZ);
@@ -605,6 +606,7 @@ const RUN_CFG4 = {
   targets: ['pigeon', 'crow', 'capy', 'floppa', 'bonk', 'clock'], collide: collide4, tick: tick4,
   floatTypes: ['bonk', 'cite', 'pen', 'two', 'edit', 'clip', 'clock'], moveTypes: ['bonk', 'cite', 'capy', 'pen', 'laser', 'sheet', 'two', 'edit', 'clip', 'clock', 'stack'],
   bounce: ['bonk', 'cite', 'clip', 'clock'], bounceH: { clock: 0.45, clip: 1.4 }, draw2D: drawRun2D4,
-  ctxHints: { cone: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], barrier: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], bar: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'], capy: ['knife', 'НОЖ', isTouch ? 'Кнопка «Нож» — руби врагов' : 'F или клик мышью — руби врагов'], floppa: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — бросок на врага' : 'В прыжке нажми прыжок ещё раз — бросок на врага'] },
+  ctxHints: { cone: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], barrier: ['jump', 'ПРЫЖОК', isTouch ? 'Кнопка «Прыжок» справа внизу' : 'Стрелка вверх или Пробел'], bar: ['roll', 'ПОДКАТ', isTouch ? 'Свайп вниз — проскочи под планкой' : 'Стрелка вниз — проскочи под планкой'], books: ['knife', 'НОЖ: РУБИ УЧЕБНИКИ', isTouch ? 'Кнопка «Нож» — руби врагов' : 'F или клик мышью — руби врагов'], floppa: ['homing', 'АТАКА В ПРЫЖКЕ', isTouch ? 'В прыжке нажми «Прыжок» ещё раз — бросок на врага' : 'В прыжке нажми прыжок ещё раз — бросок на врага'] },
+  bossTip: (B) => B.state === 'open' ? 'ВСТАНЬ НА ДОРОЖКУ ПЕЧАТИ · ПРЫЖОК · ЕЩЁ ПРЫЖОК' : 'РУБИ РОЗОВЫЕ ПРАВКИ ' + (isTouch ? 'НОЖОМ' : 'НОЖОМ (F)') + ' — ОНИ ЛЕТЯТ В БОССА',
   jump: 15.5, grav: 46, bossHp: 6, openPhase: (B) => thesisOpen(B), updOpen: (B, dt) => thesisUpdOpen(B, dt), overlay: (c, t) => overlay4(c, t),
 };
